@@ -14,5 +14,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 anyhow = "1.0"
 confy = "0.5"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["json", "stream", "multipart"] }
+futures = { version = "0.3", features = ["compat"] }
+tokio = { version = "1.28", features = ["time", "sync", "macros", "test-util", "rt-multi-thread"] }
 tracing = "0.1"
+http = "0.2"
+bytes = "1.0"
+cid = "0.10"

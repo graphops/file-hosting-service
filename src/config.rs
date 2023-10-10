@@ -1,8 +1,7 @@
 use std::{default, str::FromStr};
 
-use clap::{command, Args, Parser, ValueEnum, Subcommand};
-use serde::{Serialize, Deserialize};
-
+use clap::{command, Args, Parser, Subcommand, ValueEnum};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Parser, Serialize, Deserialize)]
 #[clap(
@@ -14,6 +13,14 @@ use serde::{Serialize, Deserialize};
 pub struct Cli {
     #[clap(subcommand)]
     pub role: Role,
+    #[clap(
+        long,
+        value_name = "IPFS_GATEWAY_URL",
+        default_value = "https://ipfs.network.thegraph.com",
+        env = "IPFS_GATEWAY_URL",
+        help = "IPFS gateway to interact with"
+    )]
+    pub ipfs_gateway: Option<String>,
 }
 
 #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
@@ -130,4 +137,3 @@ pub struct Seeder {
 //         }
 //     }
 // }
-

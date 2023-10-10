@@ -1,5 +1,4 @@
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Subfile {
@@ -14,4 +13,3 @@ pub struct BlockRange {
     start_block: Option<u64>,
     end_block: Option<u64>,
 }
-
