@@ -1,23 +1,10 @@
 use clap::{Command, Subcommand, Arg, Parser};
 use config::{Cli, Role};
+use types::Subfile;
 use std::fs;
 
 mod config;
 mod types;
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct Subfile {
-    magnet_link: String,
-    file_type: String,
-    identifier: String,
-    block_range: BlockRange,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct BlockRange {
-    start_block: Option<u64>,
-    end_block: Option<u64>,
-}
 
 fn main() {
     let cli: Cli = Cli::parse();

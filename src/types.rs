@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Subfile {
+pub struct Subfile {
     magnet_link: String,
     file_type: String,
     identifier: String,
@@ -10,7 +10,7 @@ struct Subfile {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct BlockRange {
+pub struct BlockRange {
     start_block: Option<u64>,
     end_block: Option<u64>,
 }

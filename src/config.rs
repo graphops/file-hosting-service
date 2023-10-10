@@ -10,15 +10,6 @@ use serde::{Serialize, Deserialize};
     about = "A CLI for subfile exchanges",
     author = "hopeyen"
 )]
-// #[command(author, version, about, long_about = None, arg_required_else_help = true)]
-// pub struct Cli {
-//     #[command(flatten)]
-//     pub leecher: Leecher,
-//     #[command(flatten)]
-//     pub seeder: Seeder,
-//     #[command(flatten)]
-//     pub tracker: Tracker,
-// }
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
 pub struct Cli {
     #[clap(subcommand)]
@@ -76,21 +67,7 @@ pub struct Seeder {
     )]
     pub file_config: Vec<String>,
     //TODO: open this up to be an API so the program can run continuously
-    //TODO: make this into a nested subcommand 
-    // Right now, when the program starts, take in the config file, 
-    // generate magnet link, create a subfile.yaml, upload to ipfs, 
-//     #[clap(
-//         long,
-//         value_name = "NEW_SEED_CONFIG",
-//         env = "NEW_SEED_CONFIG",
-//         help = "When this "
-//     )]
-//     pub seed_creation_arg: Option<SeedCreationArg>,
-// }
-
-// #[derive(Clone, Debug, Args, Serialize, Deserialize)]
-// #[group(required = false, multiple = true)]
-// pub struct SeedCreationArg {
+    //TODO: make this into a nested subcommand with SeedCreationArg struct
     #[clap(
         long,
         value_name = "FILE_PATH",
