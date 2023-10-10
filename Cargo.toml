@@ -1,0 +1,18 @@
+[package]
+name = "subfile-exchange"
+version = "0.1.0"
+edition = "2021"
+authors = ["hopeyen <hope@graphops.xyz>"]
+rust-version = "1.72"
+description = "Subfile data service - hackathon"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]
+clap = { version = "4.4", features = ["cargo", "unstable-doc"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+anyhow = "1.0"
+confy = "0.5"
+reqwest = "0.11"
+tracing = "0.1"
