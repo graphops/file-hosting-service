@@ -106,10 +106,10 @@ pub struct AddResponse {
     pub size: String,
 }
 
-pub fn create_ipfs_client(uri: String) -> IpfsClient {
+pub fn create_ipfs_client(uri: &str) -> IpfsClient {
     // Parse the IPFS URL from the `--ipfs` command line argument
     let ipfs_address = if uri.starts_with("http://") || uri.starts_with("https://") {
-        uri
+        uri.to_string()
     } else {
         format!("http://{}", uri)
     };
@@ -127,5 +127,32 @@ pub fn create_ipfs_client(uri: String) -> IpfsClient {
             );
             panic!("Could not connect to IPFS");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio_retry::strategy::{jitter, ExponentialBackoff};
+    use tokio_retry::Retry;
+    use super::*;
+
+    // fn test_client() -> IpfsClient {
+    //     IpfsClient::new("https://ipfs.network.thegraph.com")
+    // }
+
+    #[tokio::test]
+    async fn fetch_random_subgraph_yaml() {
+        let ipfs_hash = "Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX";
+        // https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
+        let client = create_ipfs_client("https://ipfs.network.thegraph.com");
+
+
+        let retry_strategy = ExponentialBackoff::from_millis(10)
+            .map(jitter) // add jitter to delays
+            .take(5); // limit to 5 retries
+        let timeout = Duration::from_secs(30);
+
+        let file_bytes = Retry::spawn(retry_strategy, || client.cat_all(ipfs_hash, timeout)).await.unwrap();
+        assert_ne!(file_bytes.len(), 0);
     }
 }

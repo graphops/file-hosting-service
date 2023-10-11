@@ -49,3 +49,22 @@ pub async fn leech(client: &IpfsClient, ipfs_hash: &str) -> Result<Subfile, anyh
 
     Ok(subfile)
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     fn test_client() -> IpfsClient {
+        
+//     }
+
+//     #[test]
+//     fn fetch_random_subgraph_yaml() {// https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
+//         let mut config = test_config();
+
+//         assert_eq!(&config.protocol_network().unwrap(), "goerli");
+
+//         config.graph_stack.protocol_network = Some("arbitrum-one".to_string());
+//         assert_eq!(&config.protocol_network().unwrap(), "arbitrum-one");
+//     }
+// }

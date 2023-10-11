@@ -29,7 +29,9 @@ pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, a
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone(),
         config.file_type.clone(),
+        config.file_version.clone(),
         config.identifier.clone(),
+        config.trackers.clone(),
         config.start_block,
         config.end_block,
     );
@@ -40,14 +42,13 @@ pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, a
     let mut file = File::create(&config.yaml_store)?;
     file.write_all(yaml_str.as_bytes())?;
 
-    // Add the `subgraph.yaml` to IPFS.
+    // Add `subfile.yaml` to IPFS.
     let added: AddResponse = client.add(yaml_str.as_bytes().to_vec()).await?;
     tracing::info!(
         added = tracing::field::debug(&added),
         client = tracing::field::debug(&client),
         "Added yaml file to IPFS"
     );
-    println!("Added subgraph.yaml to IPFS with hash: {}", added.hash);
 
     Ok(added)
 }

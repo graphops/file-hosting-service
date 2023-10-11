@@ -113,6 +113,7 @@ pub struct Seeder {
         help = "Path to the file for seeding"
     )]
     pub file_path: String,
+    
     #[clap(
         long,
         value_name = "FILE_TYPE",
@@ -123,6 +124,16 @@ pub struct Seeder {
         help = "Type of the file (e.g., sql_snapshot, flatfiles)"
     )]
     pub file_type: String,
+    
+    #[clap(
+        long,
+        value_name = "FILE_VERSION",
+        env = "FILE_VERSION",
+        //TODO: use enum
+        // value_parser = clap::value_parser!(FileType::from_str),
+        help = "Subfile Versioning"
+    )]
+    pub file_version: String,
 
     #[clap(
         long,
@@ -147,6 +158,14 @@ pub struct Seeder {
         help = "End block for sql snapshot or flatfiles"
     )]
     pub end_block: Option<u64>,
+
+    #[clap(
+        long,
+        value_name = "TRACKER_URL",
+        env = "TRACKER_URL",
+        help = "Annouce torrent file to at the tracker URL."
+    )]
+    pub trackers: Vec<String>,
 }
 
 // #[derive(ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]

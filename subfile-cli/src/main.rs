@@ -13,6 +13,7 @@ mod ipfs;
 mod leecher;
 mod seeder;
 mod types;
+mod torrent;
 
 #[tokio::main]
 async fn main() {
