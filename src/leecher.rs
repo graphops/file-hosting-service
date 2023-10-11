@@ -35,6 +35,8 @@ fn convert_to_subfile(value: serde_yaml::Value) -> Result<Subfile, anyhow::Error
         "Parse yaml value into a subfile"
     );
     let subfile: Subfile = serde_yaml::from_value(value)?;
+
+    //TODO: verify that the magnet link will truly result in the target subfile
     Ok(subfile)
 }
 

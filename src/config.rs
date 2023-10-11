@@ -83,7 +83,7 @@ pub struct Leecher {
     pub ipfs_hash: String,
 }
 
-#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
 pub struct Seeder {
     #[clap(
@@ -94,15 +94,6 @@ pub struct Seeder {
         // The continuously running program should take the vector of the ipfs, and support seeding indicated by the subfiles specifications
     )]
     pub file_config: Vec<String>,
-    //TODO: open this up to be an API so the program can run continuously
-    //TODO: make this into a nested subcommand with SeedCreationArg struct
-    #[clap(
-        long,
-        value_name = "FILE_PATH",
-        env = "FILE_PATH",
-        help = "Path to the file for seeding"
-    )]
-    pub file_path: String,
 
     #[clap(
         long,
@@ -113,6 +104,15 @@ pub struct Seeder {
     )]
     pub yaml_store: String,
 
+    //TODO: open this up to be an API so the program can run continuously
+    //TODO: make this into a nested subcommand with SeedCreationArg struct
+    #[clap(
+        long,
+        value_name = "FILE_PATH",
+        env = "FILE_PATH",
+        help = "Path to the file for seeding"
+    )]
+    pub file_path: String,
     #[clap(
         long,
         value_name = "FILE_TYPE",

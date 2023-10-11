@@ -10,7 +10,7 @@ use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 
 /// Reference type, clones will share the connection pool.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IpfsClient {
     base: Arc<Uri>,
     // reqwest::Client doesn't need to be `Arc` because it has one internally

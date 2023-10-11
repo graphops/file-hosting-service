@@ -1,22 +1,18 @@
-
 use config::{Cli, Role};
 use ipfs::IpfsClient;
 // use ipfs_api_prelude::*;
-use std::time::Duration;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
+
 // use ipfs_api_backend_hyper::{IpfsClient, IpfsApi};
 use dotenv::dotenv;
-use std::fs;
-use types::Subfile;
+
 use leecher::leech;
 use seeder::seed;
 
 mod config;
 mod ipfs;
-mod types;
 mod leecher;
 mod seeder;
+mod types;
 
 #[tokio::main]
 async fn main() {

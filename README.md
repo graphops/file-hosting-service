@@ -25,7 +25,7 @@ Optional
 
 Minimal
 - [ ] Take a file creation arg and generate a magnet link for the file living at `file_path`
-- [x] populate a subfile struct
+- [x] populate a subfile struct from args
 - [x] convert subfile to yaml, containing magnet link and other metadata info
 - [x] add subfile.yaml to ipfs using IPFS client
 - [ ] log out the newly generated ipfs hash of subfile.yaml

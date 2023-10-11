@@ -4,7 +4,7 @@ use std::io::Write;
 use crate::{
     config::Seeder,
     ipfs::{AddResponse, IpfsClient},
-    types::{BlockRange, Subfile},
+    types::{SeedCreationArg, Subfile},
 };
 
 // pub fn build_and_write(){
@@ -24,28 +24,29 @@ use crate::{
 //     }
 // }
 
-pub async fn seed(client: &IpfsClient, seeder_config: &Seeder) -> Result<AddResponse, anyhow::Error> {
+pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
-    let magnet_link = format!("magnet:?xt=urn:btih:{}", "some_hash_based_on_file");
-
-    // Fill in a Subfile struct
-    let subfile = Subfile {
-        magnet_link,
-        file_type: seeder_config.file_type.clone(),
-        identifier: seeder_config.identifier.clone(),
-        block_range: BlockRange {
-            start_block: seeder_config.start_block,
-            end_block: seeder_config.end_block,
-        },
-    };
+    let subfile_args = SeedCreationArg::build(
+        config.file_path.clone(),
+        config.file_type.clone(),
+        config.identifier.clone(),
+        config.start_block,
+        config.end_block,
+    );
+    let subfile: Subfile = subfile_args.into();
 
     // Convert the Subfile struct into a `subfile.yaml` file.
     let yaml_str = serde_yaml::to_string(&subfile)?;
-    let mut file = File::create(&seeder_config.yaml_store)?;
+    let mut file = File::create(&config.yaml_store)?;
     file.write_all(yaml_str.as_bytes())?;
 
     // Add the `subgraph.yaml` to IPFS.
     let added: AddResponse = client.add(yaml_str.as_bytes().to_vec()).await?;
+    tracing::info!(
+        added = tracing::field::debug(&added),
+        client = tracing::field::debug(&client),
+        "Added yaml file to IPFS"
+    );
     println!("Added subgraph.yaml to IPFS with hash: {}", added.hash);
 
     Ok(added)
