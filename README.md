@@ -1,11 +1,5 @@
 
 
-### Requirement
-
-Set up a IPFS gateway or use fallback at thegraph
-```
-sudo ipfs daemon
-```
 
 
 ### Essential structs
@@ -18,13 +12,28 @@ sudo ipfs daemon
 
 ### Leecher
 
-Essential
-- [ ] Use IPFS client to cat the file (in bytes),
-- [ ] Parse bytes into a subfile yaml file, fit into a subfile struct, 
-- [ ] Grab the magnet link from subfile.yaml and start torrent leeching
+Minimal
+- [x] Use IPFS client to cat the file (in bytes),
+- [x] Parse bytes into a subfile yaml file, fit into a subfile struct, 
+- [ ] Grab the magnet link from subfile.yaml
+- [ ] Start a torrent client and start leeching using the magnet link
 
 Optional
 - [ ] Validate IPFS against extra input to make sure it is the target file
+
+### Seeder
+
+Minimal
+- [ ] Take a file creation arg and generate a magnet link for the file living at `file_path`
+- [x] populate a subfile struct
+- [x] convert subfile to yaml, containing magnet link and other metadata info
+- [x] add subfile.yaml to ipfs using IPFS client
+- [ ] log out the newly generated ipfs hash of subfile.yaml
+- [ ] Start a torrent client
+- [ ] Start seeding configured subfiles including the ones just created
+
+Optional
+- [ ] Whitelist a particular torrent peer
 
 ### CLI Usage
 

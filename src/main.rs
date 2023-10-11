@@ -9,10 +9,14 @@ use tokio_retry::Retry;
 use dotenv::dotenv;
 use std::fs;
 use types::Subfile;
+use leecher::leech;
+use seeder::seed;
 
 mod config;
 mod ipfs;
 mod types;
+mod leecher;
+mod seeder;
 
 #[tokio::main]
 async fn main() {
@@ -49,9 +53,16 @@ async fn main() {
         }
         Role::Seeder(seeder) => {
             tracing::info!(seeder = tracing::field::debug(&seeder), "Seeder request");
-            // let client = IpfsClient::localhost();
+            let client = IpfsClient::localhost();
             // // Create IPFS file
-            // let link = client.add(file.into()).await.unwrap().hash;
+            match seed(&client, &seeder).await {
+                Ok(r) => {
+                    tracing::info!(result = tracing::field::debug(&r), "Completed seed");
+                }
+                Err(e) => {
+                    tracing::error!(error = tracing::field::debug(&e), "Failed to seed");
+                }
+            }
         }
         Role::Tracker(tracker) => {
             tracing::info!(tracker = tracing::field::debug(&tracker), "Tracker request");
@@ -59,79 +70,16 @@ async fn main() {
     }
 }
 
-// Fetch subfile yaml from IPFS
-// async fn fetch_subfile_from_ipfs(client: &IpfsClient, ipfs_hash: &str) -> Result<serde_yaml::Mapping, anyhow::Error> {
-async fn fetch_subfile_from_ipfs(
-    client: &IpfsClient,
-    ipfs_hash: &str,
-) -> Result<Subfile, anyhow::Error> {
-    // Fetch the content from IPFS
-    let timeout = Duration::from_secs(30);
+// fn server_config(file_config_path: &str) {
+//     // Read file configurations
+//     let file_config_content = fs::read_to_string(file_config_path).unwrap();
+//     let file_configs: Vec<Subfile> = serde_yaml::from_str(&file_config_content).unwrap();
 
-    // let file_bytes = client.cat_all(ipfs_hash, timeout).await?;
-    let retry_strategy = ExponentialBackoff::from_millis(10)
-        .map(jitter) // add jitter to delays
-        .take(5); // limit to 5 retries
+//     for _config in file_configs {
+//         // Generate magnet link, subfile.yaml, and upload to IPFS
+//         // ...
+//     }
 
-    let file_bytes = Retry::spawn(retry_strategy, || client.cat_all(ipfs_hash, timeout)).await?;
-
-    // let data = String::from_utf8(file_bytes.to_vec()).unwrap();
-
-    // let yaml = String::from_utf8(file_bytes)?;
-
-    // Parse the content into a Subfile structure
-    // let subfile: String = serde_yaml::from_slice(&content)?;
-    let content: serde_yaml::Value =
-        serde_yaml::from_str(&String::from_utf8(file_bytes.to_vec())?)?;
-
-    tracing::info!("Got yaml file content");
-
-    let subfile = convert_to_subfile(content)?;
-
-    Ok(subfile)
-}
-
-fn convert_to_subfile(value: serde_yaml::Value) -> Result<Subfile, anyhow::Error> {
-    tracing::trace!(
-        value = tracing::field::debug(&value),
-        "Parse yaml value into a subfile"
-    );
-    let subfile: Subfile = serde_yaml::from_value(value)?;
-    Ok(subfile)
-}
-
-async fn leech(client: &IpfsClient, ipfs_hash: &str) -> Result<Subfile, anyhow::Error> {
-    // Grab subfile.yaml from IPFS
-
-    // // let file_bytes = client.cat(ipfs_hash, Some(timeout)).await?;
-    // let retry_strategy = ExponentialBackoff::from_millis(10)
-    // .map(jitter) // add jitter to delays
-    // .take(5);    // limit to 5 retries
-
-    let subfile: Subfile = fetch_subfile_from_ipfs(client, ipfs_hash).await?;
-
-    // Request torrent tracker and download
-
-    // Verify the file
-
-    Ok(subfile)
-}
-
-fn server_config(file_config_path: &str) {
-    // Read file configurations
-    let file_config_content = fs::read_to_string(file_config_path).unwrap();
-    let file_configs: Vec<Subfile> = serde_yaml::from_str(&file_config_content).unwrap();
-
-    for _config in file_configs {
-        // Generate magnet link, subfile.yaml, and upload to IPFS
-        // ...
-    }
-
-    // Start seeding
-    // ...
-}
-
-fn get_from_ipfs(_ipfs_hash: &str) -> String {
-    // Placeholder function to simulate getting data from IPFS
-    String::from("...") // Replace with actual IPFS fetch logic
-}
+//     // Start seeding
+//     // ...
+// }

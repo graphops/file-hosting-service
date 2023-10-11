@@ -106,6 +106,15 @@ pub struct Seeder {
 
     #[clap(
         long,
+        value_name = "YAML_STORE_DIR",
+        env = "YAML_STORE_DIR",
+        default_value = "./example-file/subfile.yaml",
+        help = "Path to the directory to store the generated yaml file for subfile"
+    )]
+    pub yaml_store: String,
+
+    #[clap(
+        long,
         value_name = "FILE_TYPE",
         value_enum,
         env = "FILE_TYPE",
