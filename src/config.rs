@@ -1,7 +1,9 @@
-use std::{default, str::FromStr};
-
-use clap::{command, Args, Parser, Subcommand, ValueEnum};
+use clap::{command, Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use tracing::subscriber::SetGlobalDefaultError;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::FmtSubscriber;
 
 #[derive(Clone, Debug, Parser, Serialize, Deserialize)]
 #[clap(
@@ -20,7 +22,26 @@ pub struct Cli {
         env = "IPFS_GATEWAY_URL",
         help = "IPFS gateway to interact with"
     )]
-    pub ipfs_gateway: Option<String>,
+    pub ipfs_gateway: String,
+    #[clap(
+        long,
+        value_name = "LOG_FORMAT",
+        env = "LOG_FORMAT",
+        help = "Support logging formats: pretty, json, full, compact",
+        long_help = "pretty: verbose and human readable; json: not verbose and parsable; compact:  not verbose and not parsable; full: verbose and not parsible",
+        default_value = "pretty"
+    )]
+    pub log_format: LogFormat,
+}
+
+impl Cli {
+    /// Parse config arguments
+    pub fn args() -> Self {
+        let config = Cli::parse();
+        // Enables tracing under RUST_LOG variable
+        init_tracing(config.log_format.to_string()).expect("Could not set up global default subscriber for logger, check environmental variable `RUST_LOG` or the CLI input `log-level`");
+        config
+    }
 }
 
 #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
@@ -137,3 +158,43 @@ pub struct Seeder {
 //         }
 //     }
 // }
+
+/// Sets up tracing, allows log level to be set from the environment variables
+pub fn init_tracing(format: String) -> Result<(), SetGlobalDefaultError> {
+    let filter = EnvFilter::from_default_env();
+
+    let subscriber_builder: tracing_subscriber::fmt::SubscriberBuilder<
+        tracing_subscriber::fmt::format::DefaultFields,
+        tracing_subscriber::fmt::format::Format,
+        EnvFilter,
+    > = FmtSubscriber::builder().with_env_filter(filter);
+
+    match format.as_str() {
+        "json" => tracing::subscriber::set_global_default(subscriber_builder.json().finish()),
+        "full" => tracing::subscriber::set_global_default(subscriber_builder.finish()),
+        "compact" => tracing::subscriber::set_global_default(subscriber_builder.compact().finish()),
+        _ => tracing::subscriber::set_global_default(
+            subscriber_builder.with_ansi(true).pretty().finish(),
+        ),
+    }
+}
+
+#[derive(clap::ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]
+pub enum LogFormat {
+    Compact,
+    #[default]
+    Pretty,
+    Json,
+    Full,
+}
+
+impl fmt::Display for LogFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LogFormat::Compact => write!(f, "compact"),
+            LogFormat::Pretty => write!(f, "pretty"),
+            LogFormat::Json => write!(f, "json"),
+            LogFormat::Full => write!(f, "full"),
+        }
+    }
+}

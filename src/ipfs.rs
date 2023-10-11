@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use anyhow::Error;
 use bytes::Bytes;
 use futures::Stream;
@@ -6,7 +5,7 @@ use http::header::CONTENT_LENGTH;
 use http::Uri;
 use reqwest::multipart;
 use serde::Deserialize;
-use std::fmt::Display;
+
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 
@@ -110,14 +109,16 @@ pub struct AddResponse {
 pub fn create_ipfs_client(uri: String) -> IpfsClient {
     // Parse the IPFS URL from the `--ipfs` command line argument
     let ipfs_address = if uri.starts_with("http://") || uri.starts_with("https://") {
-        String::from(uri)
+        uri
     } else {
         format!("http://{}", uri)
     };
 
     tracing::info!(ipfs_address, "Connect to IPFS node");
 
-    let ipfs_client = match IpfsClient::new(&ipfs_address) {
+    //TODO: Test IPFS client
+
+    match IpfsClient::new(&ipfs_address) {
         Ok(ipfs_client) => ipfs_client,
         Err(e) => {
             tracing::error!(
@@ -126,8 +127,5 @@ pub fn create_ipfs_client(uri: String) -> IpfsClient {
             );
             panic!("Could not connect to IPFS");
         }
-    };
-    //TODO: Test IPFS client
-
-    ipfs_client
+    }
 }
