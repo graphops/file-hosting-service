@@ -1,9 +1,6 @@
 use config::{Cli, Role};
-use ipfs::IpfsClient;
-// use ipfs_api_prelude::*;
-
-// use ipfs_api_backend_hyper::{IpfsClient, IpfsApi};
 use dotenv::dotenv;
+use ipfs::IpfsClient;
 
 use leecher::leech;
 use seeder::seed;
@@ -12,8 +9,8 @@ mod config;
 mod ipfs;
 mod leecher;
 mod seeder;
-mod types;
 mod torrent;
+mod types;
 
 #[tokio::main]
 async fn main() {
@@ -39,9 +36,12 @@ async fn main() {
 
             // Grab the magnet link inside IPFS file and start torrent leeching
 
-            match leech(&client, &leecher.ipfs_hash).await {
+            match leech(&client, &leecher.ipfs_hash, &leecher.output_dir).await {
                 Ok(r) => {
-                    tracing::info!(result = tracing::field::debug(&r), "Completed leech");
+                    tracing::info!(
+                        result = tracing::field::debug(&r),
+                        "End of leeching"
+                    );
                 }
                 Err(e) => {
                     tracing::error!(error = tracing::field::debug(&e), "Failed to leech");
@@ -50,11 +50,18 @@ async fn main() {
         }
         Role::Seeder(seeder) => {
             tracing::info!(seeder = tracing::field::debug(&seeder), "Seeder request");
-            let client = IpfsClient::localhost();
-            // // Create IPFS file
+            let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
+                client
+            } else {
+                IpfsClient::localhost()
+            };
+            // Create IPFS file
             match seed(&client, &seeder).await {
                 Ok(r) => {
-                    tracing::info!(result = tracing::field::debug(&r), "Completed seed");
+                    tracing::info!(
+                        result = tracing::field::debug(&r),
+                        "Made and announced seed, need to continue seeding"
+                    );
                 }
                 Err(e) => {
                     tracing::error!(error = tracing::field::debug(&e), "Failed to seed");

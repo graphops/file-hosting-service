@@ -1,3 +1,16 @@
 [workspace]
-members = ["subfile-cli"]
-resolver = "2"
+members = [
+    "rqbit",
+    "subfile-cli", 
+    "imdl"
+]
+resolver = "1"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+# [workspace.dependencies]
+# tracing = "0.1.37"

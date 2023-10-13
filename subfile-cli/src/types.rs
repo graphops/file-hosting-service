@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Subfile {
     pub magnet_link: String,
@@ -9,24 +8,6 @@ pub struct Subfile {
     pub identifier: String,
     pub trackers: Vec<String>,
     pub block_range: BlockRange,
-}
-
-impl From<SeedCreationArg> for Subfile {
-    fn from(arg: SeedCreationArg) -> Self {
-        // create torrent
-        // let torrent_file = arg.create_torrent();
-
-        // generate magnet link
-        let magnet_link = arg.generate_magnet_link();
-        Self {
-            magnet_link,
-            file_type: arg.file_type,
-            version: arg.version,
-            identifier: arg.identifier,
-            trackers: arg.trackers,
-            block_range: arg.block_range,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,10 +49,18 @@ impl SeedCreationArg {
         }
     }
 
-    // pub fn generate_magnet_link(&self) -> String {
-    //     // Placeholder: Replace with actual logic to generate magnet link
-    //     format!("magnet:?xt=urn:btih:HASH&dn={}", self.file_path)
-    // }
+    pub fn subfile(&self) -> Result<Subfile, anyhow::Error> {
+        // Placeholder: Replace with actual logic to generate magnet link
+        let magnet_link = self.clone().generate_torrent_and_magnet_link()?.to_string();
+        Ok(Subfile {
+            magnet_link,
+            file_type: self.file_type.clone(),
+            version: self.version.clone(),
+            identifier: self.identifier.clone(),
+            trackers: self.trackers.clone(),
+            block_range: self.block_range.clone(),
+        })
+    }
 }
 
 // #[derive(ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]

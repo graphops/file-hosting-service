@@ -1,3 +1,4 @@
+use clap::arg;
 use clap::{command, Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -6,7 +7,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Clone, Debug, Parser, Serialize, Deserialize)]
-#[clap(
+#[command(
     name = "subfile-exchange",
     about = "A CLI for subfile exchanges",
     author = "hopeyen"
@@ -15,7 +16,7 @@ use tracing_subscriber::FmtSubscriber;
 pub struct Cli {
     #[clap(subcommand)]
     pub role: Role,
-    #[clap(
+    #[arg(
         long,
         value_name = "IPFS_GATEWAY_URL",
         default_value = "https://ipfs.network.thegraph.com",
@@ -23,7 +24,7 @@ pub struct Cli {
         help = "IPFS gateway to interact with"
     )]
     pub ipfs_gateway: String,
-    #[clap(
+    #[arg(
         long,
         value_name = "LOG_FORMAT",
         env = "LOG_FORMAT",
@@ -55,14 +56,14 @@ pub enum Role {
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct Tracker {
-    #[clap(
+    #[arg(
         long,
         value_name = "SERVER_HOST",
         env = "SERVER_HOST",
         help = "Tracker server host"
     )]
     pub server_host: String,
-    #[clap(
+    #[arg(
         long,
         value_name = "SERVER_PORT",
         env = "SERVER_PORT",
@@ -74,19 +75,27 @@ pub struct Tracker {
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct Leecher {
-    #[clap(
+    #[arg(
         long,
         value_name = "IPFS_HASH",
         env = "IPFS_HASH",
         help = "IPFS hash for the target subfile.yaml"
     )]
     pub ipfs_hash: String,
+    #[arg(
+        long,
+        value_name = "OUTPUT_DIR",
+        default_value = "./Downloads",
+        env = "OUTPUT_DIR",
+        help = "Output directory for target files"
+    )]
+    pub output_dir: String,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
 pub struct Seeder {
-    #[clap(
+    #[arg(
         long,
         value_name = "SUBFILE_SEEDS",
         env = "SUBFILE_SEEDS",
@@ -95,7 +104,7 @@ pub struct Seeder {
     )]
     pub file_config: Vec<String>,
 
-    #[clap(
+    #[arg(
         long,
         value_name = "YAML_STORE_DIR",
         env = "YAML_STORE_DIR",
@@ -106,15 +115,23 @@ pub struct Seeder {
 
     //TODO: open this up to be an API so the program can run continuously
     //TODO: make this into a nested subcommand with SeedCreationArg struct
-    #[clap(
+    #[arg(
         long,
         value_name = "FILE_PATH",
         env = "FILE_PATH",
         help = "Path to the file for seeding"
     )]
     pub file_path: String,
-    
-    #[clap(
+
+    #[arg(
+        long,
+        value_name = "TORRENT_NAME",
+        env = "TORRENT_NAME",
+        help = "Target torrent name"
+    )]
+    pub name: Option<String>,
+
+    #[arg(
         long,
         value_name = "FILE_TYPE",
         value_enum,
@@ -124,8 +141,8 @@ pub struct Seeder {
         help = "Type of the file (e.g., sql_snapshot, flatfiles)"
     )]
     pub file_type: String,
-    
-    #[clap(
+
+    #[arg(
         long,
         value_name = "FILE_VERSION",
         env = "FILE_VERSION",
@@ -135,7 +152,7 @@ pub struct Seeder {
     )]
     pub file_version: String,
 
-    #[clap(
+    #[arg(
         long,
         value_name = "IDENTIFIER",
         env = "IDENTIFIER",
@@ -143,7 +160,7 @@ pub struct Seeder {
     )]
     pub identifier: String,
 
-    #[clap(
+    #[arg(
         long,
         value_name = "START_BLOCK",
         env = "START_BLOCK",
@@ -151,7 +168,7 @@ pub struct Seeder {
     )]
     pub start_block: Option<u64>,
 
-    #[clap(
+    #[arg(
         long,
         value_name = "END_BLOCK",
         env = "END_BLOCK",
@@ -159,7 +176,7 @@ pub struct Seeder {
     )]
     pub end_block: Option<u64>,
 
-    #[clap(
+    #[arg(
         long,
         value_name = "TRACKER_URL",
         env = "TRACKER_URL",

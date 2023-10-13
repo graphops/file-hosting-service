@@ -35,7 +35,7 @@ pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, a
         config.start_block,
         config.end_block,
     );
-    let subfile: Subfile = subfile_args.into();
+    let subfile: Subfile = subfile_args.subfile()?;
 
     // Convert the Subfile struct into a `subfile.yaml` file.
     let yaml_str = serde_yaml::to_string(&subfile)?;

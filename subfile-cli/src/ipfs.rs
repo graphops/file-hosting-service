@@ -132,9 +132,9 @@ pub fn create_ipfs_client(uri: &str) -> IpfsClient {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use tokio_retry::strategy::{jitter, ExponentialBackoff};
     use tokio_retry::Retry;
-    use super::*;
 
     // fn test_client() -> IpfsClient {
     //     IpfsClient::new("https://ipfs.network.thegraph.com")
@@ -146,13 +146,14 @@ mod tests {
         // https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
         let client = create_ipfs_client("https://ipfs.network.thegraph.com");
 
-
         let retry_strategy = ExponentialBackoff::from_millis(10)
             .map(jitter) // add jitter to delays
             .take(5); // limit to 5 retries
         let timeout = Duration::from_secs(30);
 
-        let file_bytes = Retry::spawn(retry_strategy, || client.cat_all(ipfs_hash, timeout)).await.unwrap();
+        let file_bytes = Retry::spawn(retry_strategy, || client.cat_all(ipfs_hash, timeout))
+            .await
+            .unwrap();
         assert_ne!(file_bytes.len(), 0);
     }
 }
