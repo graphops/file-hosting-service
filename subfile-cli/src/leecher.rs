@@ -2,7 +2,7 @@ use crate::config::Leecher;
 use crate::ipfs::IpfsClient;
 use std::net::SocketAddr;
 use std::process::Command;
-use rqbit::util::librqbit::spawn_utils::BlockingSpawner;
+use torrent_leecher::util::librqbit::spawn_utils::BlockingSpawner;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::task::{self, JoinHandle};
@@ -124,12 +124,12 @@ async fn download_file(magnet_link: &str, out_dir: &str) -> std::io::Result<()> 
     Ok(())
 }
 
-fn leech_default(magnet_link: &str, out_dir: &str) -> rqbit::Opts {
-    let mut leecher = rqbit::DownloadOpts::default();
+fn leech_default(magnet_link: &str, out_dir: &str) -> torrent_leecher::Opts {
+    let mut leecher = torrent_leecher::DownloadOpts::default();
     leecher.torrent_path = vec![magnet_link.to_string()];
     // leecher.exit_on_finish = true; // set this to default
     leecher.output_folder = Some(out_dir.to_string());
-    rqbit::Opts {
+    torrent_leecher::Opts {
         log_level: None,
         force_tracker_interval: None,
         http_api_listen_addr: SocketAddr::from_str("127.0.0.1:3030").expect("Addr parsing"),
@@ -139,11 +139,11 @@ fn leech_default(magnet_link: &str, out_dir: &str) -> rqbit::Opts {
         peer_connect_timeout: None,
         peer_read_write_timeout: None,
         worker_threads: None,
-        subcommand: rqbit::SubCommand::Download(leecher),
+        subcommand: torrent_leecher::SubCommand::Download(leecher),
     }
 }
 
-async fn run_rqbit(opts: rqbit::Opts) -> Result<JoinHandle<Result<(), anyhow::Error>>, anyhow::Error>{
+async fn run_rqbit(opts: torrent_leecher::Opts) -> Result<JoinHandle<Result<(), anyhow::Error>>, anyhow::Error>{
     let (_, spawner) = match opts.single_thread_runtime {
         true => (
             tokio::runtime::Builder::new_current_thread(),
@@ -161,7 +161,7 @@ async fn run_rqbit(opts: rqbit::Opts) -> Result<JoinHandle<Result<(), anyhow::Er
         ),
     };
 
-    Ok(tokio::spawn(rqbit::async_main(opts, spawner)))
+    Ok(tokio::spawn(torrent_leecher::async_main(opts, spawner)))
 }
 
 // #[cfg(test)]

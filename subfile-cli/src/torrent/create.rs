@@ -3,7 +3,7 @@ use std::{fs, io::Write, path::PathBuf};
 use anyhow::anyhow;
 use reqwest::{ResponseBuilderExt, Url};
 
-use imdl::{
+use torrent_helper::{
     common::Lexiclean,
     consts,
     env::Env,

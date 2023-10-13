@@ -1328,48 +1328,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "imdl"
-version = "0.1.13"
-dependencies = [
- "ansi_term 0.12.1",
- "atty",
- "bendy",
- "chrono",
- "console 0.12.0",
- "criterion",
- "globset",
- "hex 0.4.3",
- "ignore",
- "imdl-indicatif",
- "lazy_static",
- "lexiclean",
- "libc",
- "log",
- "md5",
- "open",
- "pretty_assertions",
- "pretty_env_logger",
- "rand 0.7.3",
- "rayon",
- "regex",
- "serde",
- "serde-hex",
- "serde_bytes",
- "serde_json",
- "serde_with",
- "sha1 0.6.1",
- "snafu",
- "static_assertions",
- "structopt",
- "strum",
- "strum_macros",
- "tempfile",
- "temptree",
- "unicode-width",
- "url",
-]
-
-[[package]]
 name = "imdl-indicatif"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2308,44 +2266,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rqbit"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "axum",
- "bincode",
- "bitvec",
- "byteorder",
- "clap 4.4.6",
- "crypto-hash",
- "directories",
- "futures 0.3.28",
- "hex 0.4.3",
- "http",
- "indexmap 1.9.3",
- "itertools 0.11.0",
- "log",
- "openssl",
- "parking_lot",
- "parse_duration",
- "pretty_env_logger",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "sha1 0.10.6",
- "size_format",
- "tokio",
- "tokio-stream",
- "tracing",
- "url",
- "urlencoding",
- "uuid",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2744,15 +2664,15 @@ dependencies = [
  "dotenv",
  "futures 0.3.28",
  "http",
- "imdl",
  "ipfs-api-backend-hyper",
  "ipfs-api-prelude",
  "reqwest",
- "rqbit",
  "serde",
  "serde_yaml",
  "tokio",
  "tokio-retry",
+ "torrent_helper",
+ "torrent_leecher",
  "tracing",
  "tracing-subscriber",
 ]
@@ -3041,6 +2961,86 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "torrent_helper"
+version = "0.1.13"
+dependencies = [
+ "ansi_term 0.12.1",
+ "atty",
+ "bendy",
+ "chrono",
+ "console 0.12.0",
+ "criterion",
+ "globset",
+ "hex 0.4.3",
+ "ignore",
+ "imdl-indicatif",
+ "lazy_static",
+ "lexiclean",
+ "libc",
+ "log",
+ "md5",
+ "open",
+ "pretty_assertions",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "rayon",
+ "regex",
+ "serde",
+ "serde-hex",
+ "serde_bytes",
+ "serde_json",
+ "serde_with",
+ "sha1 0.6.1",
+ "snafu",
+ "static_assertions",
+ "structopt",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "temptree",
+ "unicode-width",
+ "url",
+]
+
+[[package]]
+name = "torrent_leecher"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bincode",
+ "bitvec",
+ "byteorder",
+ "clap 4.4.6",
+ "crypto-hash",
+ "directories",
+ "futures 0.3.28",
+ "hex 0.4.3",
+ "http",
+ "indexmap 1.9.3",
+ "itertools 0.11.0",
+ "log",
+ "openssl",
+ "parking_lot",
+ "parse_duration",
+ "pretty_env_logger",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sha1 0.10.6",
+ "size_format",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "url",
+ "urlencoding",
+ "uuid",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "rqbit",
+    "torrent_leecher",
     "subfile-cli", 
-    "imdl"
+    "torrent_helper"
 ]
 resolver = "1"
 

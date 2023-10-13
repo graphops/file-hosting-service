@@ -8,10 +8,10 @@
   - [ ] Nest a inner subfile manifest IPFS link
 - [x] ipfs client
 - [x] yaml parser and builder
-- [x] torrent generator - using imdl
-- [x] leecher - using rqbit
-- [ ] tracker
-- [ ] seeder
+- [x] torrent generation "torrent_helper" - taken from imdl
+- [ ] seeder - must have a continuously running process to support data availability, and must announce to tracker
+- [x] leecher "torrent_leecher" - taken from rqbit
+- [ ] tracker - track peer and file info. centralized way, can later move on to using DHT
 
 ### Leecher
 
@@ -28,17 +28,24 @@ Optional
 
 Minimal
 - [x] Take a file creation arg 
+- [ ] Not working: include working tracker info in torrent file ()
 - [x] generate a magnet link for the file living at `file_path`
 - [x] populate a subfile struct from args
 - [x] convert subfile to yaml, containing magnet link and other metadata info
 - [x] add subfile.yaml to ipfs using IPFS client
 - [x] log out the newly generated ipfs hash of subfile.yaml
+- [ ] Not working: Announce to corresponding tracker - should be 
 - [ ] Start a torrent peer
 - [ ] Start seeding configured subfiles including the ones just created
 
 Optional
 - [ ] Whitelist a particular torrent peer
 - [ ] Extensive torrent file creation configurations
+
+### Optional: tracker using `torrust-tracker`
+
+- [ ] Ensure tracker availability
+- [ ] Configurably private
 
 ### CLI Usage
 
