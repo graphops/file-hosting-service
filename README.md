@@ -1,6 +1,6 @@
 
 
-## Live checklist
+## Hackathon checklist
 
 ### Essential structs
 - [x] subfile struct
