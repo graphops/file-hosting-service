@@ -1,25 +1,65 @@
 
 
-## Hackathon checklist
+## PoC checklist
 
-### Essential structs
-- [x] subfile struct
-  - Need more robust schema, reference subgraph.yaml
-  - [ ] Nest a inner subfile manifest IPFS link
-- [x] ipfs client
-- [x] yaml parser and builder
-- [x] torrent generation "torrent_helper" - taken from imdl
-- [ ] seeder - must have a continuously running process to support data availability, and must announce to tracker
-- [x] leecher "torrent_leecher" - taken from rqbit
-- [ ] tracker - track peer and file info. centralized way, can later move on to using DHT
+### Essential Components
+- [ ] File hasher
+  - [ ] use sha2-256 as it is more commonly used, faster than sha3-256, both no known hacks (should be easy to switch)
+  - [ ] Chunk files to a certain size
+  - [ ] Hash each chunk
+  - [ ] Produce a merkle tree
+  - [ ] construcut an interface file, calling it a chunk_file (may also publish to IPFS)
+- [ ] Subfile builder / publisher - CLI
+  - [ ] Take a list of files, use File hasher to hash all files and get interfaces 
+  - [ ] Construct a subfile manifest with metainfo using YAML builder
+  - [ ] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
+  - [ ] Publish subfile to IPFS, receive a IPFS hash for the subfile
+- [ ] IPFS client
+  - [ ] Connect to an IPFS gateway
+  - [ ] Post files
+  - [ ] Cat files
+- [ ] YAML parser and builder
+  - [ ] Deserialize and serialize yaml files
+- [ ] Subfile server 
+  - [ ] Initialize service; for one subfile, take (ipfs_hash, local_path)
+    - [ ] Take a subfile IPFS hash and get the file using IPFS client
+    - [ ] Parse yaml file for all the chunk_file hashes using Yaml parser
+    - [ ] Loop through all chunk_file hashes
+      - [ ] Take a chunk_file IPFS hash and get the chunk_file schema using IPFS client
+      - [ ] Parse yaml file for all the chunk hashes using Yaml parser
+      - [ ] Take metainfo of chunk_file and search for access by the local_path
+      - [ ] Verify the local version satisfy the chunk hashes
+    - [ ] Once all chunk_files are verified, verify the subfile
+    - [ ] Once verified, add to file to the service availability endpoint / allocate on-chain
+  - [ ] Start with a default cost model, allow updates for pricing per byte
+  - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
+    - [ ] Check if ipfs_hash is available
+    - [ ] Check if range is valid against the subfile and the specific chunk_file
+    - [ ] Valid and store receipt
+    - [ ] Read in the requested chunk
+    - [ ] Construct response and respond (determine if streaming is necessary)
+  - [ ] Runs TAP agent for receipt management
+- [ ] Client 
+  - [ ] Request (ipfs_hash, budget) from the chain after reading the subfile manifest
+    - [ ] This may live somewhere else (Gateway?)
+      - [ ] Read subfile manifest and construct receipts using budget and chunk sizes
+      - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
+      - [ ] Construct and send requests (may be parallel) to indexer endpoints 
+  - [ ] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
+    - [ ] Upon receiving a response, verify the chunk data in the chunk_file
+      - [ ] if failed, blacklist the indexer
+    - [ ] Once all chunks for a file has been received, verify the file in subfile (should be vacuously true)
+  - [ ] Once all file has been received and verified, terminate and notify client
 
-### Leecher
+<!-- ### Client
 
 Minimal
-- [x] Use IPFS client to cat the file (in bytes),
-- [x] Parse bytes into a subfile yaml file, fit into a subfile struct, 
-- [x] Grab the magnet link from subfile.yaml
-- [x] Start a torrent client and start leeching using the magnet link
+- [ ] Use IPFS client to cat the subfile,
+- [ ] Parse bytes into a subfile yaml file, fit into a subfile struct, 
+- [ ] Grab the chunk_file hashes from subfile.yaml,
+- [ ] Use IPFS client to cat the chunk_file,
+- [ ] Parse bytes into a chunk_file, fit into a chunk_file struct, 
+- [ ] Ping endpoint
 
 Optional
 - [ ] Validate IPFS against extra input to make sure it is the target file
@@ -166,7 +206,7 @@ TRACE subfile_cli::leecher: Grabbed subfile, magnet_link: "magnet:?xt=urn:btih:c
 
 INFO subfile_cli: Completed leech, result: Subfile { magnet_link: "magnet:?xt=urn:btih:ca313bae65658e0107d6a30a48ca4b1666256636&dn=filename.sql&tr=https://tracker1.520.jp/", file_type: "sql_snapshot", version: "0.0.1", identifier: "Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX", trackers: ["https://tracker1.520.jp:443"], block_range: BlockRange { start_block: None, end_block: None } }
     at subfile-cli/src/main.rs:41
-```
+``` -->
 
 
 
@@ -194,56 +234,4 @@ Optional
 - [ ] schema: file: ./schema.graphql
 - [ ] mapping: (directory composition of files)
 
-
-Basic example
-```
-specVersion: 0.0.4
-description: Gravatar for Ethereum
-repository: https://github.com/graphprotocol/graph-tooling
-schema:
-  file: ./schema.graphql
-dataSources:
-  - kind: ethereum/contract
-    name: Gravity
-    network: mainnet
-    source:
-      address: '0x2E645469f354BB4F5c8a05B3b30A929361cf77eC'
-      abi: Gravity
-      startBlock: 6175244
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.6
-      language: wasm/assemblyscript
-      entities:
-        - Gravatar
-      abis:
-        - name: Gravity
-          file: ./abis/Gravity.json
-      eventHandlers:
-        - event: NewGravatar(uint256,address,string,string)
-          handler: handleNewGravatar
-        - event: UpdatedGravatar(uint256,address,string,string)
-          handler: handleUpdatedGravatar
-      callHandlers:
-        - function: createGravatar(string,string)
-          handler: handleCreateGravatar
-      blockHandlers:
-        - handler: handleBlock
-        - handler: handleBlockWithCall
-          filter:
-            kind: call
-      file: ./src/mapping.ts
-```
-
-Current subfile.yaml looks like 
-```
-magnet_link: magnet:?xt=urn:btih:3aa493d1792bd756481311ff11cc2dcd5dbda8ed&dn=filename&tr=https://tracker1.520.jp/announce
-file_type: sql_snapshot
-version: 0.0.1
-identifier: Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
-trackers:
-- https://tracker1.520.jp:443/announce
-block_range:
-  start_block: null
-  end_block: null
-```
+[subfile_manifest.md]
