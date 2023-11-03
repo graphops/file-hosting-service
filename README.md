@@ -100,11 +100,12 @@ Options:
 Example
 ```
 > cargo run -p subfile-cli seeder \
-  --file-path ./example-file/graph-node-simple.sql \
+  --file-name graph-node-simple.sql \
+  --file-path ./data-files/graph-node-simple.sql \
   --file-type sql_snapshot \
   --identifier Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX \
-  --file-version "0.0.1" \
-  --trackers udp://107.150.14.110:6969/announce
+  --file-version "0.0.1-a" \
+  --trackers udp://tracker.opentrackr.org:1337/announce,udp://opentracker.i2p.rocks:6969/announce
 
   INFO subfile_cli: Running cli, cli: Cli { role: Seeder(Seeder { file_config: [], yaml_store: "./example-file/subfile.yaml", file_path: "./example-file/graph-node-simple.sql", name: None, file_type: "sql_snapshot", file_version: "0.0.1", identifier: "Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX", start_block: None, end_block: None, trackers: ["https://tracker1.520.jp:443"] }), ipfs_gateway: "https://ipfs.network.thegraph.com", log_format: Pretty }
     at subfile-cli/src/main.rs:20

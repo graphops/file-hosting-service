@@ -3,7 +3,7 @@ use dotenv::dotenv;
 use ipfs::IpfsClient;
 
 use leecher::leech;
-use seeder::seed;
+use seeder::{seed, create_subfile};
 
 mod config;
 mod ipfs;
@@ -35,7 +35,6 @@ async fn main() {
             // Validate IPFS against extra input to make sure it is the target file
 
             // Grab the magnet link inside IPFS file and start torrent leeching
-
             match leech(&client, &leecher.ipfs_hash, &leecher.output_dir).await {
                 Ok(r) => {
                     tracing::info!(
@@ -56,6 +55,11 @@ async fn main() {
                 IpfsClient::localhost()
             };
             // Create IPFS file
+            if let Some(link) = seeder.file_link.clone() {
+                let file = create_subfile(&client, &seeder.clone()).await.expect("Failed to create subfile");
+                tracing::info!(file = tracing::field::debug(&file), "Subfile generated");
+            }
+
             match seed(&client, &seeder).await {
                 Ok(r) => {
                     tracing::info!(

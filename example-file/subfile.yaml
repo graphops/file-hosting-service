@@ -1,0 +1,10 @@
+magnet_link: magnet:?xt=urn:btih:ad2e67b51bb522d2f176b9a0a92f0909cb99e6f2&dn=graph-node-simple.sql&tr=udp://tracker.opentrackr.org:1337/announce,udp://opentracker.i2p.rocks:6969/announce
+file_name: graph-node-simple.sql
+file_type: sql_snapshot
+version: 0.0.1-a
+identifier: Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
+trackers:
+- udp://tracker.opentrackr.org:1337/announce,udp://opentracker.i2p.rocks:6969/announce
+block_range:
+  start_block: null
+  end_block: null

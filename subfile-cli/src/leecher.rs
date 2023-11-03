@@ -57,7 +57,7 @@ pub async fn leech(
 
     tracing::trace!(
         // subfile = tracing::field::debug(&subfile),
-        magnet_link = tracing::field::debug(&subfile.magnet_link),
+        magnet_link = tracing::field::debug(&subfile.file_link),
         "Grabbed subfile"
     );
 
@@ -65,7 +65,7 @@ pub async fn leech(
     //TODO: temporarily continuing with an available file
     //TODO: Request torrent tracker and download
 
-    let _ = download_file(&subfile.magnet_link, out_dir).await;
+    let _ = download_file(&subfile.file_link, out_dir).await;
 
     //TODO: Verify the file
 
@@ -77,32 +77,15 @@ async fn download_file(magnet_link: &str, out_dir: &str) -> std::io::Result<()> 
     // let download_link = magnet_link.to_string();
     //TODO: currently not able to seed the torrent file we are making, using a file with widely available peers
     //no uploading available atm
-    let temp_link = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent";
+    // let temp_link = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent";
     info!(
         subfile_torrent_link = magnet_link,
-        temporary_link = temp_link,
+        // temporary_link = temp_link,
         output_directory = out_dir,
         "Leeching started, this may take a while so just hold on"
     );
 
-    // leech_default(temp_link, out_dir);
-    // let output = task::spawn_blocking(|| {
-    //     run_rqbit(leech_default(temp_link, out_dir))
-    //     // Command::new("cargo")
-    //     //     .arg("run")
-    //     //     .arg("-p")
-    //     //     .arg("rqbit")
-    //     //     .arg("download")
-    //     //     .arg("-o") // download target directory
-    //     //     .arg(out_dir)
-    //     //     .arg("-e") // exit on download finish
-    //     //     .arg("true")
-    //     //     .arg(download_link)
-    //     //     .output()
-    // })
-    // .await?;
-
-    let leecher_handle = run_rqbit(leech_default(temp_link, out_dir)).await;
+    let leecher_handle = run_rqbit(leech_default(magnet_link, out_dir)).await;
     info!(leecher_handle = tracing::field::debug(&leecher_handle), "Spawn leech thread");
     match leecher_handle {
         Ok(handle) => {

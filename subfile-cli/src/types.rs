@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Subfile {
-    pub magnet_link: String,
+    pub file_link: String,
+    pub file_name: String,
     pub file_type: String,
     pub version: String,
     pub identifier: String,
@@ -18,7 +19,9 @@ pub struct BlockRange {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SeedCreationArg {
-    pub file_path: String,
+    pub file_name: String,
+    pub file_path: Option<String>,
+    pub file_link: Option<String>,
     pub file_type: String,
     pub version: String,
     pub identifier: String,
@@ -28,8 +31,10 @@ pub struct SeedCreationArg {
 
 impl SeedCreationArg {
     pub fn build(
-        file_path: String,
+        file_name: String,
         file_type: String,
+        file_path: Option<String>,
+        file_link: Option<String>,
         version: String,
         identifier: String,
         trackers: Vec<String>,
@@ -37,8 +42,10 @@ impl SeedCreationArg {
         end_block: Option<u64>,
     ) -> Self {
         Self {
-            file_path,
+            file_name,
             file_type,
+            file_path,
+            file_link,
             version,
             identifier,
             trackers,
@@ -51,9 +58,15 @@ impl SeedCreationArg {
 
     pub fn subfile(&self) -> Result<Subfile, anyhow::Error> {
         // Placeholder: Replace with actual logic to generate magnet link
-        let magnet_link = self.clone().generate_torrent_and_magnet_link()?.to_string();
+        let file_link = if let Some(link) = self.file_link.clone() {
+            link
+        } else {
+            self.clone().generate_torrent_and_magnet_link()?.to_string()
+        };
+                
         Ok(Subfile {
-            magnet_link,
+            file_link: file_link.to_string(),
+            file_name: self.file_name.clone(),
             file_type: self.file_type.clone(),
             version: self.version.clone(),
             identifier: self.identifier.clone(),

@@ -113,15 +113,32 @@ pub struct Seeder {
     )]
     pub yaml_store: String,
 
-    //TODO: open this up to be an API so the program can run continuously
-    //TODO: make this into a nested subcommand with SeedCreationArg struct
+    // //TODO: open this up to be an API so the program can run continuously
+    // //TODO: make this into a nested subcommand with SeedCreationArg struct
+    // // TODO: Should support seeding a directory
+    // #[arg(
+    //     long,
+    //     value_name = "FILE_NAME",
+    //     env = "FILE_NAME",
+    //     help = "The name of file to seed"
+    // )]
+    // pub file_name: String,
+
     #[arg(
         long,
         value_name = "FILE_PATH",
         env = "FILE_PATH",
         help = "Path to the file for seeding"
     )]
-    pub file_path: String,
+    pub file_path: Option<String>,
+    
+    #[arg(
+        long,
+        value_name = "MAGNET_LINK",
+        env = "MAGNET_LINK",
+        help = "Magnet link of the torrent file"
+    )]
+    pub file_link: Option<String>,
 
     #[arg(
         long,
