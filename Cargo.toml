@@ -1,8 +1,6 @@
 [workspace]
 members = [
-    "torrent_leecher",
     "subfile-cli", 
-    "torrent_helper"
 ]
 resolver = "1"
 

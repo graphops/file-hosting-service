@@ -49,7 +49,7 @@ impl Cli {
 #[group(required = false, multiple = true)]
 pub enum Role {
     Leecher(Leecher),
-    Seeder(Seeder),
+    Builder(Builder),
     Tracker(Tracker),
 }
 
@@ -94,7 +94,7 @@ pub struct Leecher {
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
-pub struct Seeder {
+pub struct Builder {
     #[arg(
         long,
         value_name = "SUBFILE_SEEDS",

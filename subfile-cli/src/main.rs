@@ -2,14 +2,11 @@ use config::{Cli, Role};
 use dotenv::dotenv;
 use ipfs::IpfsClient;
 
-use leecher::leech;
-use seeder::{seed, create_subfile};
+use builder::{seed, create_subfile};
 
 mod config;
 mod ipfs;
-mod leecher;
-mod seeder;
-mod torrent;
+mod builder;
 mod types;
 
 #[tokio::main]
@@ -35,40 +32,40 @@ async fn main() {
             // Validate IPFS against extra input to make sure it is the target file
 
             // Grab the magnet link inside IPFS file and start torrent leeching
-            match leech(&client, &leecher.ipfs_hash, &leecher.output_dir).await {
-                Ok(r) => {
-                    tracing::info!(
-                        result = tracing::field::debug(&r),
-                        "End of leeching"
-                    );
-                }
-                Err(e) => {
-                    tracing::error!(error = tracing::field::debug(&e), "Failed to leech");
-                }
-            }
+            // match leech(&client, &leecher.ipfs_hash, &leecher.output_dir).await {
+            //     Ok(r) => {
+            //         tracing::info!(
+            //             result = tracing::field::debug(&r),
+            //             "End of leeching"
+            //         );
+            //     }
+            //     Err(e) => {
+            //         tracing::error!(error = tracing::field::debug(&e), "Failed to leech");
+            //     }
+            // }
         }
-        Role::Seeder(seeder) => {
-            tracing::info!(seeder = tracing::field::debug(&seeder), "Seeder request");
+        Role::Builder(builder) => {
+            tracing::info!(builder = tracing::field::debug(&builder), "Builder request");
             let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
                 client
             } else {
                 IpfsClient::localhost()
             };
             // Create IPFS file
-            if let Some(link) = seeder.file_link.clone() {
-                let file = create_subfile(&client, &seeder.clone()).await.expect("Failed to create subfile");
+            if let Some(link) = builder.file_link.clone() {
+                let file = create_subfile(&client, &builder.clone()).await.expect("Failed to create subfile");
                 tracing::info!(file = tracing::field::debug(&file), "Subfile generated");
             }
 
-            match seed(&client, &seeder).await {
+            match seed(&client, &builder).await {
                 Ok(r) => {
                     tracing::info!(
                         result = tracing::field::debug(&r),
-                        "Made and announced seed, need to continue seeding"
+                        "Built, need to serve"
                     );
                 }
                 Err(e) => {
-                    tracing::error!(error = tracing::field::debug(&e), "Failed to seed");
+                    tracing::error!(error = tracing::field::debug(&e), "Failed to build");
                 }
             }
         }

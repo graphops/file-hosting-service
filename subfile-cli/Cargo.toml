@@ -9,8 +9,6 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [dependencies]
-torrent_helper = { path = "../torrent_helper" }
-torrent_leecher = { path = "../torrent_leecher" }
 clap = { version = "4.4", features = ["cargo", "unstable-doc"] }
 dotenv = "0.15"
 serde = { version = "1.0", features = ["derive"] }

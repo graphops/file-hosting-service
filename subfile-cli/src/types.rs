@@ -61,7 +61,7 @@ impl SeedCreationArg {
         let file_link = if let Some(link) = self.file_link.clone() {
             link
         } else {
-            self.clone().generate_torrent_and_magnet_link()?.to_string()
+            String::from("temp")
         };
                 
         Ok(Subfile {

@@ -2,12 +2,12 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::{
-    config::Seeder,
+    config::Builder,
     ipfs::{AddResponse, IpfsClient},
     types::{SeedCreationArg, Subfile},
 };
 
-pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, anyhow::Error> {
+pub async fn seed(client: &IpfsClient, config: &Builder) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
@@ -38,7 +38,7 @@ pub async fn seed(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, a
     Ok(added)
 }
 
-pub async fn create_subfile(client: &IpfsClient, config: &Seeder) -> Result<AddResponse, anyhow::Error> {
+pub async fn create_subfile(client: &IpfsClient, config: &Builder) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
