@@ -48,33 +48,33 @@ impl Cli {
 #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
 pub enum Role {
-    Leecher(Leecher),
-    Builder(Builder),
-    Tracker(Tracker),
+    Downloader(Downloader),
+    Publisher(Publisher),
+    Server(Server),
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
-pub struct Tracker {
+pub struct Server {
     #[arg(
         long,
         value_name = "SERVER_HOST",
         env = "SERVER_HOST",
-        help = "Tracker server host"
+        help = "Server server host"
     )]
     pub server_host: String,
     #[arg(
         long,
         value_name = "SERVER_PORT",
         env = "SERVER_PORT",
-        help = "Tracker server port"
+        help = "Server server port"
     )]
     pub server_port: usize,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
-pub struct Leecher {
+pub struct Downloader {
     #[arg(
         long,
         value_name = "IPFS_HASH",
@@ -94,7 +94,7 @@ pub struct Leecher {
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
-pub struct Builder {
+pub struct Publisher {
     #[arg(
         long,
         value_name = "SUBFILE_SEEDS",

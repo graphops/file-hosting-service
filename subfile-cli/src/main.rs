@@ -1,13 +1,12 @@
-use config::{Cli, Role};
+
 use dotenv::dotenv;
-use ipfs::IpfsClient;
 
-use builder::{seed, create_subfile};
+use subfile_cli::{publisher::{seed, create_subfile}, config::{Cli, Role}, ipfs::IpfsClient};
 
-mod config;
-mod ipfs;
-mod builder;
-mod types;
+// mod config;
+// mod ipfs;
+// mod publisher;
+// mod types;
 
 #[tokio::main]
 async fn main() {
@@ -17,8 +16,8 @@ async fn main() {
     tracing::info!(cli = tracing::field::debug(&cli), "Running cli");
 
     match cli.role {
-        Role::Leecher(leecher) => {
-            tracing::info!(leecher = tracing::field::debug(&leecher), "Leecher request");
+        Role::Downloader(leecher) => {
+            tracing::info!(leecher = tracing::field::debug(&leecher), "Downloader request");
             // Create IPFS client
             let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
                 client
@@ -44,18 +43,15 @@ async fn main() {
             //     }
             // }
         }
-        Role::Builder(builder) => {
-            tracing::info!(builder = tracing::field::debug(&builder), "Builder request");
+        Role::Publisher(builder) => {
+            tracing::info!(builder = tracing::field::debug(&builder), "Publisher request");
             let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
                 client
             } else {
                 IpfsClient::localhost()
             };
             // Create IPFS file
-            if let Some(link) = builder.file_link.clone() {
-                let file = create_subfile(&client, &builder.clone()).await.expect("Failed to create subfile");
-                tracing::info!(file = tracing::field::debug(&file), "Subfile generated");
-            }
+            let file = create_subfile(&client, &builder.clone()).await.expect("Failed to create subfile");
 
             match seed(&client, &builder).await {
                 Ok(r) => {
@@ -69,8 +65,8 @@ async fn main() {
                 }
             }
         }
-        Role::Tracker(tracker) => {
-            tracing::info!(tracker = tracing::field::debug(&tracker), "Tracker request");
+        Role::Server(server) => {
+            tracing::info!(server = tracing::field::debug(&server), "Tracker request");
         }
     }
 }

@@ -2,21 +2,21 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::{
-    config::Builder,
+    config::PublisherArgs,
     ipfs::{AddResponse, IpfsClient},
     types::{SeedCreationArg, Subfile},
 };
 
-pub async fn seed(client: &IpfsClient, config: &Builder) -> Result<AddResponse, anyhow::Error> {
+pub async fn seed(client: &IpfsClient, config: &PublisherArgs) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
         config.file_type.clone(),
         config.file_path.clone(),
-        config.file_link.clone(),
+        Some(String::from("link")),
         config.file_version.clone(),
         config.identifier.clone(),
-        config.trackers.clone(),
+        vec![String::from("trackers")],
         config.start_block,
         config.end_block,
     );
@@ -38,16 +38,16 @@ pub async fn seed(client: &IpfsClient, config: &Builder) -> Result<AddResponse, 
     Ok(added)
 }
 
-pub async fn create_subfile(client: &IpfsClient, config: &Builder) -> Result<AddResponse, anyhow::Error> {
+pub async fn create_subfile(client: &IpfsClient, config: &PublisherArgs) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
         config.file_type.clone(),
         config.file_path.clone(),
-        config.file_link.clone(),
+        Some(String::from("link")),
         config.file_version.clone(),
         config.identifier.clone(),
-        config.trackers.clone(),
+        vec![String::from("trackers")],
         config.start_block,
         config.end_block,
     );
