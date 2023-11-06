@@ -1,16 +1,21 @@
+# Subfile-service
 
+Enable file sharing as a service, aim for a decentralized, efficient, and verifiable market, with scalable, performant, and secure software.
 
 ## PoC checklist
 
 ### Essential Components
-- [ ] File hasher
-  - [ ] use sha2-256 as it is more commonly used, faster than sha3-256, both no known hacks (should be easy to switch)
-  - [ ] Chunk files to a certain size
-  - [ ] Hash each chunk
-  - [ ] Produce a merkle tree
-  - [ ] construcut an interface file, calling it a chunk_file (may also publish to IPFS)
+- [x] File hasher
+  - [x] use sha2-256 as it is more commonly used, faster than sha3-256, both no known hacks (should be easy to switch)
+  - [x] Takes a file path and read
+  - [x] Chunk file to a certain size - currently using a constant of 1MB
+  - [X] Hash each chunk
+  - [x] Produce a merkle tree
+  - [x] construct and write a chunk_file.yaml
+  - [x] Unit tests: same file same hash, different file different hash, big temp file same/modified
 - [ ] Subfile builder / publisher - CLI
-  - [ ] Take a list of files, use File hasher to hash all files and get interfaces 
+  - [ ] Take a file, use File hasher to hash all files and get a merkle root hash
+    - [ ] later, take a list of files, use File hasher to hash all files and get root hashes 
   - [ ] Construct a subfile manifest with metainfo using YAML builder
   - [ ] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
   - [ ] Publish subfile to IPFS, receive a IPFS hash for the subfile
@@ -23,33 +28,34 @@
 - [ ] Subfile server 
   - [ ] Initialize service; for one subfile, take (ipfs_hash, local_path)
     - [ ] Take a subfile IPFS hash and get the file using IPFS client
-    - [ ] Parse yaml file for all the chunk_file hashes using Yaml parser
-    - [ ] Loop through all chunk_file hashes
-      - [ ] Take a chunk_file IPFS hash and get the chunk_file schema using IPFS client
-      - [ ] Parse yaml file for all the chunk hashes using Yaml parser
+    - [ ] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
       - [ ] Take metainfo of chunk_file and search for access by the local_path
       - [ ] Verify the local version satisfy the chunk hashes
-    - [ ] Once all chunk_files are verified, verify the subfile
-    - [ ] Once verified, add to file to the service availability endpoint / allocate on-chain
-  - [ ] Start with a default cost model, allow updates for pricing per byte
+    - [ ] Once all verified, add to file to the service availability endpoint
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
     - [ ] Check if ipfs_hash is available
     - [ ] Check if range is valid against the subfile and the specific chunk_file
     - [ ] Valid and store receipt
     - [ ] Read in the requested chunk
     - [ ] Construct response and respond (determine if streaming is necessary)
+  - [ ] Start with free service and requiring a free query auth token
+    - [ ] then add default cost model, allow updates for pricing per byte
+    - [ ] with paid service, validate receipts pricing wrt cost model
   - [ ] Runs TAP agent for receipt management
-- [ ] Client 
+- [ ] Subfile Client 
   - [ ] Request (ipfs_hash, budget) from the chain after reading the subfile manifest
     - [ ] This may live somewhere else (Gateway?)
       - [ ] Read subfile manifest and construct receipts using budget and chunk sizes
       - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
       - [ ] Construct and send requests (may be parallel) to indexer endpoints 
   - [ ] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
+    - [ ] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained
     - [ ] Upon receiving a response, verify the chunk data in the chunk_file
       - [ ] if failed, blacklist the indexer
     - [ ] Once all chunks for a file has been received, verify the file in subfile (should be vacuously true)
   - [ ] Once all file has been received and verified, terminate and notify client
+
+
 
 <!-- ### Client
 
