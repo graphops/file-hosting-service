@@ -1,4 +1,4 @@
-use clap::arg;
+use clap::{arg, ValueEnum};
 use clap::{command, Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -49,7 +49,7 @@ impl Cli {
 #[group(required = false, multiple = true)]
 pub enum Role {
     Downloader(Downloader),
-    Publisher(Publisher),
+    Publisher(PublisherArgs),
     Server(Server),
 }
 
@@ -92,18 +92,12 @@ pub struct Downloader {
     pub output_dir: String,
 }
 
+/// Publisher should take the files, generate subfiles, and publish to IPFS
+/// Start with supporting a single file
+//TODO: a single command to publish a range of files
 #[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
-pub struct Publisher {
-    #[arg(
-        long,
-        value_name = "SUBFILE_SEEDS",
-        env = "SUBFILE_SEEDS",
-        help = "A vector of ipfs hashes to the subfiles to support seeding for"
-        // The continuously running program should take the vector of the ipfs, and support seeding indicated by the subfiles specifications
-    )]
-    pub file_config: Vec<String>,
-
+pub struct PublisherArgs {
     #[arg(
         long,
         value_name = "YAML_STORE_DIR",
@@ -113,38 +107,19 @@ pub struct Publisher {
     )]
     pub yaml_store: String,
 
-    // //TODO: open this up to be an API so the program can run continuously
-    // //TODO: make this into a nested subcommand with SeedCreationArg struct
-    // // TODO: Should support seeding a directory
-    // #[arg(
-    //     long,
-    //     value_name = "FILE_NAME",
-    //     env = "FILE_NAME",
-    //     help = "The name of file to seed"
-    // )]
-    // pub file_name: String,
-
     #[arg(
         long,
         value_name = "FILE_PATH",
         env = "FILE_PATH",
-        help = "Path to the file for seeding"
+        help = "Path to the file for publishing (perhaps change to a regex or a vec later)"
     )]
     pub file_path: Option<String>,
-    
-    #[arg(
-        long,
-        value_name = "MAGNET_LINK",
-        env = "MAGNET_LINK",
-        help = "Magnet link of the torrent file"
-    )]
-    pub file_link: Option<String>,
 
     #[arg(
         long,
-        value_name = "TORRENT_NAME",
-        env = "TORRENT_NAME",
-        help = "Target torrent name"
+        value_name = "SUBFILE_NAME",
+        env = "SUBFILE_NAME",
+        help = "Name for the subfile (later this can be interactive)"
     )]
     pub name: Option<String>,
 
@@ -165,7 +140,7 @@ pub struct Publisher {
         env = "FILE_VERSION",
         //TODO: use enum
         // value_parser = clap::value_parser!(FileType::from_str),
-        help = "Subfile Versioning"
+        help = "Subfile specification versioning"
     )]
     pub file_version: String,
 
@@ -173,7 +148,7 @@ pub struct Publisher {
         long,
         value_name = "IDENTIFIER",
         env = "IDENTIFIER",
-        help = "Identifier of the file given its type"
+        help = "Identifier of the file given its type (chain-id for firehose flatfiles, subgraph deployment hash for subgraph snapshots)"
     )]
     pub identifier: String,
 
@@ -195,19 +170,20 @@ pub struct Publisher {
 
     #[arg(
         long,
-        value_name = "TRACKER_URL",
-        env = "TRACKER_URL",
-        help = "Annouce torrent file to at the tracker URL."
+        value_name = "PUBLISHER_URL",
+        env = "PUBLISHER_URL",
+        help = "Self promoting endpoint to record inside the subfile (TODO: can update to be a github repository link)"
     )]
-    pub trackers: Vec<String>,
+    pub publisher_url: String,
 }
 
-// #[derive(ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]
-// pub enum FileType {
-//     #[default]
-//     SqlSnapshot,
-//     Flatfiles,
-// }
+#[allow(unused)]
+#[derive(ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]
+pub enum FileType {
+    #[default]
+    SqlSnapshot,
+    Flatfiles,
+}
 
 // impl FromStr for FileType {
 //     type Err = &'static str;

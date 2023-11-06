@@ -1,8 +1,6 @@
-## Subfile manifest specification 
+## Subfile service specification 
 
-### subfile service initialization could include 
-- seeding_ipfses: Vec<String>, // A list of IPFS hashes the service supports upon initialization
-
+Subfile service initialization could include a list of IPFS hashes for subfiels the service supports upon initialization
 
 ### CLI command for the seeding request should include 
 
@@ -20,6 +18,30 @@ end_block: Option<u64>,      // Flatfiles require an end block, snapshots can ut
 trackers: Vec<String>, // A list of trackers to announce data availability to, we should provide a set of defaults
 subfile_store_path: String, // The path to store subfile.yaml once it has been generated
 
+
+Subfile Manfiest 
+```
+dataSources: // list of files
+  - kind: ethereum/flatfile // the kind of files shared
+    providerVersion: [version] // version used by indexing method; i.e. firehose versioning
+    provider: firehose
+    source: // chunk files
+      chunkFile: 
+        startBlock: ...
+        endBlock: ...
+        pieceLength: // number of bytes per piece
+        length: // Total bytes of the file 
+        rootHash: // markle root hash for the file
+        /: /ipfs/[Qm...] 
+    language: [...]
+    name: EthereumFirehose
+    network: ethereum
+description: "..."
+features:
+  - Tracing
+publisher_url: [persisted url of the publisher status]
+specVersion: [subfile version]
+```
 
 
 
@@ -53,6 +75,36 @@ dataSources:
       address: '0x7f734E995010Aa8d28b912703093d532C37b6EAb'
       startBlock: 1023264
   - kind: ...
+description: The Graph Network Smart Contracts on Ethereum
+features:
+  - ipfsOnEthereumContracts
+  - fullTextSearch
+repository: 'https://github.com/graphprotocol/graph-network-subgraph'
+schema:
+  file:
+    /: /ipfs/QmVWxUnF6vxf4xUfrg6ferLr2tU6iAsY7wJBmtzQpqu3rd
+specVersion: 0.0.5
+templates:
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/Qmdf7nHjUMcRMvGEdqwV7WxzBu3FZ9k47w7Bd5dJjbz38q
+          name: EpochManager
+      apiVersion: 0.0.7
+      entities:
+        - TokenLockWallet
+      eventHandlers:
+        - event: 'TokensReleased(indexed address,uint256)'
+          handler: handleTokensReleased
+      file:
+        /: /ipfs/QmUrL9HkFD2YbpZ6PzyQCtfVhCik23wsv27GKsoNvTbRHL
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: GraphTokenLockWallet
+    network: arbitrum-goerli
+    source:
+      abi: GraphTokenLockWallet
 ```
 
 

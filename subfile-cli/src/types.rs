@@ -63,7 +63,7 @@ impl SeedCreationArg {
         } else {
             String::from("temp")
         };
-                
+
         Ok(Subfile {
             file_link: file_link.to_string(),
             file_name: self.file_name.clone(),

@@ -1,7 +1,10 @@
-
 use dotenv::dotenv;
 
-use subfile_cli::{publisher::{seed, create_subfile}, config::{Cli, Role}, ipfs::IpfsClient};
+use subfile_cli::{
+    config::{Cli, Role},
+    ipfs::IpfsClient,
+    publisher::{create_subfile, seed},
+};
 
 // mod config;
 // mod ipfs;
@@ -17,9 +20,12 @@ async fn main() {
 
     match cli.role {
         Role::Downloader(leecher) => {
-            tracing::info!(leecher = tracing::field::debug(&leecher), "Downloader request");
+            tracing::info!(
+                leecher = tracing::field::debug(&leecher),
+                "Downloader request"
+            );
             // Create IPFS client
-            let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
+            let _client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
                 client
             } else {
                 IpfsClient::localhost()
@@ -44,21 +50,23 @@ async fn main() {
             // }
         }
         Role::Publisher(builder) => {
-            tracing::info!(builder = tracing::field::debug(&builder), "Publisher request");
+            tracing::info!(
+                builder = tracing::field::debug(&builder),
+                "Publisher request"
+            );
             let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
                 client
             } else {
                 IpfsClient::localhost()
             };
             // Create IPFS file
-            let file = create_subfile(&client, &builder.clone()).await.expect("Failed to create subfile");
+            let _file = create_subfile(&client, &builder.clone())
+                .await
+                .expect("Failed to create subfile");
 
             match seed(&client, &builder).await {
                 Ok(r) => {
-                    tracing::info!(
-                        result = tracing::field::debug(&r),
-                        "Built, need to serve"
-                    );
+                    tracing::info!(result = tracing::field::debug(&r), "Built, need to serve");
                 }
                 Err(e) => {
                     tracing::error!(error = tracing::field::debug(&e), "Failed to build");

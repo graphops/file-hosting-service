@@ -32,6 +32,11 @@ tokio-retry = "0.3"
 http = "0.2"
 bytes = "1.0"
 cid = "0.10"
+merkle-cbt = "0.3.2"
+sha2 = "0.10.8"
+tempfile = "3.2.0"
+rand = "0.8.4"
+hex = "0.4.3"
 
 
 # [[bin]]

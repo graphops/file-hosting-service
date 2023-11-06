@@ -7,7 +7,10 @@ use crate::{
     types::{SeedCreationArg, Subfile},
 };
 
-pub async fn seed(client: &IpfsClient, config: &PublisherArgs) -> Result<AddResponse, anyhow::Error> {
+pub async fn seed(
+    client: &IpfsClient,
+    config: &PublisherArgs,
+) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
@@ -38,7 +41,10 @@ pub async fn seed(client: &IpfsClient, config: &PublisherArgs) -> Result<AddResp
     Ok(added)
 }
 
-pub async fn create_subfile(client: &IpfsClient, config: &PublisherArgs) -> Result<AddResponse, anyhow::Error> {
+pub async fn create_subfile(
+    client: &IpfsClient,
+    config: &PublisherArgs,
+) -> Result<AddResponse, anyhow::Error> {
     // TODO: use a library or external tool to create a magnet link. (intermodal)
     let subfile_args = SeedCreationArg::build(
         config.file_path.clone().unwrap_or_default(),
