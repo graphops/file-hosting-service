@@ -1,3 +1,5 @@
+use subfile_cli::subfile_server::init_server;
+
 use dotenv::dotenv;
 
 use subfile_cli::{
@@ -64,22 +66,13 @@ async fn main() {
                 }
             }
         }
-        Role::Server(server) => {
-            tracing::info!(server = tracing::field::debug(&server), "Tracker request");
+        Role::Server(server_args) => {
+            tracing::info!(
+                server = tracing::field::debug(&server_args),
+                "Tracker request"
+            );
+
+            let _ = init_server(&client, server_args).await;
         }
     }
 }
-
-// fn server_config(file_config_path: &str) {
-//     // Read file configurations
-//     let file_config_content = fs::read_to_string(file_config_path).unwrap();
-//     let file_configs: Vec<Subfile> = serde_yaml::from_str(&file_config_content).unwrap();
-
-//     for _config in file_configs {
-//         // Generate magnet link, subfile.yaml, and upload to IPFS
-//         // ...
-//     }
-
-//     // Start seeding
-//     // ...
-// }
