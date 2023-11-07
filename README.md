@@ -9,22 +9,26 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
   - [x] use sha2-256 as it is more commonly used, faster than sha3-256, both no known hacks (should be easy to switch)
   - [x] Takes a file path and read
   - [x] Chunk file to a certain size - currently using a constant of 1MB
-  - [X] Hash each chunk
+  - [X] Hash each chunk as leaves (nodes)
   - [x] Produce a merkle tree
-  - [x] construct and write a chunk_file.yaml
+  - [x] construct and write a chunk_file.yaml (root, nodes)
   - [x] Unit tests: same file same hash, different file different hash, big temp file same/modified
+  - [x] last chunk lengths, 
+  - [ ] Analyze merkle tree vs hash list
+  - [ ] memory usage for hashing (profiling to O(n) where n is the size of the file)
 - [ ] Subfile builder / publisher - CLI
-  - [ ] Take a file, use File hasher to hash all files and get a merkle root hash
+  - [x] Take a file, use File hasher to get the chunk_file, publish chunk_file to IPFS
     - [ ] later, take a list of files, use File hasher to hash all files and get root hashes 
-  - [ ] Construct a subfile manifest with metainfo using YAML builder
+  - [x] Construct a subfile manifest with metainfo using YAML builder
+    - [ ] vectorize
   - [ ] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
-  - [ ] Publish subfile to IPFS, receive a IPFS hash for the subfile
-- [ ] IPFS client
-  - [ ] Connect to an IPFS gateway
-  - [ ] Post files
-  - [ ] Cat files
-- [ ] YAML parser and builder
-  - [ ] Deserialize and serialize yaml files
+  - [x] Publish subfile to IPFS, receive a IPFS hash for the subfile
+- [x] IPFS client
+  - [x] Connect to an IPFS gateway
+  - [x] Post files
+  - [x] Cat files
+- [x] YAML parser and builder
+  - [x] Deserialize and serialize yaml files
 - [ ] Subfile server 
   - [ ] Initialize service; for one subfile, take (ipfs_hash, local_path)
     - [ ] Take a subfile IPFS hash and get the file using IPFS client

@@ -1,15 +1,11 @@
-extern crate merkle_cbt;
-extern crate serde_yaml;
-extern crate sha2;
-
 use merkle_cbt::merkle_tree::{Merge, CBMT};
 use merkle_cbt::{MerkleProof, MerkleTree};
 use sha2::{Digest, Sha256};
 
 use serde_yaml::to_string;
-use std::error::Error;
+
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 const CHUNK_SIZE: usize = 1024 * 1024; // Define the chunk size, e.g., 1 MB
@@ -26,7 +22,8 @@ fn hash_chunk(chunk: &[u8]) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
-fn chunk_file(file_path: &Path) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+/// Read the file at file_path and chunk the file into bytes
+fn chunk_file(file_path: &Path) -> Result<Vec<Vec<u8>>, anyhow::Error> {
     let file = File::open(file_path)?;
     let mut reader = BufReader::new(file);
     let mut chunks = Vec::new();
@@ -52,7 +49,7 @@ impl Merge for MergeU8 {
         let mut hasher = Sha256::new();
         hasher.update(left);
         hasher.update(right);
-        hasher.finalize().into_iter().collect() //.to_vec()
+        hasher.finalize().into_iter().collect()
     }
 }
 
@@ -82,70 +79,24 @@ pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
     }
 }
 
-pub fn write_chunk_file(file_path: &Path, merkle_tree: &MerkleTreeU8) -> Result<(), Box<dyn Error>> {
-    let chunk_file = create_chunk_file(merkle_tree);
-    let yaml = to_string(&chunk_file)?;
-    let mut output_file = File::create(file_path)?;
-    output_file.write_all(yaml.as_bytes())?;
+pub fn write_chunk_file(file_path: &str) -> Result<String, anyhow::Error> {
+    let chunks = chunk_file(Path::new(&file_path))?;
 
-    Ok(())
-}
-
-/// Takes file_path, create chunk_file, build merkle tree, publish, write to output
-pub fn publish_file(file_path: &str) -> Result<(), Box<dyn Error>> {
-    let file_path = Path::new(file_path);
-    let chunks = chunk_file(file_path)?;
     let merkle_tree = build_merkle_tree(chunks);
-    let output = Path::new("chunk_file.yaml");
-    //TODO: publish the chunk file to IPFS or another distributed file system here
-    write_chunk_file(output, &merkle_tree)?;
 
-    Ok(())
+    let chunk_file = create_chunk_file(&merkle_tree);
+    let yaml = to_string(&chunk_file)?;
+    // TODO: consider storing a local copy
+    // let mut output_file = File::create(file_path)?;
+    // output_file.write_all(yaml.as_bytes())?;
+
+    Ok(yaml)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use rand::seq::IteratorRandom;
-    use rand::{distributions::Alphanumeric, Rng};
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    // Helper function to create a temporary file with random content of a specified size
-    fn create_random_temp_file(size: usize) -> std::io::Result<(NamedTempFile, String)> {
-        let mut temp_file = NamedTempFile::new()?;
-        let content: Vec<u8> = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(size)
-            .collect();
-        temp_file.write_all(&content)?;
-        let temp_path = temp_file.path().to_str().unwrap().to_string();
-        Ok((temp_file, temp_path))
-    }
-
-    // Helper function to create a temporary file with given content
-    fn create_temp_file(content: &[u8]) -> std::io::Result<(tempfile::NamedTempFile, String)> {
-        let mut temp_file = tempfile::NamedTempFile::new()?;
-        temp_file.write_all(content)?;
-        let temp_path = temp_file.path().to_str().unwrap().to_string();
-        Ok((temp_file, temp_path))
-    }
-
-    // Helper function to modify a single element at a random position
-    fn modify_random_element(matrix: &mut Vec<Vec<u8>>) -> Vec<Vec<u8>> {
-        let mut rng = rand::thread_rng();
-
-        if let Some(outer_idx) = matrix.iter().enumerate().choose(&mut rng) {
-            let (outer_idx, inner_vec) = outer_idx;
-            if let Some(inner_idx) = inner_vec.iter().enumerate().choose(&mut rng) {
-                let (inner_idx, _) = inner_idx;
-                matrix[outer_idx][inner_idx] = matrix[outer_idx][inner_idx].wrapping_add(1);
-            }
-        }
-
-        matrix.to_vec()
-    }
+    use crate::test_util::*;
 
     #[test]
     fn test_same_files_produce_same_hash() -> Result<(), Box<dyn Error>> {

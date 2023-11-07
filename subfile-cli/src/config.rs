@@ -113,7 +113,7 @@ pub struct PublisherArgs {
         env = "FILE_PATH",
         help = "Path to the file for publishing (perhaps change to a regex or a vec later)"
     )]
-    pub file_path: Option<String>,
+    pub file_path: String,
 
     #[arg(
         long,

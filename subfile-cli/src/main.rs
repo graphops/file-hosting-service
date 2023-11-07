@@ -3,13 +3,8 @@ use dotenv::dotenv;
 use subfile_cli::{
     config::{Cli, Role},
     ipfs::IpfsClient,
-    publisher::{create_subfile, seed},
+    publisher::SubfilePublisher,
 };
-
-// mod config;
-// mod ipfs;
-// mod publisher;
-// mod types;
 
 #[tokio::main]
 async fn main() {
@@ -17,6 +12,12 @@ async fn main() {
     let cli: Cli = Cli::args();
 
     tracing::info!(cli = tracing::field::debug(&cli), "Running cli");
+
+    let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
+        client
+    } else {
+        IpfsClient::localhost()
+    };
 
     match cli.role {
         Role::Downloader(leecher) => {
@@ -49,24 +50,14 @@ async fn main() {
             //     }
             // }
         }
-        Role::Publisher(builder) => {
-            tracing::info!(
-                builder = tracing::field::debug(&builder),
-                "Publisher request"
-            );
-            let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
-                client
-            } else {
-                IpfsClient::localhost()
-            };
-            // Create IPFS file
-            let _file = create_subfile(&client, &builder.clone())
-                .await
-                .expect("Failed to create subfile");
+        Role::Publisher(config) => {
+            tracing::info!(config = tracing::field::debug(&config), "Publisher request");
 
-            match seed(&client, &builder).await {
+            let publisher = SubfilePublisher::new(client);
+
+            match publisher.publish(&config.file_path).await {
                 Ok(r) => {
-                    tracing::info!(result = tracing::field::debug(&r), "Built, need to serve");
+                    tracing::info!(result = tracing::field::debug(&r), "Published");
                 }
                 Err(e) => {
                     tracing::error!(error = tracing::field::debug(&e), "Failed to build");

@@ -130,3 +130,16 @@ abis file
 ```
 
 ...
+
+
+### Calculations
+
+Let total file size be F, chunk size be c, hash size be 256bits = 32bytes
+
+F=5TB, c=1MB => ~5million chunks, 160 MB for hashes not including positioning
+F=5TB, c=10MB, lower bound by file size 25MB => 16-19.2MB for hashes not including positioning
+
+Merkel proof with roots
+
+
+
