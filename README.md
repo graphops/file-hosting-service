@@ -30,18 +30,27 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
 - [x] YAML parser and builder
   - [x] Deserialize and serialize yaml files
 - [ ] Subfile server 
-  - [ ] Initialize service; for one subfile, take (ipfs_hash, local_path)
-    - [ ] Take a subfile IPFS hash and get the file using IPFS client
-    - [ ] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
+  - [x] Initialize service; for one subfile, take (ipfs_hash, local_path)
+    - [x] Take a subfile IPFS hash and get the file using IPFS client
+    - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
       - [ ] Take metainfo of chunk_file and search for access by the local_path
       - [ ] Verify the local version satisfy the chunk hashes
     - [ ] Once all verified, add to file to the service availability endpoint
+  - [ ] Route `/status` for availability
+  - [ ] Route `/subfiles/id/:id` for a subfile using IPFS hash
+  - [ ] Route `/health` for general health
+  - [ ] Route `/version` for subfile server version
+  - [ ] Configure and check free query auth token
+  - [ ] Server Certificate 
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
-    - [ ] Check if ipfs_hash is available
-    - [ ] Check if range is valid against the subfile and the specific chunk_file
+    - [x] start off with request as (ipfs_hash, range)
+    - [x] Check if ipfs_hash is available
+    - [x] Check if range is valid against the subfile and the specific chunk_file
     - [ ] Valid and store receipt
-    - [ ] Read in the requested chunk
-    - [ ] Construct response and respond (determine if streaming is necessary)
+    - [x] Read in the requested chunk
+      - [ ] Add tests
+    - [x] Construct response and respond
+      - [ ] determine if streaming is necessary
   - [ ] Start with free service and requiring a free query auth token
     - [ ] then add default cost model, allow updates for pricing per byte
     - [ ] with paid service, validate receipts pricing wrt cost model

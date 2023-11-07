@@ -45,3 +45,17 @@ Server
 
 
 ``````
+
+
+Corresponding client
+
+```
+➜  ~ curl -H "Range: bytes=0-102000003" http://localhost:5678/subfiles/id/QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX
+> range out of bound
+
+➜  ~ curl -H "Range: bytes=0-1023" http://localhost:5678/subfiles/id/QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX --output -  
+> [partial file...]
+
+➜  ~ curl http://localhost:5678/subfiles/id/QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX 
+> [whole file...]
+```
