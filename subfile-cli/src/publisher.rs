@@ -4,15 +4,15 @@ use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
 
 #[derive(Serialize, Deserialize)]
-struct SubfileManifest {
-    files: Vec<FileMetaInfo>,
+pub struct SubfileManifest {
+    pub files: Vec<FileMetaInfo>,
     // Add additional metadata as needed
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct FileMetaInfo {
-    path: String, // file name instead?
-    hash: String,
+    pub path: String, // file name instead?
+    pub hash: String,
     // Add additional metadata as needed
 }
 
@@ -118,7 +118,6 @@ impl SubfilePublisher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_util::*;
 
     #[tokio::test]
     async fn test_publish() {
@@ -129,7 +128,7 @@ mod tests {
         // let chunks1 = chunk_file(Path::new(&path))?;
 
         // Hash and publish a single file
-        let hash = builder.hash_and_publish_file(&path).await.unwrap().hash;
+        let hash = builder.hash_and_publish_file(path).await.unwrap().hash;
         // if let Ok(added) = builder.hash_and_publish_file(&path).await.unwrap() {
         //     println!("Published file to IPFS with hash: {}", added.hash);
         // }

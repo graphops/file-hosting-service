@@ -1,3 +1,4 @@
 /target
 /data-files
 .DS_Store
+.vscode/

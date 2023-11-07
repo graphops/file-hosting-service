@@ -1578,6 +1578,7 @@ dependencies = [
  "futures 0.3.28",
  "hex",
  "http",
+ "hyper",
  "ipfs-api-backend-hyper",
  "ipfs-api-prelude",
  "merkle-cbt",

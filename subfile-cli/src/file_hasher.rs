@@ -99,13 +99,13 @@ mod tests {
     use crate::test_util::*;
 
     #[test]
-    fn test_same_files_produce_same_hash() -> Result<(), Box<dyn Error>> {
+    fn test_same_files_produce_same_hash() {
         let content = b"Hello, world!";
-        let (temp_file1, temp_path1) = create_temp_file(content)?;
-        let (temp_file2, temp_path2) = create_temp_file(content)?;
+        let (temp_file1, temp_path1) = create_temp_file(content).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(content).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1))?;
-        let chunks2 = chunk_file(Path::new(&temp_path2))?;
+        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
+        let chunks2 = chunk_file(Path::new(&temp_path2)).unwrap();
 
         let merkle_tree1 = build_merkle_tree(chunks1);
         let merkle_tree2 = build_merkle_tree(chunks2);
@@ -121,19 +121,17 @@ mod tests {
         // Clean up
         drop(temp_file1);
         drop(temp_file2);
-
-        Ok(())
     }
 
     #[test]
-    fn test_different_files_produce_different_hash() -> Result<(), Box<dyn Error>> {
+    fn test_different_files_produce_different_hash() {
         let content1 = b"Hello, world!";
         let content2 = b"Goodbye, world!";
-        let (temp_file1, temp_path1) = create_temp_file(content1)?;
-        let (temp_file2, temp_path2) = create_temp_file(content2)?;
+        let (temp_file1, temp_path1) = create_temp_file(content1).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(content2).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1))?;
-        let chunks2 = chunk_file(Path::new(&temp_path2))?;
+        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
+        let chunks2 = chunk_file(Path::new(&temp_path2)).unwrap();
 
         let merkle_tree1 = build_merkle_tree(chunks1);
         let merkle_tree2 = build_merkle_tree(chunks2);
@@ -149,17 +147,15 @@ mod tests {
         // Clean up
         drop(temp_file1);
         drop(temp_file2);
-
-        Ok(())
     }
 
     #[test]
-    fn test_big_size_same_file() -> Result<(), Box<dyn Error>> {
+    fn test_big_size_same_file() {
         let file_size = CHUNK_SIZE * 25;
-        let (temp_file1, temp_path1) = create_random_temp_file(file_size)?;
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1))?;
-        let chunks2 = chunk_file(Path::new(&temp_path1))?;
+        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
+        let chunks2 = chunk_file(Path::new(&temp_path1)).unwrap();
 
         let merkle_tree1 = build_merkle_tree(chunks1);
         let merkle_tree2 = build_merkle_tree(chunks2);
@@ -174,16 +170,14 @@ mod tests {
 
         // Clean up
         drop(temp_file1);
-
-        Ok(())
     }
 
     #[test]
-    fn test_big_size_different_file() -> Result<(), Box<dyn Error>> {
+    fn test_big_size_different_file() {
         let file_size = CHUNK_SIZE * 25;
-        let (temp_file1, temp_path1) = create_random_temp_file(file_size)?;
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1))?;
+        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
         // Modify a byte at an arbitrary postiion
         let chunks2 = modify_random_element(&mut chunks1.clone());
         assert_ne!(chunks2, chunks1);
@@ -201,7 +195,5 @@ mod tests {
 
         // Clean up
         drop(temp_file1);
-
-        Ok(())
     }
 }

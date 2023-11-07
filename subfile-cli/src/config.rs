@@ -50,26 +50,16 @@ impl Cli {
 pub enum Role {
     Downloader(Downloader),
     Publisher(PublisherArgs),
-    Server(Server),
+    Server(ServerArgs),
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
-pub struct Server {
-    #[arg(
-        long,
-        value_name = "SERVER_HOST",
-        env = "SERVER_HOST",
-        help = "Server server host"
-    )]
-    pub server_host: String,
-    #[arg(
-        long,
-        value_name = "SERVER_PORT",
-        env = "SERVER_PORT",
-        help = "Server server port"
-    )]
-    pub server_port: usize,
+pub struct ServerArgs {
+    #[arg(long, value_name = "HOST", env = "HOST", help = "Subfile server host")]
+    pub host: String,
+    #[arg(long, value_name = "PORT", env = "PORT", help = "Subfile server port")]
+    pub port: usize,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]

@@ -142,4 +142,25 @@ F=5TB, c=10MB, lower bound by file size 25MB => 16-19.2MB for hashes not includi
 Merkel proof with roots
 
 
+### Current manifest
 
+
+#### Subfile manifest
+
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX
+```
+files:
+- path: ./example-file/example0017686312.dbin
+  hash: Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+```
+
+#### Chunk file schema
+
+https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+```
+merkle_root: cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
+chunks:
+- cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
+- ...
+```
+^ need fixing

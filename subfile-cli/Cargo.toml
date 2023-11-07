@@ -11,6 +11,7 @@ license = "Apache-2.0"
 [dependencies]
 clap = { version = "4.4", features = ["cargo", "unstable-doc"] }
 dotenv = "0.15"
+hyper = { version = "0.14.27", features = [ "server" ]}
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 anyhow = "1.0"
