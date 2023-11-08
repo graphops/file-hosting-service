@@ -1,4 +1,4 @@
-use subfile_cli::subfile_server::init_server;
+use subfile_cli::{subfile_client::SubfileDownloader, subfile_server::init_server};
 
 use dotenv::dotenv;
 
@@ -22,35 +22,22 @@ async fn main() {
     };
 
     match cli.role {
-        Role::Downloader(leecher) => {
+        Role::Downloader(config) => {
             tracing::info!(
-                leecher = tracing::field::debug(&leecher),
+                config = tracing::field::debug(&config),
                 "Downloader request"
             );
-            // Create IPFS client
-            let _client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
-                client
-            } else {
-                IpfsClient::localhost()
-            };
+            // Create client
+            let downloader = SubfileDownloader::new(client, config);
             // Use client to grab IPFS
 
             // Parse IPFS
 
             // Validate IPFS against extra input to make sure it is the target file
 
-            // Grab the magnet link inside IPFS file and start torrent leeching
-            // match leech(&client, &leecher.ipfs_hash, &leecher.output_dir).await {
-            //     Ok(r) => {
-            //         tracing::info!(
-            //             result = tracing::field::debug(&r),
-            //             "End of leeching"
-            //         );
-            //     }
-            //     Err(e) => {
-            //         tracing::error!(error = tracing::field::debug(&e), "Failed to leech");
-            //     }
-            // }
+            // Send range request
+            let res = downloader.send_request().await;
+            println!("Download result: {:#?}", res);
         }
         Role::Publisher(config) => {
             tracing::info!(config = tracing::field::debug(&config), "Publisher request");

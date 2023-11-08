@@ -48,7 +48,7 @@ impl Cli {
 #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
 pub enum Role {
-    Downloader(Downloader),
+    Downloader(DownloaderArgs),
     Publisher(PublisherArgs),
     Server(ServerArgs),
 }
@@ -64,7 +64,7 @@ pub struct ServerArgs {
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
-pub struct Downloader {
+pub struct DownloaderArgs {
     #[arg(
         long,
         value_name = "IPFS_HASH",
@@ -74,8 +74,15 @@ pub struct Downloader {
     pub ipfs_hash: String,
     #[arg(
         long,
+        value_name = "GATEWAY_URL",
+        env = "GATEWAY_URL",
+        help = "Client pings the gateway for file discovery; TODO: currently gateway_url is used to ping local server url directly"
+    )]
+    pub gateway_url: String,
+    #[arg(
+        long,
         value_name = "OUTPUT_DIR",
-        default_value = "./Downloads",
+        default_value = "./example-download",
         env = "OUTPUT_DIR",
         help = "Output directory for target files"
     )]
