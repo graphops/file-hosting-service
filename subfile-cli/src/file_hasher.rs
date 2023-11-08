@@ -8,25 +8,29 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-const CHUNK_SIZE: usize = 1024 * 1024; // Define the chunk size, e.g., 1 MB
+pub const CHUNK_SIZE: usize = 1024 * 1024; // Define the chunk size, e.g., 1 MB
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 pub struct ChunkFile {
-    pub merkle_root: String,
-    pub chunks: Vec<String>,
+    // pub merkle_root: String,
+    pub file_name: String,
+    pub total_bytes: u64,
+    pub chunk_size: u64,
+    pub chunk_hashes: Vec<String>,
 }
 
-fn hash_chunk(chunk: &[u8]) -> Vec<u8> {
+fn hash_chunk(chunk: &[u8]) -> Result<String, anyhow::Error> {
     let mut hasher = Sha256::new();
     hasher.update(chunk);
-    hasher.finalize().to_vec()
+    Ok(String::from_utf8(hasher.finalize().to_vec())?)
 }
 
 /// Read the file at file_path and chunk the file into bytes
-fn chunk_file(file_path: &Path) -> Result<Vec<Vec<u8>>, anyhow::Error> {
+fn chunk_file(file_path: &Path) -> Result<(u64, Vec<Vec<u8>>), anyhow::Error> {
     let file = File::open(file_path)?;
     let mut reader = BufReader::new(file);
     let mut chunks = Vec::new();
+    let mut total_bytes = 0;
 
     loop {
         let mut buffer = vec![0; CHUNK_SIZE];
@@ -34,11 +38,12 @@ fn chunk_file(file_path: &Path) -> Result<Vec<Vec<u8>>, anyhow::Error> {
         if bytes_read == 0 {
             break;
         }
+        total_bytes += bytes_read;
         buffer.truncate(bytes_read);
         chunks.push(buffer);
     }
 
-    Ok(chunks)
+    Ok((total_bytes.try_into().unwrap(), chunks))
 }
 
 pub struct MergeU8;
@@ -69,22 +74,34 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
     CBMTU8::build_merkle_proof(leaves, indices)
 }
 
-pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
-    let merkle_root = hex::encode(merkle_tree.root());
-    let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
+/// Let chunk_file be
+/// - file name
+/// - chunk size in bytes
+/// - total bytes
+/// - list of hashes in order of the file
+// pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
+pub fn create_chunk_file(read_dir: &str, file_name: &str) -> Result<ChunkFile, anyhow::Error> {
+    let file_path = format!("{}/{}", read_dir, file_name);
+    // let merkle_root = hex::encode(merkle_tree.root());
+    // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
+    let (total_bytes, chunks) = chunk_file(Path::new(&file_path))?;
 
-    ChunkFile {
-        merkle_root,
-        chunks: chunk_hashes,
-    }
+    let chunk_hashes: Result<Vec<String>, _> = chunks.iter().map(|c| hash_chunk(&c)).collect();
+
+    Ok(ChunkFile {
+        file_name: file_name.to_string(),
+        total_bytes,
+        chunk_size: CHUNK_SIZE as u64,
+        chunk_hashes: chunk_hashes?,
+    })
 }
 
-pub fn write_chunk_file(file_path: &str) -> Result<String, anyhow::Error> {
-    let chunks = chunk_file(Path::new(&file_path))?;
+pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyhow::Error> {
+    // let (_, chunks) = chunk_file(Path::new(&file_path))?;
+    // let merkle_tree = build_merkle_tree(chunks);
+    // let chunk_file = create_chunk_file(&merkle_tree);
+    let chunk_file = create_chunk_file(read_dir, file_name)?;
 
-    let merkle_tree = build_merkle_tree(chunks);
-
-    let chunk_file = create_chunk_file(&merkle_tree);
     let yaml = to_string(&chunk_file)?;
     // TODO: consider storing a local copy
     // let mut output_file = File::create(file_path)?;
@@ -104,17 +121,20 @@ mod tests {
         let (temp_file1, temp_path1) = create_temp_file(content).unwrap();
         let (temp_file2, temp_path2) = create_temp_file(content).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
-        let chunks2 = chunk_file(Path::new(&temp_path2)).unwrap();
+        // let merkle_tree1 = build_merkle_tree(chunks1);
+        // let merkle_tree2 = build_merkle_tree(chunks2);
 
-        let merkle_tree1 = build_merkle_tree(chunks1);
-        let merkle_tree2 = build_merkle_tree(chunks2);
-
-        assert_eq!(merkle_tree1.root(), merkle_tree2.root());
+        // assert_eq!(merkle_tree1.root(), merkle_tree2.root());
+        let path1 = Path::new(&temp_path1);
+        let path2 = Path::new(&temp_path2);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = create_chunk_file(&merkle_tree1);
-        let chunk_file2 = create_chunk_file(&merkle_tree2);
+        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
+        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
 
         assert_eq!(chunk_file1, chunk_file2);
 
@@ -130,17 +150,16 @@ mod tests {
         let (temp_file1, temp_path1) = create_temp_file(content1).unwrap();
         let (temp_file2, temp_path2) = create_temp_file(content2).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
-        let chunks2 = chunk_file(Path::new(&temp_path2)).unwrap();
+        let path1 = Path::new(&temp_path1);
+        let path2 = Path::new(&temp_path2);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-        let merkle_tree1 = build_merkle_tree(chunks1);
-        let merkle_tree2 = build_merkle_tree(chunks2);
-
-        assert_ne!(merkle_tree1.root(), merkle_tree2.root());
-
-        // produce the same chunk file
-        let chunk_file1 = create_chunk_file(&merkle_tree1);
-        let chunk_file2 = create_chunk_file(&merkle_tree2);
+        // produce different chunk file
+        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
+        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
 
         assert_ne!(chunk_file1, chunk_file2);
 
@@ -154,17 +173,13 @@ mod tests {
         let file_size = CHUNK_SIZE * 25;
         let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
-        let chunks2 = chunk_file(Path::new(&temp_path1)).unwrap();
-
-        let merkle_tree1 = build_merkle_tree(chunks1);
-        let merkle_tree2 = build_merkle_tree(chunks2);
-
-        assert_eq!(merkle_tree1.root(), merkle_tree2.root());
+        let path = Path::new(&temp_path1);
+        let readdir = path.parent().unwrap().to_str().unwrap();
+        let file_name = path.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = create_chunk_file(&merkle_tree1);
-        let chunk_file2 = create_chunk_file(&merkle_tree2);
+        let chunk_file1 = create_chunk_file(readdir, file_name).unwrap();
+        let chunk_file2 = create_chunk_file(readdir, file_name).unwrap();
 
         assert_eq!(chunk_file1, chunk_file2);
 
@@ -177,19 +192,26 @@ mod tests {
         let file_size = CHUNK_SIZE * 25;
         let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
 
-        let chunks1 = chunk_file(Path::new(&temp_path1)).unwrap();
+        let path1 = Path::new(&temp_path1);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+
+        // produce the same chunk file
+        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
+
+        let (_, chunks1) = chunk_file(Path::new(&temp_path1)).unwrap();
         // Modify a byte at an arbitrary postiion
         let chunks2 = modify_random_element(&mut chunks1.clone());
         assert_ne!(chunks2, chunks1);
 
-        let merkle_tree1 = build_merkle_tree(chunks1);
-        let merkle_tree2 = build_merkle_tree(chunks2);
+        let (temp_file2, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
+        let path2 = Path::new(&temp_path2);
+        let readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-        assert_ne!(merkle_tree1.root(), merkle_tree2.root());
-
-        // produce the same chunk file
-        let chunk_file1 = create_chunk_file(&merkle_tree1);
-        let chunk_file2 = create_chunk_file(&merkle_tree2);
+        // produce different chunk file
+        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
+        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
 
         assert_ne!(chunk_file1, chunk_file2);
 

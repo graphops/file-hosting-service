@@ -11,20 +11,22 @@ pub struct SubfileManifest {
 
 #[derive(Serialize, Deserialize)]
 pub struct FileMetaInfo {
-    pub path: String, // file name instead?
+    pub name: String, // file name instead?
     pub hash: String,
     // Add additional metadata as needed
 }
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
+    read_dir: &'static str,
     // Other fields as needed
 }
 
 impl SubfilePublisher {
-    pub fn new(ipfs_client: IpfsClient) -> Self {
+    pub fn new(ipfs_client: IpfsClient, read_dir: &str) -> Self {
         SubfilePublisher {
             ipfs_client,
+            read_dir,
             // Initialize other fields
         }
     }
@@ -34,7 +36,7 @@ impl SubfilePublisher {
         &self,
         file_path: &str,
     ) -> Result<AddResponse, anyhow::Error> {
-        let yaml_str = write_chunk_file(file_path)?;
+        let yaml_str = write_chunk_file(self.read_dir, file_path)?;
 
         let added: AddResponse = self.ipfs_client.add(yaml_str.as_bytes().to_vec()).await?;
         tracing::info!(
@@ -84,8 +86,8 @@ impl SubfilePublisher {
     }
 
     //TODO: use the full config args for publishing
-    pub async fn publish(&self, file_path: &str) -> Result<String, anyhow::Error> {
-        let hash = match self.hash_and_publish_file(file_path).await {
+    pub async fn publish(&self, file_name: &str) -> Result<String, anyhow::Error> {
+        let hash: String = match self.hash_and_publish_file(file_name).await {
             Ok(added) => {
                 println!("Published file to IPFS: {:#?}", added);
                 added.hash
@@ -95,7 +97,7 @@ impl SubfilePublisher {
 
         // Construct and publish a subfile manifest
         let meta_info = vec![FileMetaInfo {
-            path: file_path.to_string(),
+            name: file_name.to_string(),
             hash,
         }];
 
@@ -123,19 +125,19 @@ mod tests {
     async fn test_publish() {
         let client = IpfsClient::localhost();
 
-        let builder = SubfilePublisher::new(client);
-        let path = "./example-file/example-create-17686085.dbin";
+        let builder = SubfilePublisher::new(client, "./example-file");
+        let name = "example-create-17686085.dbin";
         // let chunks1 = chunk_file(Path::new(&path))?;
 
         // Hash and publish a single file
-        let hash = builder.hash_and_publish_file(path).await.unwrap().hash;
+        let hash = builder.hash_and_publish_file(name).await.unwrap().hash;
         // if let Ok(added) = builder.hash_and_publish_file(&path).await.unwrap() {
         //     println!("Published file to IPFS with hash: {}", added.hash);
         // }
 
         // Construct and publish a subfile manifest
         let meta_info = vec![FileMetaInfo {
-            path: path.to_string(),
+            name: name.to_string(),
             hash,
         }];
 
