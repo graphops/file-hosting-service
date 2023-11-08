@@ -18,6 +18,7 @@ use crate::ipfs::IpfsClient;
 
 pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
+    http_client: reqwest::Client,
     ipfs_hash: String,
     //TODO: currently direct ping to server_url -> decentralize to gateway_url
     server_url: String,
@@ -29,6 +30,9 @@ impl SubfileDownloader {
     pub fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
         SubfileDownloader {
             ipfs_client,
+            //TODO: consider if more advanced config like 
+            // a proxy should be used for the client
+            http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
             //TODO: change for discovery
             server_url: args.gateway_url,
@@ -41,14 +45,19 @@ impl SubfileDownloader {
     }
 
     pub async fn send_request(&self) -> Result<(), anyhow::Error> {
-        // Assuming the gateway URL is something like "http://localhost:5678/subfiles/id/"
+        // Assuming the URL is something like "http://localhost:5678/subfiles/id/"
         let url = format!("{}{}", self.server_url, self.ipfs_hash);
 
         // For example, to request the first 1024 bytes
+        // The client should be smart enough to take care of proper chunking through subfile metadata
         let range = "bytes=1023-2023";
 
-        let client = reqwest::Client::new();
-        let response = client.get(&url).header(RANGE, range).send().await?;
+        let response = self
+            .http_client
+            .get(&url)
+            .header(RANGE, range)
+            .send()
+            .await?;
 
         // Check if the server supports range requests
         if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
@@ -65,37 +74,3 @@ impl SubfileDownloader {
     }
 }
 
-
-// fn send_request() {
-
-//     let url = match env::args().nth(1) {
-//         Some(url) => url,
-//         None => {
-//             writeln!(io::stderr(), "Usage: client <url>").unwrap();
-//             return;
-//         }
-//     };
-
-//     let client = match env::var("HTTP_PROXY") {
-//         Ok(proxy) => {
-//             // Assuming the proxy URL is in the format "http://proxy:port"
-//             let proxy = proxy.parse().expect("HTTP_PROXY is malformed");
-//             Client::builder().build::<_, hyper::Body>(hyper::client::HttpConnector::new_with_proxy(proxy))
-//         },
-//         _ => Client::new(),
-//     };
-
-//     // Specify the range you want to download, e.g., bytes 0-1023
-//     let range = Range::Bytes(vec![ByteRangeSpec::FromTo(0, 1023)]);
-
-//     let mut res = client.get(&*url)
-//         .header(Connection::close())
-//         .header(range)
-//         .send().unwrap();
-
-//     println!("Response: {}", res.status());
-//     println!("Headers:\n{}", res.headers());
-
-//     // Stream the body directly to stdout to avoid buffering
-//     io::copy(&mut res, &mut io::stdout()).unwrap();
-// }
