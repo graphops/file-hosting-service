@@ -41,7 +41,7 @@ pub async fn init_server(client: &IpfsClient, server_config: ServerArgs) {
     //TODO: add to configs
     let state = initialize_subfile_service(
         client,
-        "QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX",
+        "QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ",
         PathBuf::from("./example-file/example0017686312.dbin"),
     )
     .await

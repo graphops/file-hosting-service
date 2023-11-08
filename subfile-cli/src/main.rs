@@ -36,15 +36,16 @@ async fn main() {
             // Validate IPFS against extra input to make sure it is the target file
 
             // Send range request
-            let res = downloader.send_request().await;
+            let chunk_file_ipfs = "QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ";
+            let res = downloader.download_chunk_file(chunk_file_ipfs).await;
             println!("Download result: {:#?}", res);
         }
         Role::Publisher(config) => {
             tracing::info!(config = tracing::field::debug(&config), "Publisher request");
 
-            let publisher = SubfilePublisher::new(client);
+            let publisher = SubfilePublisher::new(client, &config.read_dir);
 
-            match publisher.publish(&config.file_path).await {
+            match publisher.publish(&config.file_name).await {
                 Ok(r) => {
                     tracing::info!(result = tracing::field::debug(&r), "Published");
                 }

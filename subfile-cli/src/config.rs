@@ -106,11 +106,11 @@ pub struct PublisherArgs {
 
     #[arg(
         long,
-        value_name = "FILE_PATH",
-        env = "FILE_PATH",
+        value_name = "READ_DIR",
+        env = "READ_DIR",
         help = "Path to the file for publishing (perhaps change to a regex or a vec later)"
     )]
-    pub file_path: String,
+    pub read_dir: String,
 
     #[arg(
         long,
@@ -118,7 +118,15 @@ pub struct PublisherArgs {
         env = "SUBFILE_NAME",
         help = "Name for the subfile (later this can be interactive)"
     )]
-    pub name: Option<String>,
+    pub subfile_name: String,
+
+    #[arg(
+        long,
+        value_name = "FILE_NAME",
+        env = "FILE_NAME",
+        help = "Name for the file to be included in subfile (later this can be interactive)"
+    )]
+    pub file_name: String,
 
     #[arg(
         long,

@@ -18,7 +18,7 @@ pub struct FileMetaInfo {
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
-    read_dir: &'static str,
+    read_dir: String,
     // Other fields as needed
 }
 
@@ -26,7 +26,7 @@ impl SubfilePublisher {
     pub fn new(ipfs_client: IpfsClient, read_dir: &str) -> Self {
         SubfilePublisher {
             ipfs_client,
-            read_dir,
+            read_dir: read_dir.to_string(),
             // Initialize other fields
         }
     }
@@ -34,12 +34,12 @@ impl SubfilePublisher {
     /// Takes file_path, create chunk_file, build merkle tree, publish, write to output
     pub async fn hash_and_publish_file(
         &self,
-        file_path: &str,
+        file_name: &str,
     ) -> Result<AddResponse, anyhow::Error> {
-        let yaml_str = write_chunk_file(self.read_dir, file_path)?;
+        let yaml_str = write_chunk_file(&self.read_dir, file_name)?;
 
         let added: AddResponse = self.ipfs_client.add(yaml_str.as_bytes().to_vec()).await?;
-        tracing::info!(
+        tracing::debug!(
             added = tracing::field::debug(&added),
             "Added yaml file to IPFS"
         );
@@ -87,7 +87,7 @@ impl SubfilePublisher {
 
     //TODO: use the full config args for publishing
     pub async fn publish(&self, file_name: &str) -> Result<String, anyhow::Error> {
-        let hash: String = match self.hash_and_publish_file(file_name).await {
+        let hash: String = match self.hash_and_publish_file(&file_name).await {
             Ok(added) => {
                 println!("Published file to IPFS: {:#?}", added);
                 added.hash
