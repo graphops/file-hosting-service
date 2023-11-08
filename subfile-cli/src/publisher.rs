@@ -89,7 +89,7 @@ impl SubfilePublisher {
     pub async fn publish(&self, file_name: &str) -> Result<String, anyhow::Error> {
         let hash: String = match self.hash_and_publish_file(&file_name).await {
             Ok(added) => {
-                println!("Published file to IPFS: {:#?}", added);
+                tracing::info!("Published file to IPFS: {:#?}", added);
                 added.hash
             }
             Err(e) => return Err(e),
@@ -104,7 +104,7 @@ impl SubfilePublisher {
         match self.construct_subfile_manifest(meta_info) {
             Ok(manifest_yaml) => match self.publish_subfile_manifest(&manifest_yaml).await {
                 Ok(ipfs_hash) => {
-                    println!(
+                    tracing::info!(
                         "Published subfile manifest to IPFS with hash: {}",
                         ipfs_hash
                     );
@@ -131,9 +131,6 @@ mod tests {
 
         // Hash and publish a single file
         let hash = builder.hash_and_publish_file(name).await.unwrap().hash;
-        // if let Ok(added) = builder.hash_and_publish_file(&path).await.unwrap() {
-        //     println!("Published file to IPFS with hash: {}", added.hash);
-        // }
 
         // Construct and publish a subfile manifest
         let meta_info = vec![FileMetaInfo {
@@ -143,7 +140,7 @@ mod tests {
 
         if let Ok(manifest_yaml) = builder.construct_subfile_manifest(meta_info) {
             if let Ok(ipfs_hash) = builder.publish_subfile_manifest(&manifest_yaml).await {
-                println!(
+                tracing::info!(
                     "Published subfile manifest to IPFS with hash: {}",
                     ipfs_hash
                 );

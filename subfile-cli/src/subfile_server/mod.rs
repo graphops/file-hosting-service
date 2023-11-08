@@ -68,10 +68,10 @@ pub async fn init_server(client: &IpfsClient, server_config: ServerArgs) {
     //     .serve(make_svc);
     let server = hyper::server::Server::bind(&addr).serve(make_svc);
 
-    println!("Listening on https://{}", addr);
+    tracing::info!("Server listening on https://{}", addr);
 
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        tracing::error!("server error: {}", e);
     }
 }
 

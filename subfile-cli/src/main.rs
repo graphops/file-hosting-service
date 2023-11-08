@@ -38,7 +38,7 @@ async fn main() {
             // Send range request
             let chunk_file_ipfs = "QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ";
             let res = downloader.download_chunk_file(chunk_file_ipfs).await;
-            println!("Download result: {:#?}", res);
+            tracing::info!("Download result: {:#?}", res);
         }
         Role::Publisher(config) => {
             tracing::info!(config = tracing::field::debug(&config), "Publisher request");

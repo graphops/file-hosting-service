@@ -47,7 +47,12 @@ fn chunk_file(file_path: &Path) -> Result<(u64, Vec<Vec<u8>>), anyhow::Error> {
         chunks.push(buffer);
     }
 
-    tracing::debug!(file = tracing::field::debug(file_path), total_bytes, num_chunks = chunks.len(), "Chunked file");
+    tracing::debug!(
+        file = tracing::field::debug(file_path),
+        total_bytes,
+        num_chunks = chunks.len(),
+        "Chunked file"
+    );
     Ok((total_bytes.try_into().unwrap(), chunks))
 }
 
@@ -107,7 +112,10 @@ pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyho
     // let chunk_file = create_chunk_file(&merkle_tree);
     let chunk_file = create_chunk_file(read_dir, file_name)?;
 
-    tracing::trace!(file = tracing::field::debug(&chunk_file), "Created chunk file");
+    tracing::trace!(
+        file = tracing::field::debug(&chunk_file),
+        "Created chunk file"
+    );
 
     let yaml = to_string(&chunk_file)?;
     // TODO: consider storing a local copy

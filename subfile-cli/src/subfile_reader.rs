@@ -65,7 +65,7 @@ pub async fn read_manifest(client: &IpfsClient, ipfs: &str) -> Result<(), Box<dy
 
     for file in manifest.files {
         let chunk_file = fetch_chunk_file_from_ipfs(client, &file.hash).await?;
-        println!("Chunk file: {:?}", chunk_file.file_name);
+        tracing::debug!("Chunk file: {:?}", chunk_file.file_name);
     }
 
     Ok(())

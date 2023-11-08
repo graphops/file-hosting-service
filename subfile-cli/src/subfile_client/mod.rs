@@ -9,14 +9,14 @@
 use anyhow::anyhow;
 use bytes::Bytes;
 use reqwest::Client;
-use tokio::task;
-use tracing::info;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
+use tokio::task;
+use tracing::info;
 
 use http::header::{CONTENT_RANGE, RANGE};
 
@@ -73,7 +73,10 @@ impl SubfileDownloader {
         let query_endpoint = format!("{}{}", self.server_url.clone(), self.ipfs_hash.clone());
 
         // Open the output file
-        let file = File::create(Path::new(&(self.output_dir.clone() + "/" + &chunk_file.file_name))).unwrap();
+        let file = File::create(Path::new(
+            &(self.output_dir.clone() + "/" + &chunk_file.file_name),
+        ))
+        .unwrap();
         let file = Arc::new(Mutex::new(file));
 
         // Calculate the ranges and spawn threads to download each chunk
@@ -89,7 +92,8 @@ impl SubfileDownloader {
 
             // Spawn a new asynchronous task for each range request
             let handle = task::spawn(async move {
-                let _ = download_chunk_and_write_to_file(&client, &url, start, end, file_clone).await;
+                let _ =
+                    download_chunk_and_write_to_file(&client, &url, start, end, file_clone).await;
             });
 
             handles.push(handle);
@@ -104,7 +108,6 @@ impl SubfileDownloader {
         Ok(())
     }
 }
-
 
 async fn download_chunk_and_write_to_file(
     http_client: &Client,
@@ -148,7 +151,7 @@ async fn request_chunk(
     if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
         return Ok(response.bytes().await?);
     } else {
-        eprintln!("Server does not support range requests or the request failed.");
+        tracing::error!("Server does not support range requests or the request failed.");
         return Err(anyhow!("Range request failed"));
     }
 }

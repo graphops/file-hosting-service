@@ -37,7 +37,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
       - [ ] Verify the local version satisfy the chunk hashes
     - [ ] Once all verified, add to file to the service availability endpoint
   - [ ] Route `/status` for availability
-  - [ ] Route `/subfiles/id/:id` for a subfile using IPFS hash
+  - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash
   - [ ] Route `/health` for general health
   - [ ] Route `/version` for subfile server version
   - [ ] Configure and check free query auth token
@@ -56,17 +56,23 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
     - [ ] with paid service, validate receipts pricing wrt cost model
   - [ ] Runs TAP agent for receipt management
 - [ ] Subfile Client 
-  - [ ] Request (ipfs_hash, budget) from the chain after reading the subfile manifest
+  - [x] Request using ipfs_hash
+  - [ ] also use available budget for the overall subfile
+    - [ ] add free_token to request
+    - [ ] add receipt to request
     - [ ] This may live somewhere else (Gateway?)
-      - [ ] Read subfile manifest and construct receipts using budget and chunk sizes
+      - [x] Read subfile manifest
+      - [ ] construct receipts using budget and chunk sizes
+      - [ ] Ping indexer endpoints data availability
       - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
-      - [ ] Construct and send requests (may be parallel) to indexer endpoints 
-  - [ ] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
-    - [ ] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained
+      - [x] Construct and send requests to indexer endpoints 
+      - [ ] Parallelize requests
+  - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
+    - [x] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained
     - [ ] Upon receiving a response, verify the chunk data in the chunk_file
       - [ ] if failed, blacklist the indexer
     - [ ] Once all chunks for a file has been received, verify the file in subfile (should be vacuously true)
-  - [ ] Once all file has been received and verified, terminate and notify client
+  - [x] Once all file has been received and verified, terminate
 
 
 
