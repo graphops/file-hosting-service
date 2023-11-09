@@ -1,22 +1,31 @@
-## Subfile service specification 
+## Subfile manfiest specifications
 
-Subfile service initialization could include a list of IPFS hashes for subfiels the service supports upon initialization
+Document the structure of subfile and chunk files.
 
-### CLI command for the seeding request should include 
 
-One of these is required, conflict with each other
-file_path: Option<String>,   // Path to the file/directory to seed
-file_link: Option<String>,   // Previously generated magnet link
 
-These can be interactive, subcommand, or parsed from a config file
-name: Option<String>,        // Name to give the torrent file
-file_type: String,           // flatfiles and such, TODO: replace with an enum for supported types
-file_version: String,        // User specify the torrent version
-identifier: String,          // Describe a commonly available unit (firehose Ethereum chain, or subgrpah deployment hash, ...)
-start_block: Option<u64>,    // Flatfiles require a start block
-end_block: Option<u64>,      // Flatfiles require an end block, snapshots can utilize it as target_block
-trackers: Vec<String>, // A list of trackers to announce data availability to, we should provide a set of defaults
-subfile_store_path: String, // The path to store subfile.yaml once it has been generated
+
+### Calculations
+
+Let total file size be F, chunk size be c, hash size be 256bits = 32bytes
+
+F=5TB, c=1MB => ~5million chunks, 160 MB for hashes not including positioning
+F=5TB, c=10MB, lower bound by file size 25MB => 16-19.2MB for hashes not including positioning
+
+Merkel proof with roots
+
+
+#### Some real-life numbers 
+Total firehose size for Ethereum = 1.1TiB
+Files are 100 blocks each
+
+[18471362](https://etherscan.io/block/18471362) blocks = ~18471 files of 100 blocks each
+
+1.1TiB / 18471 = avg file size = 0.06 GiB 
+
+chunk size = 64MB would be 1 chunk per file
+
+so then split chunk size to something smaller like 2Mb, play around with this, leave it configurable
 
 
 Subfile Manfiest 
@@ -42,6 +51,76 @@ features:
 publisher_url: [persisted url of the publisher status]
 specVersion: [subfile version]
 ```
+
+
+
+
+abis file
+
+```
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        ...
+      }, ...
+    ]
+  },...
+]
+```
+
+...
+
+
+### CLI command for the populating manifest
+
+One of these is required, conflict with each other
+file_path: Option<String>,   // Path to the file/directory to seed
+file_link: Option<String>,   // Previously generated magnet link
+
+These can be interactive, subcommand, or parsed from a config file
+name: Option<String>,        // Name to give the torrent file
+file_type: String,           // flatfiles and such, TODO: replace with an enum for supported types
+file_version: String,        // User specify the torrent version
+identifier: String,          // Describe a commonly available unit (firehose Ethereum chain, or subgrpah deployment hash, ...)
+start_block: Option<u64>,    // Flatfiles require a start block
+end_block: Option<u64>,      // Flatfiles require an end block, snapshots can utilize it as target_block
+trackers: Vec<String>, // A list of trackers to announce data availability to, we should provide a set of defaults
+subfile_store_path: String, // The path to store subfile.yaml once it has been generated
+
+
+
+### Current manifest
+
+
+#### Subfile manifest
+
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX
+```
+files:
+- path: ./example-file/example0017686312.dbin
+  hash: Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+```
+
+#### Chunk file schema
+
+https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+```
+merkle_root: cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
+chunks:
+- cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
+- ...
+```
+^ need fixing
+
+
 
 
 
@@ -84,83 +163,4 @@ schema:
   file:
     /: /ipfs/QmVWxUnF6vxf4xUfrg6ferLr2tU6iAsY7wJBmtzQpqu3rd
 specVersion: 0.0.5
-templates:
-  - kind: ethereum/contract
-    mapping:
-      abis:
-        - file:
-            /: /ipfs/Qmdf7nHjUMcRMvGEdqwV7WxzBu3FZ9k47w7Bd5dJjbz38q
-          name: EpochManager
-      apiVersion: 0.0.7
-      entities:
-        - TokenLockWallet
-      eventHandlers:
-        - event: 'TokensReleased(indexed address,uint256)'
-          handler: handleTokensReleased
-      file:
-        /: /ipfs/QmUrL9HkFD2YbpZ6PzyQCtfVhCik23wsv27GKsoNvTbRHL
-      kind: ethereum/events
-      language: wasm/assemblyscript
-    name: GraphTokenLockWallet
-    network: arbitrum-goerli
-    source:
-      abi: GraphTokenLockWallet
 ```
-
-
-abis file
-
-```
-[
-  {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        ...
-      }, ...
-    ]
-  },...
-]
-```
-
-...
-
-
-### Calculations
-
-Let total file size be F, chunk size be c, hash size be 256bits = 32bytes
-
-F=5TB, c=1MB => ~5million chunks, 160 MB for hashes not including positioning
-F=5TB, c=10MB, lower bound by file size 25MB => 16-19.2MB for hashes not including positioning
-
-Merkel proof with roots
-
-
-### Current manifest
-
-
-#### Subfile manifest
-
-https://ipfs.network.thegraph.com/api/v0/cat?arg=QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX
-```
-files:
-- path: ./example-file/example0017686312.dbin
-  hash: Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
-```
-
-#### Chunk file schema
-
-https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
-```
-merkle_root: cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
-chunks:
-- cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
-- ...
-```
-^ need fixing

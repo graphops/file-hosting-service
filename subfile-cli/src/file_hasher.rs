@@ -19,11 +19,12 @@ pub struct ChunkFile {
     pub chunk_hashes: Vec<String>,
 }
 
-fn hash_chunk(chunk: &[u8]) -> String {
+pub fn hash_chunk(chunk: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(chunk);
     let hash = hasher.finalize().to_vec();
     tracing::debug!(hash = tracing::field::debug(&hash), "Chunk hash");
+    //TODO: update to a better encoder
     let hash_str = base64::encode(hash);
     tracing::debug!(hash_str = tracing::field::debug(&hash_str), "Chunk hash");
     hash_str

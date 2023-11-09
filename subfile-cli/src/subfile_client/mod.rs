@@ -21,7 +21,7 @@ use tracing::info;
 use http::header::{CONTENT_RANGE, RANGE};
 
 use crate::config::DownloaderArgs;
-use crate::file_hasher::CHUNK_SIZE;
+use crate::file_hasher::{hash_chunk, CHUNK_SIZE};
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::fetch_chunk_file_from_ipfs;
 
@@ -49,14 +49,22 @@ impl SubfileDownloader {
         }
     }
 
+    /// Check the availability of a file, ideally this should go through a gateway/DHT
+    /// but for now we ping an indexer endpoint directly, which is what a gateway 
+    /// would do in behave of the downloader
+    //TODO: update once there's a gateway
     pub async fn check_availability(&self) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
+    /// Read subfile manifiest and download the individual chunk files
+    //TODO: update once there is payment
     pub async fn download_subfile(&self, subfile_id: &str) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
+    /// Download a file by reading its chunk manifest
+    //TODO: update once there is payment
     pub async fn download_chunk_file(&self, ipfs_hash: &str) -> Result<(), anyhow::Error> {
         // First read subfile manifest for a chunk file, maybe the chunk_file ipfs_hash has been passed in
         let chunk_file = fetch_chunk_file_from_ipfs(&self.ipfs_client, ipfs_hash).await?;
@@ -81,6 +89,7 @@ impl SubfileDownloader {
 
         // Calculate the ranges and spawn threads to download each chunk
         let chunk_size = chunk_file.chunk_size;
+        let hashes = chunk_file.chunk_hashes.clone();
         let mut handles = Vec::new();
         for i in 0..(chunk_file.total_bytes / chunk_size + 1) {
             tracing::trace!(i, "Download chunk index");
@@ -89,11 +98,19 @@ impl SubfileDownloader {
             let file_clone = Arc::clone(&file);
             let url = query_endpoint.clone();
             let client = self.http_client.clone();
+            let chunk_hash = hashes[i as usize].clone();
 
             // Spawn a new asynchronous task for each range request
             let handle = task::spawn(async move {
-                let _ =
-                    download_chunk_and_write_to_file(&client, &url, start, end, file_clone).await;
+                let _ = download_chunk_and_write_to_file(
+                    &client,
+                    &url,
+                    start,
+                    end,
+                    &chunk_hash,
+                    file_clone,
+                )
+                .await;
             });
 
             handles.push(handle);
@@ -109,15 +126,24 @@ impl SubfileDownloader {
     }
 }
 
+/// Make request to download a chunk and write it to the file in position
 async fn download_chunk_and_write_to_file(
     http_client: &Client,
     query_endpoint: &str,
     start: u64,
     end: u64,
+    chunk_hash: &str,
     file: Arc<Mutex<File>>,
 ) -> Result<(), anyhow::Error> {
     // Make the range request to download the chunk
     let data = request_chunk(http_client, query_endpoint, start, end).await?;
+    let downloaded_chunk_hash = hash_chunk(&data);
+
+    // Verify the chunk by reading the chunk file and
+    if &downloaded_chunk_hash != chunk_hash {
+        tracing::warn!(query_endpoint, "Failed to validate a chunk from indexer");
+        return Err(anyhow!("Terminate the download, blacklist the indexer"));
+    }
 
     // Lock the file for writing
     let mut file = file.lock().await;
@@ -131,6 +157,7 @@ async fn download_chunk_and_write_to_file(
     Ok(())
 }
 
+/// Make range request for a file to the subfile server
 async fn request_chunk(
     http_client: &Client,
     query_endpoint: &str,
