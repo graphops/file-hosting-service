@@ -194,3 +194,17 @@ pub async fn version(context: &ServerContext) -> Result<Response<Body>, anyhow::
         .body(Body::from(version))
         .unwrap())
 }
+
+/// Endpoint for status availability
+pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+    let subfile_mapping = context.lock().await.subfiles.clone();
+    // TODO: check for local access
+
+    let subfile_ipfses: Vec<String> = subfile_mapping.keys().into_iter().map(|i| i.to_owned()).collect::<Vec<String>>();
+    let json = serde_json::to_string(&subfile_ipfses).map_err(|e| anyhow!(e.to_string()))?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(json))
+        .unwrap())
+}
