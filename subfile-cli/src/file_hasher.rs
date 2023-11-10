@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub const CHUNK_SIZE: usize = 1024 * 1024; // Define the chunk size, e.g., 1 MB
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
 pub struct ChunkFile {
     // pub merkle_root: String,
     pub file_name: String,

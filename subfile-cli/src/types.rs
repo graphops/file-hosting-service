@@ -1,14 +1,15 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
+
+use crate::{file_hasher::ChunkFile, publisher::SubfileManifest};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Subfile {
-    pub file_link: String,
-    pub file_name: String,
-    pub file_type: String,
-    pub version: String,
-    pub identifier: String,
-    pub trackers: Vec<String>,
-    pub block_range: BlockRange,
+    pub ipfs_hash: String,
+    pub local_path: PathBuf,
+    pub manifest: SubfileManifest,
+    pub chunk_files: Vec<ChunkFile>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

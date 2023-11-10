@@ -3,17 +3,24 @@ use serde::{Deserialize, Serialize};
 use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SubfileManifest {
     pub files: Vec<FileMetaInfo>,
     // Add additional metadata as needed
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FileMetaInfo {
     pub name: String, // file name instead?
     pub hash: String,
-    // Add additional metadata as needed
+    //TODO: Add additional metadata as needed
+    // pub file_link: String,
+    // pub file_name: String,
+    // pub file_type: String,
+    // pub version: String,
+    // pub identifier: String,
+    // pub trackers: Vec<String>,
+    // pub block_range: BlockRange,
 }
 
 pub struct SubfilePublisher {

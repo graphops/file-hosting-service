@@ -12,18 +12,12 @@ use tokio::sync::Mutex;
 
 use crate::config::ServerArgs;
 use crate::ipfs::IpfsClient;
-use crate::subfile_reader::read_manifest;
+use crate::subfile_reader::read_subfile;
+use crate::types::Subfile;
 // use hyper_rustls::TlsAcceptor;
 use range::*;
 
 pub mod range;
-
-// Define a struct to hold subfile information
-struct Subfile {
-    ipfs_hash: String,
-    local_path: PathBuf,
-    chunk_hashes: Vec<String>, // This should be the actual hash type you're using
-}
 
 // Define a struct for the server state
 pub struct ServerState {
@@ -135,23 +129,9 @@ async fn initialize_subfile_service(
     ipfs_hash: &str,
     local_path: PathBuf,
 ) -> Result<ServerContext, anyhow::Error> {
-    // Fetch the file using IPFS client (pseudo-code)
-    // let file_contents = ipfs_client.get_file(&ipfs_hash).await?;
-
-    // Parse the YAML file to get chunk hashes (pseudo-code)
-    let _ = read_manifest(client, ipfs_hash).await;
-    // let yaml_contents = std::fs::read_to_string(ipfs_hash)?;
-    // let chunk_hashes: Vec<String> = serde_yaml::from_str(&yaml_contents)?;
-
-    // Construct the subfile object
-    let subfile = Subfile {
-        ipfs_hash: ipfs_hash.to_string(),
-        local_path,
-        chunk_hashes: vec![],
-    };
-
-    // Verify the local version satisfies the chunk hashes (pseudo-code)
-    // verify_local_version(&subfile)?;
+    //TODO: vectorize initial subfiles -> server_state subfiles hashmap
+    // Fetch the file using IPFS client, should be verified
+    let subfile = read_subfile(client, ipfs_hash, local_path).await?;
 
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization

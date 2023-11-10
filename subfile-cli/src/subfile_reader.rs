@@ -1,6 +1,6 @@
-use std::{error::Error, time::Duration};
+use std::{error::Error, path::PathBuf, time::Duration};
 
-use crate::{file_hasher::ChunkFile, ipfs::IpfsClient, publisher::SubfileManifest};
+use crate::{file_hasher::ChunkFile, ipfs::IpfsClient, publisher::SubfileManifest, types::Subfile};
 
 /// Parse yaml into Subfile manifest
 pub fn parse_subfile_manifest(yaml: serde_yaml::Value) -> Result<SubfileManifest, anyhow::Error> {
@@ -60,13 +60,27 @@ pub async fn fetch_chunk_file_from_ipfs(
     Ok(chunk_file)
 }
 
-pub async fn read_manifest(client: &IpfsClient, ipfs: &str) -> Result<(), Box<dyn Error>> {
+pub async fn read_subfile(
+    client: &IpfsClient,
+    ipfs: &str,
+    local_path: PathBuf,
+) -> Result<Subfile, anyhow::Error> {
     let manifest = fetch_subfile_from_ipfs(client, ipfs).await?;
 
-    for file in manifest.files {
-        let chunk_file = fetch_chunk_file_from_ipfs(client, &file.hash).await?;
-        tracing::debug!("Chunk file: {:?}", chunk_file.file_name);
+    // Get and Parse the YAML file to get chunk hashes
+    let mut chunk_files = vec![];
+    for file in &manifest.files {
+        let file = fetch_chunk_file_from_ipfs(client, &file.hash).await?;
+
+        //TODO: Verify file against the local version
+
+        chunk_files.push(file);
     }
 
-    Ok(())
+    Ok(Subfile {
+        ipfs_hash: ipfs.to_string(),
+        local_path,
+        manifest,
+        chunk_files,
+    })
 }

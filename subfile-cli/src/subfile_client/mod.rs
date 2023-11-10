@@ -50,7 +50,7 @@ impl SubfileDownloader {
     }
 
     /// Check the availability of a file, ideally this should go through a gateway/DHT
-    /// but for now we ping an indexer endpoint directly, which is what a gateway 
+    /// but for now we ping an indexer endpoint directly, which is what a gateway
     /// would do in behave of the downloader
     //TODO: update once there's a gateway
     pub async fn check_availability(&self) -> Result<(), anyhow::Error> {
@@ -176,9 +176,9 @@ async fn request_chunk(
 
     // Check if the server supports range requests
     if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
-        return Ok(response.bytes().await?);
+        Ok(response.bytes().await?)
     } else {
         tracing::error!("Server does not support range requests or the request failed.");
-        return Err(anyhow!("Range request failed"));
+        Err(anyhow!("Range request failed"))
     }
 }
