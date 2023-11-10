@@ -30,6 +30,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
 - [x] YAML parser and builder
   - [x] Deserialize and serialize yaml files
 - [ ] Subfile server 
+  - [ ] require operator mnemonic
   - [x] Initialize service; for one subfile, take (ipfs_hash, local_path)
     - [x] Take a subfile IPFS hash and get the file using IPFS client
     - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
@@ -37,10 +38,12 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
       - [ ] Verify the local version satisfy the chunk hashes
     - [x] vectorize service for multiple subfiles
     - [ ] Once all verified, add to file to the service availability endpoint
+  - [x] Route `/` for "Ready to roll!"
+  - [ ] Route `/operator` for operator info
   - [ ] Route `/status` for availability
-  - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash
-  - [ ] Route `/health` for general health
-  - [ ] Route `/version` for subfile server version
+  - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash with range requests
+  - [x] Route `/health` for general health
+  - [x] Route `/version` for subfile server version
   - [ ] Configure and check free query auth token
   - [ ] Server Certificate 
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)

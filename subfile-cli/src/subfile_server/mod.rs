@@ -1,26 +1,32 @@
 // #![cfg(feature = "acceptor")]
 use anyhow::anyhow;
 use hyper::service::{make_service_fn, service_fn};
+use serde::Serialize;
 
 use std::collections::HashMap;
-use std::fs;
-use std::io::{self};
 use std::sync::Arc;
-use std::vec::Vec;
 use tokio::sync::Mutex;
 
 use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::read_subfile;
+use crate::subfile_server::util::package_version;
 use crate::types::Subfile;
+// #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
-use range::*;
+use hyper::{Body, Request, Response, StatusCode, header::RANGE};
+
+use self::range::{parse_range_header, serve_file, serve_file_range};
+use self::util::PackageVersion;
 
 pub mod range;
+pub mod util;
 
 // Define a struct for the server state
+#[derive(Debug)]
 pub struct ServerState {
-    subfiles: HashMap<String, Subfile>, // Keyed by IPFS hash
+    pub subfiles: HashMap<String, Subfile>, // Keyed by IPFS hash
+    pub release: PackageVersion,
 }
 
 pub type ServerContext = Arc<Mutex<ServerState>>;
@@ -31,9 +37,11 @@ pub async fn init_server(client: &IpfsClient, config: ServerArgs) {
         .parse()
         .expect("Invalid address");
 
-    let state = initialize_subfile_service(client, config).await.unwrap();
+    let state = initialize_subfile_server_context(client, config)
+        .await
+        .unwrap();
 
-    // Create a hyper server
+    // Create hyper server routes
     let make_svc = make_service_fn(|_| {
         let state = state.clone();
         async { Ok::<_, hyper::Error>(service_fn(move |req| handle_request(req, state.clone()))) }
@@ -61,61 +69,9 @@ pub async fn init_server(client: &IpfsClient, config: ServerArgs) {
     }
 }
 
-// // Custom echo service, handling two different routes and a
-// // catch-all 404 responder.
-// async fn echo(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-//     let mut response = Response::new(Body::empty());
-//     match (req.method(), req.uri().path()) {
-//         // Help route.
-//         (&Method::GET, "/") => {
-//             *response.body_mut() = Body::from("Try POST /echo\n");
-//         }
-//         // Echo service route.
-//         (&Method::POST, "/echo") => {
-//             *response.body_mut() = req.into_body();
-//         }
-//         // Catch-all 404.
-//         _ => {
-//             *response.status_mut() = StatusCode::NOT_FOUND;
-//         }
-//     };
-//     Ok(response)
-// }
-
-// Load public certificate from file.
-#[allow(unused)]
-fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, anyhow::Error> {
-    // Open certificate file.
-    let certfile = fs::File::open(filename)
-        .map_err(|e| anyhow!(format!("failed to open {}: {}", filename, e)))?;
-    let mut reader = io::BufReader::new(certfile);
-
-    // Load and return certificate.
-    let certs = rustls_pemfile::certs(&mut reader)
-        .map_err(|e| anyhow!(format!("failed to load certificate: {:#?}", e)))?;
-    Ok(certs.into_iter().map(rustls::Certificate).collect())
-}
-
-// Load private key from file.
-#[allow(unused)]
-fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, anyhow::Error> {
-    // Open keyfile.
-    let keyfile = fs::File::open(filename)
-        .map_err(|e| anyhow!(format!("failed to open {}: {}", filename, e)))?;
-    let mut reader = io::BufReader::new(keyfile);
-
-    // Load and return a single private key.
-    let keys = rustls_pemfile::rsa_private_keys(&mut reader)
-        .map_err(|e| anyhow!("failed to load private key: {:#?}", e))?;
-    if keys.len() != 1 {
-        return Err(anyhow!("expected a single private key"));
-    }
-
-    Ok(rustls::PrivateKey(keys[0].clone()))
-}
 
 /// Function to initialize the subfile server
-async fn initialize_subfile_service(
+async fn initialize_subfile_server_context(
     client: &IpfsClient,
     config: ServerArgs,
 ) -> Result<ServerContext, anyhow::Error> {
@@ -129,7 +85,9 @@ async fn initialize_subfile_service(
     // This would be part of your server state initialization
     let mut server_state = ServerState {
         subfiles: HashMap::new(),
+        release: package_version()?,
     };
+
     // Fetch the file using IPFS client, should be verified
     for (ipfs_hash, local_path) in subfile_entries {
         let subfile = read_subfile(client, &ipfs_hash, local_path).await?;
@@ -141,4 +99,98 @@ async fn initialize_subfile_service(
 
     // Return the server state wrapped in an Arc for thread safety
     Ok(Arc::new(Mutex::new(server_state)))
+}
+
+/// Handle incoming requests by
+pub async fn handle_request(
+    req: Request<Body>,
+    context: ServerContext,
+) -> Result<Response<Body>, anyhow::Error> {
+    match req.uri().path() {
+        "/" => Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body("Ready to roll!".into())
+            .unwrap()),
+        "/operator" => {
+            //TODO: Implement logic to return operator info
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body("TODO: Operator info".into())
+                .unwrap())
+        }
+        "/status" => {
+            //TODO: Implement logic to return availability status from server context subfiles
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body("TODO: Read server status".into())
+                .unwrap())
+        }
+        "/health" => health().await,
+        "/version" => version(&context).await,
+        path if path.starts_with("/subfiles/id/") => {
+            let id = path.trim_start_matches("/subfiles/id/");
+
+            let context_ref = context.lock().await;
+            let file_path = match context_ref.subfiles.get(id).map(|f| f.local_path.as_path()) {
+                Some(path) => path,
+                None => {
+                    return Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body("File not found".into())
+                        .unwrap())
+                }
+            };
+            // TODO: Add auth token config
+            // let auth_token = req.headers().get(AUTHORIZATION)
+            //     .and_then(|hv| hv.to_str().ok())
+            //     .unwrap_or("");
+
+            // // Validate the auth token
+            // if auth_token != "expected_token" {
+            //     return Ok(Response::builder()
+            //         .status(StatusCode::UNAUTHORIZED)
+            //         .body("Invalid auth token".into())
+            //         .unwrap());
+            // }
+
+            // Parse the range header to get the start and end bytes
+            match req.headers().get(RANGE) {
+                Some(r) => {
+                    let range = parse_range_header(r)
+                        .map_err(|e| anyhow!(format!("Failed to parse range header: {}", e)))?;
+                    //TODO: validate receipt
+                    serve_file_range(file_path, range).await
+                }
+                None => serve_file(file_path).await,
+            }
+        }
+        _ => Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body("Not Found".into())
+            .unwrap()),
+    }
+}
+
+#[derive(Serialize)]
+struct Health {
+    healthy: bool,
+}
+
+/// Endpoint for server health
+pub async fn health() -> Result<Response<Body>, anyhow::Error> {
+    let health = Health { healthy: true };
+    let health_json = serde_json::to_string(&health).map_err(|e| anyhow!(e.to_string()))?;
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(health_json))
+        .unwrap())
+}
+
+/// Endpoint for package version
+pub async fn version(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+    let version = context.lock().await.release.version.clone();
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(version))
+        .unwrap())
 }
