@@ -1,7 +1,10 @@
+use anyhow::anyhow;
 use clap::{arg, ValueEnum};
 use clap::{command, Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::{fmt, fs};
 use tracing::subscriber::SetGlobalDefaultError;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
@@ -60,6 +63,14 @@ pub struct ServerArgs {
     pub host: String,
     #[arg(long, value_name = "PORT", env = "PORT", help = "Subfile server port")]
     pub port: usize,
+    // Taking from config right now, later can read from DB table for managing server states
+    #[arg(
+        long,
+        value_name = "SUBFILES",
+        env = "SUBFILES",
+        help = "Comma separated list of IPFS hashes and local location of the subfiles to serve upon start-up; format: [ipfs_hash:local_path]"
+    )]
+    pub subfiles: Vec<String>,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
@@ -240,4 +251,47 @@ impl fmt::Display for LogFormat {
             LogFormat::Full => write!(f, "full"),
         }
     }
+}
+
+/// Validate the subfile configurations at initialization
+pub fn validate_subfile_entries(
+    entries: Vec<String>,
+) -> Result<Vec<(String, PathBuf)>, anyhow::Error> {
+    let mut results = Vec::new();
+
+    for entry in entries {
+        let parts: Vec<&str> = entry.split(':').collect();
+        if parts.len() != 2 {
+            return Err(anyhow!("Invalid format for entry: {}", entry));
+        }
+
+        let ipfs_hash = parts[0];
+        let local_path = parts[1];
+
+        // Validate IPFS hash (this is a placeholder, you'll need to define what a valid IPFS hash is)
+        if !is_valid_ipfs_hash(ipfs_hash) {
+            return Err(anyhow!("Invalid IPFS hash: {}", ipfs_hash));
+        }
+
+        // Validate local path
+        let path = PathBuf::from_str(local_path);
+        if path.is_err() || !path.as_ref().unwrap().exists() {
+            return Err(anyhow!("Invalid local path: {}", local_path));
+        }
+
+        results.push((ipfs_hash.to_string(), path.unwrap()));
+    }
+
+    Ok(results)
+}
+
+fn is_valid_ipfs_hash(hash: &str) -> bool {
+    // Basic validation for IPFS hash
+    // Note: This is a simplified check and may not cover all cases.
+    hash.starts_with("Qm") && hash.len() == 46
+}
+
+fn is_valid_local_path(path: &str) -> bool {
+    // Check if the path exists and is a file
+    Path::new(path).exists() && fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
 }

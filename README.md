@@ -35,6 +35,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
     - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
       - [ ] Take metainfo of chunk_file and search for access by the local_path
       - [ ] Verify the local version satisfy the chunk hashes
+    - [x] vectorize service for multiple subfiles
     - [ ] Once all verified, add to file to the service availability endpoint
   - [ ] Route `/status` for availability
   - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash
@@ -69,7 +70,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
       - [ ] Parallelize requests
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
     - [x] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained
-    - [ ] Upon receiving a response, verify the chunk data in the chunk_file
+    - [x] Upon receiving a response, verify the chunk data in the chunk_file
       - [ ] if failed, blacklist the indexer
     - [ ] Once all chunks for a file has been received, verify the file in subfile (should be vacuously true)
   - [x] Once all file has been received and verified, terminate

@@ -5,12 +5,11 @@ use hyper::service::{make_service_fn, service_fn};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::vec::Vec;
 use tokio::sync::Mutex;
 
-use crate::config::ServerArgs;
+use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::read_subfile;
 use crate::types::Subfile;
@@ -26,20 +25,13 @@ pub struct ServerState {
 
 pub type ServerContext = Arc<Mutex<ServerState>>;
 
-pub async fn init_server(client: &IpfsClient, server_config: ServerArgs) {
-    let port = server_config.port;
-    let addr = format!("{}:{}", server_config.host, port)
+pub async fn init_server(client: &IpfsClient, config: ServerArgs) {
+    let port = config.port;
+    let addr = format!("{}:{}", config.host, port)
         .parse()
         .expect("Invalid address");
 
-    //TODO: add to configs
-    let state = initialize_subfile_service(
-        client,
-        "QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ",
-        PathBuf::from("./example-file/example0017686312.dbin"),
-    )
-    .await
-    .unwrap();
+    let state = initialize_subfile_service(client, config).await.unwrap();
 
     // Create a hyper server
     let make_svc = make_service_fn(|_| {
@@ -123,24 +115,29 @@ fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, anyhow::Error>
 }
 
 /// Function to initialize the subfile server
-//TODO: Take in a vector of initial subfiles
 async fn initialize_subfile_service(
     client: &IpfsClient,
-    ipfs_hash: &str,
-    local_path: PathBuf,
+    config: ServerArgs,
 ) -> Result<ServerContext, anyhow::Error> {
-    //TODO: vectorize initial subfiles -> server_state subfiles hashmap
-    // Fetch the file using IPFS client, should be verified
-    let subfile = read_subfile(client, ipfs_hash, local_path).await?;
+    let subfile_entries = validate_subfile_entries(config.subfiles.clone())?;
+    tracing::debug!(
+        entries = tracing::field::debug(&subfile_entries),
+        "Validated subfile entries"
+    );
 
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization
     let mut server_state = ServerState {
         subfiles: HashMap::new(),
     };
-    server_state
-        .subfiles
-        .insert(subfile.ipfs_hash.clone(), subfile);
+    // Fetch the file using IPFS client, should be verified
+    for (ipfs_hash, local_path) in subfile_entries {
+        let subfile = read_subfile(client, &ipfs_hash, local_path).await?;
+        tracing::debug!(subfile = tracing::field::debug(&subfile), "Read subfile");
+        server_state
+            .subfiles
+            .insert(subfile.ipfs_hash.clone(), subfile);
+    }
 
     // Return the server state wrapped in an Arc for thread safety
     Ok(Arc::new(Mutex::new(server_state)))

@@ -28,6 +28,11 @@ pub async fn fetch_subfile_from_ipfs(
 
     let subfile = parse_subfile_manifest(content)?;
 
+    tracing::debug!(
+        subfile = tracing::field::debug(&subfile),
+        "subfile manifest"
+    );
+
     Ok(subfile)
 }
 
