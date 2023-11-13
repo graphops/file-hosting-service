@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::config::PublisherArgs;
 use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
 
@@ -57,13 +58,21 @@ impl SubfilePublisher {
 
     pub async fn hash_and_publish_files(
         &self,
-        file_paths: &[&str],
-    ) -> Result<Vec<String>, anyhow::Error> {
+        file_names: &Vec<String>,
+    ) -> Result<Vec<FileMetaInfo>, anyhow::Error> {
         let mut root_hashes = Vec::new();
 
-        for &file_path in file_paths {
-            let ipfs_hash = self.hash_and_publish_file(file_path).await?.hash;
-            root_hashes.push(ipfs_hash);
+        tracing::trace!(
+            file_names = tracing::field::debug(&file_names),
+            "hash_and_publish_files",
+        );
+
+        for file_name in file_names {
+            let ipfs_hash = self.hash_and_publish_file(file_name).await?.hash;
+            root_hashes.push(FileMetaInfo {
+                name: file_name.to_string(),
+                hash: ipfs_hash,
+            });
         }
 
         Ok(root_hashes)
@@ -94,21 +103,16 @@ impl SubfilePublisher {
     }
 
     //TODO: use the full config args for publishing
-    pub async fn publish(&self, file_name: &str) -> Result<String, anyhow::Error> {
-        let hash: String = match self.hash_and_publish_file(&file_name).await {
-            Ok(added) => {
-                tracing::info!("Published file to IPFS: {:#?}", added);
-                added.hash
-            }
+    pub async fn publish(&self, config: &PublisherArgs) -> Result<String, anyhow::Error> {
+        let meta_info = match self.hash_and_publish_files(&config.file_names).await {
+            Ok(added_hashes) => added_hashes,
             Err(e) => return Err(e),
         };
 
-        // Construct and publish a subfile manifest
-        let meta_info = vec![FileMetaInfo {
-            name: file_name.to_string(),
-            hash,
-        }];
-
+        tracing::trace!(
+            meta_info = tracing::field::debug(&meta_info),
+            "hash_and_publish_files",
+        );
         match self.construct_subfile_manifest(meta_info) {
             Ok(manifest_yaml) => match self.publish_subfile_manifest(&manifest_yaml).await {
                 Ok(ipfs_hash) => {

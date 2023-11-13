@@ -44,7 +44,7 @@ async fn main() {
 
             let publisher = SubfilePublisher::new(client, &config.read_dir);
 
-            match publisher.publish(&config.file_name).await {
+            match publisher.publish(&config).await {
                 Ok(r) => {
                     tracing::info!(result = tracing::field::debug(&r), "Published");
                 }

@@ -111,6 +111,9 @@ pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyho
     // let (_, chunks) = chunk_file(Path::new(&file_path))?;
     // let merkle_tree = build_merkle_tree(chunks);
     // let chunk_file = create_chunk_file(&merkle_tree);
+
+    tracing::trace!(read_dir, file_name, "write_chunk_file",);
+
     let chunk_file = create_chunk_file(read_dir, file_name)?;
 
     tracing::trace!(

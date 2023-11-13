@@ -141,11 +141,12 @@ pub struct PublisherArgs {
 
     #[arg(
         long,
-        value_name = "FILE_NAME",
-        env = "FILE_NAME",
-        help = "Name for the file to be included in subfile (later this can be interactive)"
+        value_name = "FILE_NAMES",
+        value_delimiter = ',',
+        env = "FILE_NAMES",
+        help = "Name for the files to be included in subfile (later this can be interactive)"
     )]
-    pub file_name: String,
+    pub file_names: Vec<String>,
 
     #[arg(
         long,
