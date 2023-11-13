@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{file_hasher::ChunkFile, publisher::SubfileManifest};
 
+//TODO: Add GraphQL derivation
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Subfile {
     pub ipfs_hash: String,

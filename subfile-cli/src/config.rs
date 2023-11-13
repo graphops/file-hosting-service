@@ -90,6 +90,14 @@ pub struct DownloaderArgs {
         help = "Client pings the gateway for file discovery; TODO: currently gateway_url is used to ping local server url directly"
     )]
     pub gateway_url: String,
+    // Trust tracking should be done by the gateway/DHT
+    #[arg(
+        long,
+        value_name = "INDEXER_ENDPOINTS",
+        env = "INDEXER_ENDPOINTS",
+        help = "A list of indexer endpoints to query data from"
+    )]
+    pub indexer_endpoints: Vec<String>,
     #[arg(
         long,
         value_name = "OUTPUT_DIR",

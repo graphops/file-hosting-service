@@ -47,6 +47,7 @@ pub async fn fetch_chunk_file_from_ipfs(
     client: &IpfsClient,
     ipfs_hash: &str,
 ) -> Result<ChunkFile, anyhow::Error> {
+    tracing::debug!(ipfs_hash, "Fetch chunk file from IPFS");
     // Fetch the content from IPFS
     let timeout = Duration::from_secs(10);
 
@@ -65,6 +66,7 @@ pub async fn fetch_chunk_file_from_ipfs(
     Ok(chunk_file)
 }
 
+/// Read subfile from IPFS, build a version relative to local access
 pub async fn read_subfile(
     client: &IpfsClient,
     ipfs: &str,

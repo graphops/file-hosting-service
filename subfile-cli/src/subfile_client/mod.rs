@@ -11,9 +11,8 @@ use bytes::Bytes;
 use reqwest::Client;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
-use std::thread;
 use tokio::sync::Mutex;
 use tokio::task;
 use tracing::info;
@@ -21,9 +20,10 @@ use tracing::info;
 use http::header::{CONTENT_RANGE, RANGE};
 
 use crate::config::DownloaderArgs;
-use crate::file_hasher::{hash_chunk, CHUNK_SIZE};
+use crate::file_hasher::hash_chunk;
 use crate::ipfs::IpfsClient;
-use crate::subfile_reader::fetch_chunk_file_from_ipfs;
+use crate::publisher::FileMetaInfo;
+use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
 
 pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
@@ -31,6 +31,7 @@ pub struct SubfileDownloader {
     ipfs_hash: String,
     //TODO: currently direct ping to server_url -> decentralize to gateway_url
     server_url: String,
+    indexer_endpoints: Vec<String>,
     output_dir: String,
     // Other fields as needed
 }
@@ -45,29 +46,73 @@ impl SubfileDownloader {
             ipfs_hash: args.ipfs_hash,
             //TODO: change for discovery
             server_url: args.gateway_url,
+            indexer_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
         }
     }
 
-    /// Check the availability of a file, ideally this should go through a gateway/DHT
+    /// Check the availability of a subfile, ideally this should go through a gateway/DHT
     /// but for now we ping an indexer endpoint directly, which is what a gateway
     /// would do in behave of the downloader
+    /// Return a list of endpoints where the desired subfile is hosted
     //TODO: update once there's a gateway
-    pub async fn check_availability(&self) -> Result<(), anyhow::Error> {
-        Ok(())
+    pub async fn check_availability(&self) -> Result<Vec<String>, anyhow::Error> {
+        let mut endpoints = vec![];
+        // Loop through indexer endpoints and query data availability
+        //TODO: parallelize
+        for url in &self.indexer_endpoints {
+            // Ping availability endpoint with timeout
+            let status_url = url.to_owned() + "/status";
+            let response = &self.http_client.get(status_url).send().await?;
+
+            // Check if the server supports range requests
+            // if response.status().is_success() && response.json(). {
+            // } else {
+            //     tracing::error!("Server does not support range requests or the request failed.");
+            //     Err(anyhow!("Range request failed"))
+            // }
+
+            // return a vec of indexers
+            //TODO: add indexer pricing to do basic byte prices matching
+        }
+
+        Ok(endpoints)
     }
 
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
-    pub async fn download_subfile(&self, subfile_id: &str) -> Result<(), anyhow::Error> {
+    pub async fn download_subfile(&self) -> Result<(), anyhow::Error> {
+        // Read subfile from ipfs
+        let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
+
+        // Loop through chunk files for downloading
+        let mut completed_files = vec![];
+        for chunk_file in &subfile.files {
+            let res = self.download_chunk_file(chunk_file).await;
+            completed_files.push(res);
+        }
+
+        //TODO: retry for failed subfiles
+        tracing::info!(
+            completed_files = tracing::field::debug(&completed_files),
+            "Chunk files download results"
+        );
         Ok(())
     }
 
     /// Download a file by reading its chunk manifest
     //TODO: update once there is payment
-    pub async fn download_chunk_file(&self, ipfs_hash: &str) -> Result<(), anyhow::Error> {
+    pub async fn download_chunk_file(
+        &self,
+        chunk_file_info: &FileMetaInfo,
+    ) -> Result<(), anyhow::Error> {
+        tracing::debug!(
+            info = tracing::field::debug(&chunk_file_info),
+            "Download chunk file"
+        );
         // First read subfile manifest for a chunk file, maybe the chunk_file ipfs_hash has been passed in
-        let chunk_file = fetch_chunk_file_from_ipfs(&self.ipfs_client, ipfs_hash).await?;
+        let chunk_file =
+            fetch_chunk_file_from_ipfs(&self.ipfs_client, &chunk_file_info.hash).await?;
 
         // read chunk file for file meta info; piece_length, total_bytes
         // calculate num_pieces = total_bytes / piece_length
@@ -98,6 +143,7 @@ impl SubfileDownloader {
             let file_clone = Arc::clone(&file);
             let url = query_endpoint.clone();
             let client = self.http_client.clone();
+            let file_name = chunk_file_info.name.clone();
             let chunk_hash = hashes[i as usize].clone();
 
             // Spawn a new asynchronous task for each range request
@@ -105,6 +151,7 @@ impl SubfileDownloader {
                 let _ = download_chunk_and_write_to_file(
                     &client,
                     &url,
+                    &file_name,
                     start,
                     end,
                     &chunk_hash,
@@ -130,13 +177,14 @@ impl SubfileDownloader {
 async fn download_chunk_and_write_to_file(
     http_client: &Client,
     query_endpoint: &str,
+    file_name: &str,
     start: u64,
     end: u64,
     chunk_hash: &str,
     file: Arc<Mutex<File>>,
 ) -> Result<(), anyhow::Error> {
     // Make the range request to download the chunk
-    let data = request_chunk(http_client, query_endpoint, start, end).await?;
+    let data = request_chunk(http_client, query_endpoint, file_name, start, end).await?;
     let downloaded_chunk_hash = hash_chunk(&data);
 
     // Verify the chunk by reading the chunk file and
@@ -161,6 +209,7 @@ async fn download_chunk_and_write_to_file(
 async fn request_chunk(
     http_client: &Client,
     query_endpoint: &str,
+    file_name: &str,
     start: u64,
     end: u64,
 ) -> Result<Bytes, anyhow::Error> {
@@ -168,9 +217,11 @@ async fn request_chunk(
     // The client should be smart enough to take care of proper chunking through subfile metadata
     let range = format!("bytes={}-{}", start, end);
 
+    tracing::debug!(query_endpoint, range, "Make range request");
     let response = http_client
         .get(query_endpoint)
-        .header(RANGE, range)
+        .header("file_name", file_name)
+        .header(CONTENT_RANGE, range)
         .send()
         .await?;
 
@@ -178,7 +229,12 @@ async fn request_chunk(
     if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
         Ok(response.bytes().await?)
     } else {
-        tracing::error!("Server does not support range requests or the request failed.");
+        tracing::error!(
+            status = tracing::field::debug(&response.status()),
+            headers = tracing::field::debug(&response.headers()),
+            chunk = tracing::field::debug(&response),
+            "Server does not support range requests or the request failed"
+        );
         Err(anyhow!("Range request failed"))
     }
 }

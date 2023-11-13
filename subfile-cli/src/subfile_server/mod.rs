@@ -1,5 +1,6 @@
 // #![cfg(feature = "acceptor")]
 use anyhow::anyhow;
+use http::header::CONTENT_RANGE;
 use hyper::service::{make_service_fn, service_fn};
 use serde::Serialize;
 
@@ -14,7 +15,7 @@ use crate::subfile_server::util::package_version;
 use crate::types::Subfile;
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
-use hyper::{Body, Request, Response, StatusCode, header::RANGE};
+use hyper::{Body, Request, Response, StatusCode};
 
 use self::range::{parse_range_header, serve_file, serve_file_range};
 use self::util::PackageVersion;
@@ -69,7 +70,6 @@ pub async fn init_server(client: &IpfsClient, config: ServerArgs) {
     }
 }
 
-
 /// Function to initialize the subfile server
 async fn initialize_subfile_server_context(
     client: &IpfsClient,
@@ -106,6 +106,7 @@ pub async fn handle_request(
     req: Request<Body>,
     context: ServerContext,
 ) -> Result<Response<Body>, anyhow::Error> {
+    tracing::trace!("Received request");
     match req.uri().path() {
         "/" => Ok(Response::builder()
             .status(StatusCode::OK)
@@ -118,26 +119,31 @@ pub async fn handle_request(
                 .body("TODO: Operator info".into())
                 .unwrap())
         }
-        "/status" => {
-            //TODO: Implement logic to return availability status from server context subfiles
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body("TODO: Read server status".into())
-                .unwrap())
-        }
+        "/status" => status(&context).await,
         "/health" => health().await,
         "/version" => version(&context).await,
         path if path.starts_with("/subfiles/id/") => {
+            tracing::debug!("Received file range request");
             let id = path.trim_start_matches("/subfiles/id/");
 
             let context_ref = context.lock().await;
-            let file_path = match context_ref.subfiles.get(id).map(|f| f.local_path.as_path()) {
-                Some(path) => path,
+            tracing::debug!(
+                subfiles = tracing::field::debug(&context_ref),
+                id,
+                "Received file range request"
+            );
+            let requested_subfile = match context_ref.subfiles.get(id) {
+                Some(s) => s,
                 None => {
+                    tracing::debug!(
+                        server_context = tracing::field::debug(&context_ref),
+                        id,
+                        "Requested subfile is not served locally"
+                    );
                     return Ok(Response::builder()
                         .status(StatusCode::NOT_FOUND)
-                        .body("File not found".into())
-                        .unwrap())
+                        .body("Subfile not found".into())
+                        .unwrap());
                 }
             };
             // TODO: Add auth token config
@@ -153,20 +159,34 @@ pub async fn handle_request(
             //         .unwrap());
             // }
 
-            // Parse the range header to get the start and end bytes
-            match req.headers().get(RANGE) {
-                Some(r) => {
-                    let range = parse_range_header(r)
-                        .map_err(|e| anyhow!(format!("Failed to parse range header: {}", e)))?;
-                    //TODO: validate receipt
-                    serve_file_range(file_path, range).await
+            match req.headers().get("file_name") {
+                Some(hash) if hash.to_str().is_ok() => {
+                    let mut file_path = requested_subfile.local_path.clone();
+                    file_path.push(hash.to_str().unwrap());
+                    // Parse the range header to get the start and end bytes
+                    match req.headers().get(CONTENT_RANGE) {
+                        Some(r) => {
+                            tracing::debug!("Parse content range header");
+                            let range = parse_range_header(r).map_err(|e| {
+                                anyhow!(format!("Failed to parse range header: {}", e))
+                            })?;
+                            //TODO: validate receipt
+                            serve_file_range(&file_path, range).await
+                        }
+                        None => serve_file(&file_path).await,
+                    }
                 }
-                None => serve_file(file_path).await,
+                _ => {
+                    return Ok(Response::builder()
+                        .status(StatusCode::NOT_ACCEPTABLE)
+                        .body("Missing required chunk_file_hash header".into())
+                        .unwrap())
+                }
             }
         }
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
-            .body("Not Found".into())
+            .body("Route not found".into())
             .unwrap()),
     }
 }
@@ -200,9 +220,14 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::E
     let subfile_mapping = context.lock().await.subfiles.clone();
     // TODO: check for local access
 
-    let subfile_ipfses: Vec<String> = subfile_mapping.keys().into_iter().map(|i| i.to_owned()).collect::<Vec<String>>();
+    let subfile_ipfses: Vec<String> = subfile_mapping
+        .keys()
+        .into_iter()
+        .map(|i| i.to_owned())
+        .collect::<Vec<String>>();
     let json = serde_json::to_string(&subfile_ipfses).map_err(|e| anyhow!(e.to_string()))?;
 
+    tracing::debug!(json, "Serving status");
     Ok(Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))

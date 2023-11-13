@@ -41,6 +41,12 @@ pub async fn serve_file_range(
     file_path: &Path,
     (start, end): (u64, u64),
 ) -> Result<Response<Body>, anyhow::Error> {
+    tracing::debug!(
+        file_path = tracing::field::debug(&file_path),
+        start_byte = tracing::field::debug(&start),
+        end_byte = tracing::field::debug(&end),
+        "Serve file range"
+    );
     //TODO: Map the subfile_id to a file path, use server state for the file_map
     let mut file = match File::open(file_path) {
         Ok(f) => f,
@@ -62,6 +68,7 @@ pub async fn serve_file_range(
         }
     };
 
+    tracing::debug!(start, end, file_size, "Range validity check");
     if start >= file_size || end >= file_size {
         return Ok(Response::builder()
             .status(StatusCode::RANGE_NOT_SATISFIABLE)

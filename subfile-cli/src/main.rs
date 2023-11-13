@@ -36,8 +36,7 @@ async fn main() {
             // Validate IPFS against extra input to make sure it is the target file
 
             // Send range request
-            let chunk_file_ipfs = "QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ";
-            let res = downloader.download_chunk_file(chunk_file_ipfs).await;
+            let res = downloader.download_subfile().await;
             tracing::info!("Download result: {:#?}", res);
         }
         Role::Publisher(config) => {
