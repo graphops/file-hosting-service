@@ -28,6 +28,7 @@ pub mod util;
 pub struct ServerState {
     pub subfiles: HashMap<String, Subfile>, // Keyed by IPFS hash
     pub release: PackageVersion,
+    pub free_query_auth_token: Option<String>, // Add bearer prefix
 }
 
 pub type ServerContext = Arc<Mutex<ServerState>>;
@@ -81,11 +82,16 @@ async fn initialize_subfile_server_context(
         "Validated subfile entries"
     );
 
+    let free_query_auth_token = config
+        .free_query_auth_token
+        .map(|token| format!("Bearer {}", token));
+
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization
     let mut server_state = ServerState {
         subfiles: HashMap::new(),
         release: package_version()?,
+        free_query_auth_token,
     };
 
     // Fetch the file using IPFS client, should be verified
@@ -122,68 +128,7 @@ pub async fn handle_request(
         "/status" => status(&context).await,
         "/health" => health().await,
         "/version" => version(&context).await,
-        path if path.starts_with("/subfiles/id/") => {
-            tracing::debug!("Received file range request");
-            let id = path.trim_start_matches("/subfiles/id/");
-
-            let context_ref = context.lock().await;
-            tracing::debug!(
-                subfiles = tracing::field::debug(&context_ref),
-                id,
-                "Received file range request"
-            );
-            let requested_subfile = match context_ref.subfiles.get(id) {
-                Some(s) => s,
-                None => {
-                    tracing::debug!(
-                        server_context = tracing::field::debug(&context_ref),
-                        id,
-                        "Requested subfile is not served locally"
-                    );
-                    return Ok(Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .body("Subfile not found".into())
-                        .unwrap());
-                }
-            };
-            // TODO: Add auth token config
-            // let auth_token = req.headers().get(AUTHORIZATION)
-            //     .and_then(|hv| hv.to_str().ok())
-            //     .unwrap_or("");
-
-            // // Validate the auth token
-            // if auth_token != "expected_token" {
-            //     return Ok(Response::builder()
-            //         .status(StatusCode::UNAUTHORIZED)
-            //         .body("Invalid auth token".into())
-            //         .unwrap());
-            // }
-
-            match req.headers().get("file_name") {
-                Some(hash) if hash.to_str().is_ok() => {
-                    let mut file_path = requested_subfile.local_path.clone();
-                    file_path.push(hash.to_str().unwrap());
-                    // Parse the range header to get the start and end bytes
-                    match req.headers().get(CONTENT_RANGE) {
-                        Some(r) => {
-                            tracing::debug!("Parse content range header");
-                            let range = parse_range_header(r).map_err(|e| {
-                                anyhow!(format!("Failed to parse range header: {}", e))
-                            })?;
-                            //TODO: validate receipt
-                            serve_file_range(&file_path, range).await
-                        }
-                        None => serve_file(&file_path).await,
-                    }
-                }
-                _ => {
-                    return Ok(Response::builder()
-                        .status(StatusCode::NOT_ACCEPTABLE)
-                        .body("Missing required chunk_file_hash header".into())
-                        .unwrap())
-                }
-            }
-        }
+        path if path.starts_with("/subfiles/id/") => file_service(path, &req, &context).await,
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body("Route not found".into())
@@ -232,4 +177,83 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::E
         .status(StatusCode::OK)
         .body(Body::from(json))
         .unwrap())
+}
+
+// Serve file requests
+pub async fn file_service(
+    path: &str,
+    req: &Request<Body>,
+    context: &ServerContext,
+) -> Result<Response<Body>, anyhow::Error> {
+    tracing::debug!("Received file range request");
+    let id = path.trim_start_matches("/subfiles/id/");
+
+    let context_ref = context.lock().await;
+    tracing::debug!(
+        subfiles = tracing::field::debug(&context_ref),
+        id,
+        "Received file range request"
+    );
+
+    // Validate the auth token
+    let auth_token = req
+        .headers()
+        .get(http::header::AUTHORIZATION)
+        .and_then(|t| t.to_str().ok());
+
+    let free = context_ref.free_query_auth_token.is_none()
+        || (auth_token.is_some()
+            && context_ref.free_query_auth_token.is_some()
+            && auth_token.unwrap() == context_ref.free_query_auth_token.as_deref().unwrap());
+
+    if !free {
+        tracing::warn!("Respond with unauthorized query");
+        return Ok(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body("Paid service is not implemented, need free query authentication".into())
+            .unwrap());
+    }
+
+    let requested_subfile = match context_ref.subfiles.get(id) {
+        Some(s) => s,
+        None => {
+            tracing::debug!(
+                server_context = tracing::field::debug(&context_ref),
+                id,
+                "Requested subfile is not served locally"
+            );
+            return Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body("Subfile not found".into())
+                .unwrap());
+        }
+    };
+
+    match req.headers().get("file_name") {
+        Some(hash) if hash.to_str().is_ok() => {
+            let mut file_path = requested_subfile.local_path.clone();
+            file_path.push(hash.to_str().unwrap());
+            // Parse the range header to get the start and end bytes
+            match req.headers().get(CONTENT_RANGE) {
+                Some(r) => {
+                    tracing::debug!("Parse content range header");
+                    let range = parse_range_header(r)
+                        .map_err(|e| anyhow!(format!("Failed to parse range header: {}", e)))?;
+                    //TODO: validate receipt
+                    tracing::info!("Serve file range");
+                    serve_file_range(&file_path, range).await
+                }
+                None => {
+                    tracing::info!("Serve file");
+                    serve_file(&file_path).await
+                }
+            }
+        }
+        _ => {
+            return Ok(Response::builder()
+                .status(StatusCode::NOT_ACCEPTABLE)
+                .body("Missing required chunk_file_hash header".into())
+                .unwrap())
+        }
+    }
 }

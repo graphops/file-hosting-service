@@ -18,9 +18,9 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
   - [ ] memory usage for hashing (profiling to O(n) where n is the size of the file)
 - [ ] Subfile builder / publisher - CLI
   - [x] Take a file, use File hasher to get the chunk_file, publish chunk_file to IPFS
-    - [ ] later, take a list of files, use File hasher to hash all files and get root hashes 
+    - [x] later, take a list of files, use File hasher to hash all files and get root hashes 
   - [x] Construct a subfile manifest with metainfo using YAML builder
-    - [ ] vectorize
+    - [x] vectorize
   - [ ] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
   - [x] Publish subfile to IPFS, receive a IPFS hash for the subfile
 - [x] IPFS client
@@ -40,7 +40,8 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
     - [ ] Once all verified, add to file to the service availability endpoint
   - [x] Route `/` for "Ready to roll!"
   - [ ] Route `/operator` for operator info
-  - [ ] Route `/status` for availability
+  - [x] Route `/status` for availability
+    - [ ] verification for availability
   - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash with range requests
   - [x] Route `/health` for general health
   - [x] Route `/version` for subfile server version
@@ -61,15 +62,15 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
   - [ ] Runs TAP agent for receipt management
 - [ ] Subfile Client 
   - [x] Request using ipfs_hash
-  - [ ] also use available budget for the overall subfile
-    - [ ] add free_token to request
-    - [ ] add receipt to request
+    - [ ] take budget for the overall subfile
+      - [ ] construct receipts using budget and chunk sizes
+      - [ ] add receipt to request
+    - [x] add free_token to request
     - [ ] This may live somewhere else (Gateway?)
       - [x] Read subfile manifest
-      - [ ] construct receipts using budget and chunk sizes
-      - [ ] Ping indexer endpoints data availability
-      - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
-      - [x] Construct and send requests to indexer endpoints 
+    - [ ] Ping indexer endpoints data availability
+    - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
+    - [x] Construct and send requests to indexer endpoints 
       - [ ] Parallelize requests
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
     - [x] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained

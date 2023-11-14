@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::task;
 use tracing::info;
 
-use http::header::{CONTENT_RANGE, RANGE};
+use http::header::{AUTHORIZATION, CONTENT_RANGE, RANGE};
 
 use crate::config::DownloaderArgs;
 use crate::file_hasher::hash_chunk;
@@ -33,6 +33,7 @@ pub struct SubfileDownloader {
     server_url: String,
     indexer_endpoints: Vec<String>,
     output_dir: String,
+    free_query_auth_token: Option<String>,
     // Other fields as needed
 }
 
@@ -48,6 +49,7 @@ impl SubfileDownloader {
             server_url: args.gateway_url,
             indexer_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
+            free_query_auth_token: args.free_query_auth_token,
         }
     }
 
@@ -143,6 +145,7 @@ impl SubfileDownloader {
             let file_clone = Arc::clone(&file);
             let url = query_endpoint.clone();
             let client = self.http_client.clone();
+            let auth_token = self.free_query_auth_token.clone();
             let file_name = chunk_file_info.name.clone();
             let chunk_hash = hashes[i as usize].clone();
 
@@ -151,6 +154,7 @@ impl SubfileDownloader {
                 let _ = download_chunk_and_write_to_file(
                     &client,
                     &url,
+                    auth_token,
                     &file_name,
                     start,
                     end,
@@ -177,6 +181,7 @@ impl SubfileDownloader {
 async fn download_chunk_and_write_to_file(
     http_client: &Client,
     query_endpoint: &str,
+    auth_token: Option<String>,
     file_name: &str,
     start: u64,
     end: u64,
@@ -184,7 +189,15 @@ async fn download_chunk_and_write_to_file(
     file: Arc<Mutex<File>>,
 ) -> Result<(), anyhow::Error> {
     // Make the range request to download the chunk
-    let data = request_chunk(http_client, query_endpoint, file_name, start, end).await?;
+    let data = request_chunk(
+        http_client,
+        query_endpoint,
+        auth_token,
+        file_name,
+        start,
+        end,
+    )
+    .await?;
     let downloaded_chunk_hash = hash_chunk(&data);
 
     // Verify the chunk by reading the chunk file and
@@ -209,6 +222,7 @@ async fn download_chunk_and_write_to_file(
 async fn request_chunk(
     http_client: &Client,
     query_endpoint: &str,
+    auth_token: Option<String>,
     file_name: &str,
     start: u64,
     end: u64,
@@ -216,12 +230,23 @@ async fn request_chunk(
     // For example, to request the first 1024 bytes
     // The client should be smart enough to take care of proper chunking through subfile metadata
     let range = format!("bytes={}-{}", start, end);
+    //TODO: implement payment flow
+    // if auth_token.is_none() {
+    //     tracing::error!(
+    //         "No auth token provided; require receipt implementation"
+    //     );
+    //     Err(anyhow!("No auth token"))
+    // };
 
     tracing::debug!(query_endpoint, range, "Make range request");
     let response = http_client
         .get(query_endpoint)
         .header("file_name", file_name)
         .header(CONTENT_RANGE, range)
+        .header(
+            AUTHORIZATION,
+            auth_token.expect("No payment nor auth token"),
+        )
         .send()
         .await?;
 

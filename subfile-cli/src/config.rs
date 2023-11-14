@@ -71,6 +71,13 @@ pub struct ServerArgs {
         help = "Comma separated list of IPFS hashes and local location of the subfiles to serve upon start-up; format: [ipfs_hash:local_path]"
     )]
     pub subfiles: Vec<String>,
+    #[clap(
+        long,
+        value_name = "free-query-auth-token",
+        env = "FREE_QUERY_AUTH_TOKEN",
+        help = "Auth token that clients can use to query for free"
+    )]
+    pub free_query_auth_token: Option<String>,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
@@ -106,6 +113,13 @@ pub struct DownloaderArgs {
         help = "Output directory for target files"
     )]
     pub output_dir: String,
+    #[clap(
+        long,
+        value_name = "free-query-auth-token",
+        env = "FREE_QUERY_AUTH_TOKEN",
+        help = "Auth token that to query for free"
+    )]
+    pub free_query_auth_token: Option<String>,
 }
 
 /// Publisher should take the files, generate subfiles, and publish to IPFS
