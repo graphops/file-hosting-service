@@ -78,6 +78,13 @@ pub struct ServerArgs {
         help = "Auth token that clients can use to query for free"
     )]
     pub free_query_auth_token: Option<String>,
+    #[clap(
+        long,
+        value_name = "mnemonic",
+        env = "MNEMONIC",
+        help = "Mnemonic for the operator wallet"
+    )]
+    pub mnemonic: String,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]

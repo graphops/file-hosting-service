@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::read_subfile;
-use crate::subfile_server::util::package_version;
+use crate::subfile_server::util::{package_version, public_key};
 use crate::types::Subfile;
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
@@ -26,6 +26,7 @@ pub mod util;
 // Define a struct for the server state
 #[derive(Debug)]
 pub struct ServerState {
+    pub operator_public_key: String,
     pub subfiles: HashMap<String, Subfile>, // Keyed by IPFS hash
     pub release: PackageVersion,
     pub free_query_auth_token: Option<String>, // Add bearer prefix
@@ -92,6 +93,8 @@ async fn initialize_subfile_server_context(
         subfiles: HashMap::new(),
         release: package_version()?,
         free_query_auth_token,
+        operator_public_key: public_key(&config.mnemonic)
+            .expect("Failed to initiate with operator wallet"),
     };
 
     // Fetch the file using IPFS client, should be verified
@@ -118,13 +121,7 @@ pub async fn handle_request(
             .status(StatusCode::OK)
             .body("Ready to roll!".into())
             .unwrap()),
-        "/operator" => {
-            //TODO: Implement logic to return operator info
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body("TODO: Operator info".into())
-                .unwrap())
-        }
+        "/operator" => operator_info(&context).await,
         "/status" => status(&context).await,
         "/health" => health().await,
         "/version" => version(&context).await,
@@ -139,6 +136,12 @@ pub async fn handle_request(
 #[derive(Serialize)]
 struct Health {
     healthy: bool,
+}
+
+#[derive(Serialize)]
+struct Operator {
+    #[serde(alias = "publicKey")]
+    public_key: String,
 }
 
 /// Endpoint for server health
@@ -177,6 +180,17 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::E
         .status(StatusCode::OK)
         .body(Body::from(json))
         .unwrap())
+}
+
+// Define a handler function for the `/info` route
+pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+    let public_key = context.lock().await.operator_public_key.clone();
+    let operator = Operator { public_key };
+    let json = serde_json::to_string(&operator).map_err(|e| anyhow!(e.to_string()))?;
+    return Ok(Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
+        .body(Body::from(json))
+        .unwrap());
 }
 
 // Serve file requests

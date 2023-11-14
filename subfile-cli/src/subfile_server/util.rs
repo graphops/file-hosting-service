@@ -1,24 +1,23 @@
+use ethers::signers::{
+    coins_bip39::English, LocalWallet, MnemonicBuilder, Signer, Wallet, WalletError,
+};
+use ethers_core::k256::ecdsa::SigningKey;
 use serde::Serialize;
 use std::fs;
 use std::{collections::HashMap, io};
 use toml::Value;
-use tracing::{
-    info,
-    subscriber::{set_global_default, SetGlobalDefaultError},
-};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-// /// Build Wallet from Private key or Mnemonic
-// pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
-//     value
-//         .parse::<LocalWallet>()
-//         .or(MnemonicBuilder::<English>::default().phrase(value).build())
-// }
+/// Build Wallet from Private key or Mnemonic
+pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
+    value
+        .parse::<LocalWallet>()
+        .or(MnemonicBuilder::<English>::default().phrase(value).build())
+}
 
-// /// Get wallet public address to String
-// pub fn wallet_address(wallet: &Wallet<SigningKey>) -> String {
-//     format!("{:?}", wallet.address())
-// }
+/// Get wallet public address to String
+pub fn wallet_address(wallet: &Wallet<SigningKey>) -> String {
+    format!("{:?}", wallet.address())
+}
 
 /// Struct for version control
 #[derive(Serialize, Debug, Clone)]
@@ -30,9 +29,9 @@ pub struct PackageVersion {
 /// Read the manfiest
 fn read_manifest() -> Result<Value, anyhow::Error> {
     let toml_string = fs::read_to_string("subfile-cli/Cargo.toml")
-        .map_err(|e| anyhow::anyhow!("Could not read manifest"))?;
+        .map_err(|e| anyhow::anyhow!("Could not read manifest: {e}"))?;
     let toml_value: Value = toml::from_str(&toml_string)
-        .map_err(|_e| anyhow::anyhow!("Could no read from manifest to toml"))?;
+        .map_err(|e| anyhow::anyhow!("Could no read from manifest to toml: {e}"))?;
     Ok(toml_value)
 }
 
@@ -47,26 +46,17 @@ pub fn package_version() -> Result<PackageVersion, anyhow::Error> {
             .as_str()
             .unwrap()
             .to_string();
-        let dependencies = pkg.get("dependencies").and_then(|d| d.as_table()).unwrap();
+        let _dependencies = pkg.get("dependencies").and_then(|d| d.as_table()).unwrap();
 
         let release = PackageVersion {
             version,
             dependencies: HashMap::new(),
         };
-        info!("Running package version {:#?}", release);
+        tracing::info!("Running package version {:#?}", release);
 
         release
     })
 }
-
-// /// Validate that private key as an Eth wallet
-// pub fn public_key(value: &str) -> Result<String, WalletError> {
-//     // The wallet can be stored instead of the original private key
-//     let wallet = build_wallet(value)?;
-//     let addr = wallet_address(&wallet);
-//     info!(address = addr, "Resolved Graphcast id");
-//     Ok(addr)
-// }
 
 // Load public certificate from file.
 #[allow(unused)]
@@ -98,4 +88,13 @@ fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, anyhow::Error>
     }
 
     Ok(rustls::PrivateKey(keys[0].clone()))
+}
+
+/// Validate that private key as an Eth wallet
+pub fn public_key(value: &str) -> Result<String, WalletError> {
+    // The wallet can be stored instead of the original private key
+    let wallet = build_wallet(value)?;
+    let addr = wallet_address(&wallet);
+    tracing::info!(address = addr, "Resolved Graphcast id");
+    Ok(addr)
 }

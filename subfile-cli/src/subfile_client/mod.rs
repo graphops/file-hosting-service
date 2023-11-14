@@ -93,10 +93,6 @@ impl SubfileDownloader {
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
     pub async fn download_subfile(&self) -> Result<(), anyhow::Error> {
-        // check data availability from gateway/indexer_endpoints
-        //TODO: gateway ISA
-        let query_endpoints = self.check_availability().await?;
-
         // Read subfile from ipfs
         let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
 
@@ -137,8 +133,11 @@ impl SubfileDownloader {
         // (index * piece_length + min((index+1)*piece_length, total_bytes))
         // record the chunk and write with bytes precision
 
-        // Assuming the URL is something like "http://localhost:5678/subfiles/id/"
+        // check data availability from gateway/indexer_endpoints
+        //TODO: gateway ISA
         let query_endpoint = format!("{}{}", self.server_url.clone(), self.ipfs_hash.clone());
+        // let query_endpoints = self.check_availability().await?;
+        // Assuming the URL is something like "http://localhost:5678/subfiles/id/"
 
         // Open the output file
         let file = File::create(Path::new(
