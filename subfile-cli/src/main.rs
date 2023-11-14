@@ -29,11 +29,6 @@ async fn main() {
             );
             // Create client
             let downloader = SubfileDownloader::new(client, config);
-            // Use client to grab IPFS
-
-            // Parse IPFS
-
-            // Validate IPFS against extra input to make sure it is the target file
 
             // Send range request
             let res = downloader.download_subfile().await;

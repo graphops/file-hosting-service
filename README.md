@@ -45,7 +45,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
   - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash with range requests
   - [x] Route `/health` for general health
   - [x] Route `/version` for subfile server version
-  - [ ] Configure and check free query auth token
+  - [x] Configure and check free query auth token
   - [ ] Server Certificate 
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
     - [x] start off with request as (ipfs_hash, range)
@@ -56,7 +56,7 @@ Enable file sharing as a service, aim for a decentralized, efficient, and verifi
       - [ ] Add tests
     - [x] Construct response and respond
       - [ ] determine if streaming is necessary
-  - [ ] Start with free service and requiring a free query auth token
+  - [x] Start with free service and requiring a free query auth token
     - [ ] then add default cost model, allow updates for pricing per byte
     - [ ] with paid service, validate receipts pricing wrt cost model
   - [ ] Runs TAP agent for receipt management

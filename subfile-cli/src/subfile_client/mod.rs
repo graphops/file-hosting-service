@@ -59,20 +59,29 @@ impl SubfileDownloader {
     /// Return a list of endpoints where the desired subfile is hosted
     //TODO: update once there's a gateway
     pub async fn check_availability(&self) -> Result<Vec<String>, anyhow::Error> {
+        tracing::info!("Check availability");
+
         let mut endpoints = vec![];
         // Loop through indexer endpoints and query data availability
         //TODO: parallelize
         for url in &self.indexer_endpoints {
             // Ping availability endpoint with timeout
             let status_url = url.to_owned() + "/status";
-            let response = &self.http_client.get(status_url).send().await?;
+            let response = self.http_client.get(&status_url).send().await?;
 
             // Check if the server supports range requests
-            // if response.status().is_success() && response.json(). {
-            // } else {
-            //     tracing::error!("Server does not support range requests or the request failed.");
-            //     Err(anyhow!("Range request failed"))
-            // }
+            // tracing::info!(response = tracing::field::debug(&response), "got response");
+            if response.status().is_success() {
+                tracing::info!(status_url = &status_url, "Successful status response");
+                if let Ok(files) = response.json::<Vec<String>>().await {
+                    if files.contains(&self.ipfs_hash) {
+                        endpoints.push(status_url);
+                    }
+                }
+            } else {
+                tracing::error!("Server does not support range requests or the request failed.");
+                return Err(anyhow!("Range request failed"));
+            }
 
             // return a vec of indexers
             //TODO: add indexer pricing to do basic byte prices matching
@@ -84,6 +93,10 @@ impl SubfileDownloader {
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
     pub async fn download_subfile(&self) -> Result<(), anyhow::Error> {
+        // check data availability from gateway/indexer_endpoints
+        //TODO: gateway ISA
+        let query_endpoints = self.check_availability().await?;
+
         // Read subfile from ipfs
         let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
 
@@ -143,6 +156,7 @@ impl SubfileDownloader {
             let start = i * chunk_size;
             let end = u64::min(start + chunk_size, chunk_file.total_bytes) - 1;
             let file_clone = Arc::clone(&file);
+            //TODO: use one of the checked availability endpoints
             let url = query_endpoint.clone();
             let client = self.http_client.clone();
             let auth_token = self.free_query_auth_token.clone();

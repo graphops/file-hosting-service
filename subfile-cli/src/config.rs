@@ -101,6 +101,7 @@ pub struct DownloaderArgs {
     #[arg(
         long,
         value_name = "INDEXER_ENDPOINTS",
+        value_delimiter = ',',
         env = "INDEXER_ENDPOINTS",
         help = "A list of indexer endpoints to query data from"
     )]
