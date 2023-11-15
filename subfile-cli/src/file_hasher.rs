@@ -97,7 +97,7 @@ pub fn create_chunk_file(read_dir: &str, file_name: &str) -> Result<ChunkFile, a
     // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
     let (total_bytes, chunks) = chunk_file(Path::new(&file_path))?;
 
-    let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(&c)).collect();
+    let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(c)).collect();
 
     Ok(ChunkFile {
         file_name: file_name.to_string(),

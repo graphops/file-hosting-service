@@ -1,7 +1,6 @@
 // #![cfg(feature = "acceptor")]
-use hyper::{Body, Request, Response, StatusCode};
-
-use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE, RANGE};
+use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE};
+use hyper::{Body, Response, StatusCode};
 
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};

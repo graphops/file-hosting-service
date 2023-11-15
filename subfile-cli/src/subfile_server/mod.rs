@@ -2,8 +2,6 @@
 use anyhow::anyhow;
 use http::header::CONTENT_RANGE;
 use hyper::service::{make_service_fn, service_fn};
-use serde::Serialize;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -159,7 +157,6 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::E
 
     let subfile_ipfses: Vec<String> = subfile_mapping
         .keys()
-        .into_iter()
         .map(|i| i.to_owned())
         .collect::<Vec<String>>();
     let json = serde_json::to_string(&subfile_ipfses).map_err(|e| anyhow!(e.to_string()))?;
@@ -177,10 +174,10 @@ pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, an
     let operator = Operator { public_key };
     let json = serde_json::to_string(&operator).map_err(|e| anyhow!(e.to_string()))?;
     tracing::debug!(json, "Operator info response");
-    return Ok(Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))
-        .unwrap());
+        .unwrap())
 }
 
 // Serve file requests
@@ -253,11 +250,9 @@ pub async fn file_service(
                 }
             }
         }
-        _ => {
-            return Ok(Response::builder()
-                .status(StatusCode::NOT_ACCEPTABLE)
-                .body("Missing required chunk_file_hash header".into())
-                .unwrap())
-        }
+        _ => Ok(Response::builder()
+            .status(StatusCode::NOT_ACCEPTABLE)
+            .body("Missing required chunk_file_hash header".into())
+            .unwrap()),
     }
 }

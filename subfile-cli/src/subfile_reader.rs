@@ -1,4 +1,4 @@
-use std::{error::Error, path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration};
 
 use crate::{file_hasher::ChunkFile, ipfs::IpfsClient, publisher::SubfileManifest, types::Subfile};
 

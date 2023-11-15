@@ -31,8 +31,14 @@ async fn main() {
             let downloader = SubfileDownloader::new(client, config);
 
             // Send range request
-            let res = downloader.download_subfile().await;
-            tracing::info!("Download result: {:#?}", res);
+            match downloader.download_subfile().await {
+                Ok(res) => {
+                    tracing::info!("Download result: {:#?}", res);
+                }
+                Err(e) => {
+                    tracing::error!(err = e.to_string());
+                }
+            }
         }
         Role::Publisher(config) => {
             tracing::info!(config = tracing::field::debug(&config), "Publisher request");

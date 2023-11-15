@@ -9,8 +9,7 @@
 use anyhow::anyhow;
 use bytes::Bytes;
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
-use rand::seq::SliceRandom; // For the choose method
-use rand::Rng; // Rng trait must be in scope to use its methods
+use rand::seq::SliceRandom;
 use reqwest::Client;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
@@ -18,7 +17,6 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task;
-use tracing::info;
 
 use crate::config::DownloaderArgs;
 use crate::file_hasher::hash_chunk;
@@ -117,17 +115,23 @@ impl SubfileDownloader {
         let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
 
         // Loop through chunk files for downloading
-        let mut completed_files = vec![];
+        let mut incomplete_files = vec![];
         for chunk_file in &subfile.files {
             let res = self.download_chunk_file(chunk_file).await;
-            completed_files.push(res);
+            incomplete_files.push(res);
         }
 
         //TODO: retry for failed subfiles
-        tracing::info!(
-            completed_files = tracing::field::debug(&completed_files),
-            "Chunk files download results"
-        );
+        if !incomplete_files.is_empty() {
+            let msg = format!(
+                "Chunk files download incomplete: {:#?}",
+                tracing::field::debug(&incomplete_files),
+            );
+            tracing::warn!(msg);
+            return Err(anyhow!(msg));
+        } else {
+            tracing::info!("Chunk files download completed");
+        }
         Ok(())
     }
 
@@ -177,7 +181,6 @@ impl SubfileDownloader {
             let start = i * chunk_size;
             let end = u64::min(start + chunk_size, chunk_file.total_bytes) - 1;
             let file_clone = Arc::clone(&file);
-            //TODO: use one of the checked availability endpoints
             let mut rng = rand::thread_rng();
             let url = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
                 tracing::debug!(
@@ -200,7 +203,7 @@ impl SubfileDownloader {
 
             // Spawn a new asynchronous task for each range request
             let handle = task::spawn(async move {
-                let _ = download_chunk_and_write_to_file(
+                download_chunk_and_write_to_file(
                     &client,
                     &url,
                     auth_token,
@@ -210,16 +213,41 @@ impl SubfileDownloader {
                     &chunk_hash,
                     file_clone,
                 )
-                .await;
+                .await
             });
 
             handles.push(handle);
         }
 
         // Wait for all tasks to complete and collect the results
+        let mut failed = vec![];
         for handle in handles {
-            let res = handle.await?;
-            info!(chunk_download_result = tracing::field::debug(&res));
+            match handle.await? {
+                Ok(file) => {
+                    let metadata = file.lock().await.metadata()?;
+
+                    let modified = if let Ok(time) = metadata.modified() {
+                        format!("Modified: {:#?}", time)
+                    } else {
+                        "Not modified".to_string()
+                    };
+
+                    tracing::info!(
+                        metadata = tracing::field::debug(metadata),
+                        modification = modified,
+                        "Chunk file information"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(err = e.to_string(), "Chunk file download incomplete");
+                    failed.push(e.to_string());
+                }
+            }
+        }
+
+        //TODO: track incompletness
+        if !failed.is_empty() {
+            return Err(anyhow!("Failed chunks: {:#?}", failed));
         }
 
         Ok(())
@@ -236,7 +264,7 @@ async fn download_chunk_and_write_to_file(
     end: u64,
     chunk_hash: &str,
     file: Arc<Mutex<File>>,
-) -> Result<(), anyhow::Error> {
+) -> Result<Arc<Mutex<File>>, anyhow::Error> {
     // Make the range request to download the chunk
     let data = request_chunk(
         http_client,
@@ -256,15 +284,17 @@ async fn download_chunk_and_write_to_file(
     }
 
     // Lock the file for writing
-    let mut file = file.lock().await;
+    let mut file_lock = file.lock().await;
 
     // Seek to the start position of this chunk
-    file.seek(SeekFrom::Start(start)).unwrap();
+    file_lock.seek(SeekFrom::Start(start)).unwrap();
 
     // Write the chunk to the file
-    file.write_all(&data).unwrap();
+    file_lock.write_all(&data).unwrap();
 
-    Ok(())
+    drop(file_lock);
+
+    Ok(file)
 }
 
 /// Make range request for a file to the subfile server
@@ -303,12 +333,16 @@ async fn request_chunk(
     if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
         Ok(response.bytes().await?)
     } else {
+        let err_msg = format!(
+            "Server does not support range requests or the request failed: {:#?}",
+            tracing::field::debug(&response.status()),
+        );
         tracing::error!(
             status = tracing::field::debug(&response.status()),
             headers = tracing::field::debug(&response.headers()),
             chunk = tracing::field::debug(&response),
             "Server does not support range requests or the request failed"
         );
-        Err(anyhow!("Range request failed"))
+        Err(anyhow!("Range request failed: {}", err_msg))
     }
 }
