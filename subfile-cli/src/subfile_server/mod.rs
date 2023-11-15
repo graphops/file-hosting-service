@@ -12,7 +12,7 @@ use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::read_subfile;
 use crate::subfile_server::util::{package_version, public_key};
-use crate::types::Subfile;
+use crate::types::{Health, Operator, Subfile};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::{Body, Request, Response, StatusCode};
@@ -133,17 +133,6 @@ pub async fn handle_request(
     }
 }
 
-#[derive(Serialize)]
-struct Health {
-    healthy: bool,
-}
-
-#[derive(Serialize)]
-struct Operator {
-    #[serde(alias = "publicKey")]
-    public_key: String,
-}
-
 /// Endpoint for server health
 pub async fn health() -> Result<Response<Body>, anyhow::Error> {
     let health = Health { healthy: true };
@@ -187,8 +176,9 @@ pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, an
     let public_key = context.lock().await.operator_public_key.clone();
     let operator = Operator { public_key };
     let json = serde_json::to_string(&operator).map_err(|e| anyhow!(e.to_string()))?;
+    tracing::debug!(json, "Operator info response");
     return Ok(Response::builder()
-        .status(StatusCode::UNAUTHORIZED)
+        .status(StatusCode::OK)
         .body(Body::from(json))
         .unwrap());
 }

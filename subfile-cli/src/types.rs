@@ -19,6 +19,17 @@ pub struct BlockRange {
     pub end_block: Option<u64>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Health {
+    pub healthy: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Operator {
+    #[serde(alias = "publicKey")]
+    pub public_key: String,
+}
+
 // #[derive(Clone, Debug, Serialize, Deserialize)]
 // pub struct SeedCreationArg {
 //     pub file_name: String,

@@ -8,6 +8,9 @@
 
 use anyhow::anyhow;
 use bytes::Bytes;
+use http::header::{AUTHORIZATION, CONTENT_RANGE};
+use rand::seq::SliceRandom; // For the choose method
+use rand::Rng; // Rng trait must be in scope to use its methods
 use reqwest::Client;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
@@ -17,21 +20,25 @@ use tokio::sync::Mutex;
 use tokio::task;
 use tracing::info;
 
-use http::header::{AUTHORIZATION, CONTENT_RANGE, RANGE};
-
 use crate::config::DownloaderArgs;
 use crate::file_hasher::hash_chunk;
 use crate::ipfs::IpfsClient;
 use crate::publisher::FileMetaInfo;
 use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
+use crate::types::Operator;
+
+// Pair indexer operator address and indexer service endpoint
+// persumeably this should not be handled by clients themselves
+//TODO: smarter type for tracking available endpoints
+pub type IndexerEndpoint = (String, String);
 
 pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
     http_client: reqwest::Client,
     ipfs_hash: String,
-    //TODO: currently direct ping to server_url -> decentralize to gateway_url
-    server_url: String,
-    indexer_endpoints: Vec<String>,
+    //TODO: decentralize to gateway_url
+    _gateway_url: String,
+    static_endpoints: Vec<String>,
     output_dir: String,
     free_query_auth_token: Option<String>,
     // Other fields as needed
@@ -41,13 +48,12 @@ impl SubfileDownloader {
     pub fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
         SubfileDownloader {
             ipfs_client,
-            //TODO: consider if more advanced config like
-            // a proxy should be used for the client
+            //TODO: consider a more advanced config such as if a proxy should be used for the client
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
-            //TODO: change for discovery
-            server_url: args.gateway_url,
-            indexer_endpoints: args.indexer_endpoints,
+            _gateway_url: args.gateway_url,
+            //TODO: Check for healthy indexers in args.indexer_endpoints
+            static_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
             free_query_auth_token: args.free_query_auth_token,
         }
@@ -58,35 +64,49 @@ impl SubfileDownloader {
     /// would do in behave of the downloader
     /// Return a list of endpoints where the desired subfile is hosted
     //TODO: update once there's a gateway
-    pub async fn check_availability(&self) -> Result<Vec<String>, anyhow::Error> {
+    pub async fn check_availability(&self) -> Result<Vec<IndexerEndpoint>, anyhow::Error> {
         tracing::info!("Check availability");
 
         let mut endpoints = vec![];
-        // Loop through indexer endpoints and query data availability
+        // Loop through indexer endpoints and query data availability for the desired subfile
         //TODO: parallelize
-        for url in &self.indexer_endpoints {
-            // Ping availability endpoint with timeout
+        for url in &self.static_endpoints {
+            // Ping availability endpoint
             let status_url = url.to_owned() + "/status";
-            let response = self.http_client.get(&status_url).send().await?;
+            let status_response = self.http_client.get(&status_url).send().await?;
 
-            // Check if the server supports range requests
-            // tracing::info!(response = tracing::field::debug(&response), "got response");
-            if response.status().is_success() {
+            if status_response.status().is_success() {
                 tracing::info!(status_url = &status_url, "Successful status response");
-                if let Ok(files) = response.json::<Vec<String>>().await {
+                if let Ok(files) = status_response.json::<Vec<String>>().await {
                     if files.contains(&self.ipfs_hash) {
-                        endpoints.push(status_url);
+                        let operator_url = url.to_owned() + "/operator";
+                        let operator_response = self.http_client.get(&operator_url).send().await?;
+                        if operator_response.status().is_success() {
+                            tracing::info!(
+                                operator_url = &operator_url,
+                                "Successful operator response"
+                            );
+                            //TODO: add indexer pricing to do basic byte prices matching
+                            if let Ok(operator) = operator_response.json::<Operator>().await {
+                                endpoints.push((operator.public_key, url.clone()));
+                            } else {
+                                tracing::error!("Operator response parse error.");
+                                return Err(anyhow!("Operator response parse error."));
+                            }
+                        } else {
+                            tracing::error!("Operator request failed.");
+                            return Err(anyhow!("Operator request failed."));
+                        }
                     }
+                } else {
+                    tracing::error!("Status request parse error.");
+                    return Err(anyhow!("Status request parse error."));
                 }
             } else {
-                tracing::error!("Server does not support range requests or the request failed.");
-                return Err(anyhow!("Range request failed"));
+                tracing::error!("Status request failed.");
+                return Err(anyhow!("Status request failed."));
             }
-
-            // return a vec of indexers
-            //TODO: add indexer pricing to do basic byte prices matching
         }
-
         Ok(endpoints)
     }
 
@@ -134,10 +154,12 @@ impl SubfileDownloader {
         // record the chunk and write with bytes precision
 
         // check data availability from gateway/indexer_endpoints
-        //TODO: gateway ISA
-        let query_endpoint = format!("{}{}", self.server_url.clone(), self.ipfs_hash.clone());
-        // let query_endpoints = self.check_availability().await?;
-        // Assuming the URL is something like "http://localhost:5678/subfiles/id/"
+        //TODO: make gateway ISA
+        let query_endpoints = self.check_availability().await?;
+        tracing::debug!(
+            query_endpoints = tracing::field::debug(&query_endpoints),
+            "Basic matching with query availability"
+        );
 
         // Open the output file
         let file = File::create(Path::new(
@@ -156,7 +178,21 @@ impl SubfileDownloader {
             let end = u64::min(start + chunk_size, chunk_file.total_bytes) - 1;
             let file_clone = Arc::clone(&file);
             //TODO: use one of the checked availability endpoints
-            let url = query_endpoint.clone();
+            let mut rng = rand::thread_rng();
+            let url = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
+                tracing::debug!(
+                    operator,
+                    url,
+                    chunk = i,
+                    chunk_file = chunk_file_info.name,
+                    "Querying operator"
+                );
+                url + "/subfiles/id/" + &self.ipfs_hash
+            } else {
+                let err_msg = "Could not choose an operator to query, data unavailable";
+                tracing::warn!(err_msg);
+                return Err(anyhow!(err_msg));
+            };
             let client = self.http_client.clone();
             let auth_token = self.free_query_auth_token.clone();
             let file_name = chunk_file_info.name.clone();
