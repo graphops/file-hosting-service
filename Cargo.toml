@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "subfile-cli", 
+    "subfile-exchange", 
 ]
 resolver = "1"
 
