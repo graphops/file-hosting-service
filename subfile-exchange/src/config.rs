@@ -103,7 +103,7 @@ pub struct DownloaderArgs {
         env = "GATEWAY_URL",
         help = "Client pings the gateway for file discovery; TODO: currently gateway_url is used to ping local server url directly"
     )]
-    pub gateway_url: String,
+    pub gateway_url: Option<String>,
     // Trust tracking should be done by the gateway/DHT
     #[arg(
         long,
@@ -133,7 +133,7 @@ pub struct DownloaderArgs {
 /// Publisher should take the files, generate subfiles, and publish to IPFS
 /// Start with supporting a single file
 //TODO: a single command to publish a range of files
-#[derive(Clone, Debug, Args, Serialize, Deserialize)]
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct PublisherArgs {
     #[arg(
@@ -197,7 +197,7 @@ pub struct PublisherArgs {
         env = "IDENTIFIER",
         help = "Identifier of the file given its type (chain-id for firehose flatfiles, subgraph deployment hash for subgraph snapshots)"
     )]
-    pub identifier: String,
+    pub identifier: Option<String>,
 
     #[arg(
         long,
@@ -221,7 +221,25 @@ pub struct PublisherArgs {
         env = "PUBLISHER_URL",
         help = "Self promoting endpoint to record inside the subfile (TODO: can update to be a github repository link)"
     )]
-    pub publisher_url: String,
+    pub publisher_url: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "DESCRIPTION",
+        env = "DESCRIPTION",
+        default_value = "",
+        help = "Describe subfile content"
+    )]
+    pub description: String,
+
+    #[arg(
+        long,
+        value_name = "NETWORK",
+        env = "NETWORK",
+        default_value = "1",
+        help = "Network represented in CCIP ID (Ethereum mainnet: 1, goerli: 5, arbitrum-one: 42161, sepolia: 58008"
+    )]
+    pub chain_id: String,
 }
 
 #[allow(unused)]

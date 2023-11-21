@@ -3,21 +3,24 @@ use serde::{Deserialize, Serialize};
 use crate::config::PublisherArgs;
 use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
+use crate::types::BlockRange;
 
 /// Better mapping of files and chunk files
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SubfileManifest {
     pub files: Vec<FileMetaInfo>,
+    pub file_type: String,
+    pub spec_version: String,
+    pub description: String,
+    pub chain_id: String,
+    pub block_range: BlockRange,
     //TODO: Add additional metadata as needed
-
-    // pub file_type: String,
-    // pub version: String,
     // pub identifier: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FileMetaInfo {
-    pub name: String, // file name / path?
+    pub name: String,
     pub hash: String,
     //TODO: Add additional metadata as needed
     // pub file_link: String,
@@ -27,16 +30,14 @@ pub struct FileMetaInfo {
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
-    read_dir: String,
-    // Other fields as needed
+    config: PublisherArgs,
 }
 
 impl SubfilePublisher {
-    pub fn new(ipfs_client: IpfsClient, read_dir: &str) -> Self {
+    pub fn new(ipfs_client: IpfsClient, config: PublisherArgs) -> Self {
         SubfilePublisher {
             ipfs_client,
-            read_dir: read_dir.to_string(),
-            // Initialize other fields
+            config,
         }
     }
 
@@ -45,7 +46,7 @@ impl SubfilePublisher {
         &self,
         file_name: &str,
     ) -> Result<AddResponse, anyhow::Error> {
-        let yaml_str = write_chunk_file(&self.read_dir, file_name)?;
+        let yaml_str = write_chunk_file(&self.config.read_dir, file_name)?;
 
         let added: AddResponse = self.ipfs_client.add(yaml_str.as_bytes().to_vec()).await?;
         tracing::debug!(
@@ -84,6 +85,14 @@ impl SubfilePublisher {
     ) -> Result<String, serde_yaml::Error> {
         let manifest = SubfileManifest {
             files: file_meta_info,
+            file_type: self.config.file_type.clone(),
+            spec_version: self.config.file_version.clone(),
+            description: self.config.description.clone(),
+            chain_id: self.config.chain_id.clone(),
+            block_range: BlockRange {
+                start_block: self.config.start_block,
+                end_block: self.config.end_block,
+            },
         };
         let yaml = serde_yaml::to_string(&manifest)?;
         Ok(yaml)
@@ -103,8 +112,8 @@ impl SubfilePublisher {
     }
 
     //TODO: use the full config args for publishing
-    pub async fn publish(&self, config: &PublisherArgs) -> Result<String, anyhow::Error> {
-        let meta_info = match self.hash_and_publish_files(&config.file_names).await {
+    pub async fn publish(&self) -> Result<String, anyhow::Error> {
+        let meta_info = match self.hash_and_publish_files(&self.config.file_names).await {
             Ok(added_hashes) => added_hashes,
             Err(e) => return Err(e),
         };
@@ -136,8 +145,10 @@ mod tests {
     #[tokio::test]
     async fn test_publish() {
         let client = IpfsClient::localhost();
-
-        let builder = SubfilePublisher::new(client, "./example-file");
+        let args = PublisherArgs {
+            ..Default::default()
+        };
+        let builder = SubfilePublisher::new(client, args);
         let name = "example-create-17686085.dbin";
         // let chunks1 = chunk_file(Path::new(&path))?;
 

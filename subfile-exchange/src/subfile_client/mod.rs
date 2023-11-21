@@ -34,8 +34,7 @@ pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
     http_client: reqwest::Client,
     ipfs_hash: String,
-    //TODO: decentralize to gateway_url
-    _gateway_url: String,
+    _gateway_url: Option<String>,
     static_endpoints: Vec<String>,
     output_dir: String,
     free_query_auth_token: Option<String>,

@@ -43,9 +43,9 @@ async fn main() {
         Role::Publisher(config) => {
             tracing::info!(config = tracing::field::debug(&config), "Publisher request");
 
-            let publisher = SubfilePublisher::new(client, &config.read_dir);
+            let publisher = SubfilePublisher::new(client, config);
 
-            match publisher.publish(&config).await {
+            match publisher.publish().await {
                 Ok(r) => {
                     tracing::info!(result = tracing::field::debug(&r), "Published");
                 }
