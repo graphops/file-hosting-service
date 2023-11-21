@@ -3,32 +3,29 @@
 Document the structure of subfile and chunk files.
 
 
+### Packaging options
+
+- Each flatfile is verified against a chunk_file which contains an ordered list of hashes for every chunk of data. Then, subfile manifest contains a map of flatfile name to chunk_file IPFS
+- Each flatfile is verified against the root of a merkle tree, in which a chunk request can be verified through generating a merkle proof (if the merkele tree is posted publicly then anyone can be a proofer; otherwise the server must provide the proof). The subfile manifest contains a map for flatfile name to flatfile merkle root
+- Each flatfile is verified against the root of a merkle tree, in which a chunk request can be verified through generating a merkle proof. The subfile manifest contains a merkle root of flatfile roots, in which the merkle tree is posted in a separate file. (Full Merkle tree should available for public access especially if individual flatfile tree is already public. Otherwise the server must serve all chunk and file checks).
+- Each flatfile is verified against a chunk_file which contains an ordered list of hashes for every chunk of data. The subfile manifest contains a merkle root of chunk_file CID, in which the merkle tree is posted in a separate file.
+
+In short
+
+| | Ordered list | Merkle Tree | 
+| --- | --- | --- | 
+| File verification | $O(m^2)$ | $O(m\log(m))$ |
+| File memory | $O(m)$ | $O(2m-1)$ |
+| Package verification | $O(n^2)$ | $O(n\log(n))$ |
+| Package memory | $O(n)$ | $O(2n-1)$ |
+
+Where $m$ is the number of chunks for a file ($\frac{\text{file size}}{\text{chunk size}}$), $n$ is the number of files in a package.
 
 
-### Calculations
-
-Let total file size be F, chunk size be c, hash size be 256bits = 32bytes
-
-F=5TB, c=1MB => ~5million chunks, 160 MB for hashes not including positioning
-F=5TB, c=10MB, lower bound by file size 25MB => 16-19.2MB for hashes not including positioning
-
-Merkel proof with roots
 
 
-#### Some real-life numbers 
-Total firehose size for Ethereum = 1.1TiB
-Files are 100 blocks each
 
-[18471362](https://etherscan.io/block/18471362) blocks = ~18471 files of 100 blocks each
-
-1.1TiB / 18471 = avg file size = 0.06 GiB 
-
-chunk size = 64MB would be 1 chunk per file
-
-so then split chunk size to something smaller like 2Mb, play around with this, leave it configurable
-
-
-Subfile Manfiest 
+### Subfile Manfiest 
 ```
 dataSources: // list of files
   - kind: ethereum/flatfile // the kind of files shared
@@ -102,27 +99,51 @@ subfile_store_path: String, // The path to store subfile.yaml once it has been g
 
 #### Subfile manifest
 
-https://ipfs.network.thegraph.com/api/v0/cat?arg=QmPUsWnSoosNmM2uaKQwZRfEDJpxVciV2UjwycBdv7HsoX
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw
 ```
 files:
-- path: ./example-file/example0017686312.dbin
-  hash: Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+- name: example0017686312.dbin
+  hash: QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ
+- name: example-create-17686085.dbin
+  hash: QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv
+- ...
 ```
 
 #### Chunk file schema
 
-https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc8busNmyhC9isrsqy9p8WSjSo1S67fBZhbXoxZaDqDJC
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ
 ```
-merkle_root: cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
-chunks:
-- cf3726c4ffb3a36a0cbe955fd4ecea4ec17a075c86dd98983778abfa9a0bfcb4
+file_name: example0017686312.dbin
+total_bytes: 1508787
+chunk_size: 1048576
+chunk_hashes:
+- yuNejH3+kUTZdxgTsih4kOgEE7636mQkTFNBdWAXGpI=
+- vxvhGxafsav82K0Qa5wQoJSu9u3k6v5yTfaBLcPNy+c=
 - ...
 ```
-^ need fixing
 
 
 
+## Strike to be more like subgraph.yaml
 
+Minimal 
+- [ ] camel case
+- [ ] `version` -> `specVersion`
+- [ ] description
+- [ ] dataSources array
+  - [ ] kind (subgraph deployment snapshot)
+  - [ ] name (subgraph name)
+  - [ ] network
+  - [ ] block range (subgraph indexing network)
+  - [ ] source:
+    - [ ] address: deployment hash
+    - [ ] abi: subgraph graphQL schema
+    - [ ] snapshot_block
+
+Optional
+- [ ] repository
+- [ ] schema: file: ./schema.graphql
+- [ ] mapping: (directory composition of files)
 
 ### Referencing subgraph.yaml
 

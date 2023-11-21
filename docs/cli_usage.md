@@ -2,7 +2,14 @@
 
 ### Publisher 
 ```
-➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange publisher --read-dir ./example-file/ --subfile-name "blah" --file-names example0017686312.dbin,example-create-17686085.dbin --file-type nothing --file-version 0.0.0 --identifier example0017686312 --publisher-url "http://localhost:5678" 
+➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange publisher \
+  --read-dir ./example-file/ \
+  --subfile-name "blah" \
+  --file-names example0017686312.dbin,example-create-17686085.dbin \
+  --file-type nothing \
+  --file-version 0.0.0 \
+  --identifier example0017686312 \
+  --publisher-url "http://localhost:5678" 
 
      Running `target/debug/subfile-exchange publisher --read-dir ./example-file/ --subfile-name blah --file-names example0017686312.dbin,example-create-17686085.dbin --file-type nothing --file-version 0.0.0 --identifier example0017686312 --publisher-url 'http://localhost:5678'`
   2023-11-13T20:54:00.508237Z  INFO subfile_cli: Running cli, cli: Cli { role: Publisher(PublisherArgs { yaml_store: "./example-file/subfile.yaml", read_dir: "./example-file/", subfile_name: "blah", file_names: ["example0017686312.dbin", "example-create-17686085.dbin"], file_type: "nothing", file_version: "0.0.0", identifier: "example0017686312", start_block: None, end_block: None, publisher_url: "http://localhost:5678" }), ipfs_gateway: "https://ipfs.network.thegraph.com", log_format: Pretty }
@@ -86,7 +93,7 @@ Serve multiple files in 1 subfile
 ➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange server \
   --host 0.0.0.0 \
   --port 5678 \
-  --mnemonic "culture alcohol unfair success pupil economy stomach dignity beyond absurd client latin" \
+  --mnemonic "blah" \
   --subfiles "QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw:./example-file/"
 
   2023-11-13T20:56:37.038316Z  INFO subfile_cli: Running cli, cli: Cli { role: Server(ServerArgs { host: "0.0.0.0", port: 5678, subfiles: ["QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw:./example-file/"] }), ipfs_gateway: "https://ipfs.network.thegraph.com", log_format: Pretty }
@@ -234,7 +241,9 @@ Corresponding client
 ### Downloader
 
 ```
-➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange downloader --ipfs-hash QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw  --gateway-url http://localhost:5678/subfiles/id/
+➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange downloader \
+   --ipfs-hash QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw \
+   --gateway-url http://localhost:5678/subfiles/id/
 
   2023-11-13T20:57:44.211311Z  INFO subfile_cli: Downloader request, config: DownloaderArgs { ipfs_hash: "QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw", gateway_url: "http://localhost:5678/subfiles/id/", indexer_endpoints: [], output_dir: "./example-download" }
     at subfile-exchange/src/main.rs:26
