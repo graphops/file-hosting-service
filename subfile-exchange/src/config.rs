@@ -128,6 +128,15 @@ pub struct DownloaderArgs {
         help = "Auth token that to query for free"
     )]
     pub free_query_auth_token: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "MAX_RETRY",
+        default_value = "10",
+        env = "MAX_RETRY",
+        help = "Maximum retry for each chunk"
+    )]
+    pub max_retry: u64,
 }
 
 /// Publisher should take the files, generate subfiles, and publish to IPFS

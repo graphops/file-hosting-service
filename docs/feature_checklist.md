@@ -17,7 +17,7 @@
     - [x] later, take a list of files, use File hasher to hash all files and get root hashes 
   - [x] Construct a subfile manifest with metainfo using YAML builder
     - [x] vectorize
-  - [ ] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
+  - [x] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
   - [x] Publish subfile to IPFS, receive a IPFS hash for the subfile
 - [x] IPFS client
   - [x] Connect to an IPFS gateway
@@ -37,7 +37,7 @@
   - [x] Route `/` for "Ready to roll!"
   - [x] Route `/operator` for operator info
   - [x] Route `/status` for availability
-    - [ ] verification for availability
+    - [x] verification for availability
   - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash with range requests
   - [x] Route `/health` for general health
   - [x] Route `/version` for subfile server version
@@ -74,9 +74,9 @@
       - [ ] Parallelize requests
       - [ ] Multiple connections (HTTPS over HTTP2)
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
-    - [x] Keeps track of the downloaded and missing pieces, continually requesting missing pieces until the complete file is obtained
+    - [x] Keeps track of the downloaded and missing pieces, 
+    - [ ] continually requesting missing pieces until the complete file is obtained
     - [x] Upon receiving a response, verify the chunk data in the chunk_file
-      - [ ] if failed, blacklist the indexer
-    - [ ] Once all chunks for a file has been received, verify the file in subfile (should be vacuously true)
+      - [x] if failed, blacklist the indexer
   - [x] Once all file has been received and verified, terminate
 
