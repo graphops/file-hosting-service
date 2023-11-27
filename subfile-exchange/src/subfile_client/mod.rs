@@ -8,15 +8,16 @@
 
 use anyhow::anyhow;
 use bytes::Bytes;
+use futures::{stream, StreamExt};
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
 use rand::seq::SliceRandom;
 use reqwest::Client;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
-use tokio::task;
 
 use crate::config::DownloaderArgs;
 use crate::file_hasher::verify_chunk;
@@ -38,7 +39,7 @@ pub struct SubfileDownloader {
     static_endpoints: Vec<String>,
     output_dir: String,
     free_query_auth_token: Option<String>,
-    // Other fields as needed
+    indexer_blocklist: Arc<StdMutex<HashSet<String>>>,
 }
 
 impl SubfileDownloader {
@@ -53,6 +54,7 @@ impl SubfileDownloader {
             static_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
             free_query_auth_token: args.free_query_auth_token,
+            indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
         }
     }
 
@@ -60,51 +62,46 @@ impl SubfileDownloader {
     /// but for now we ping an indexer endpoint directly, which is what a gateway
     /// would do in behave of the downloader
     /// Return a list of endpoints where the desired subfile is hosted
-    //TODO: update once there's a gateway
+    //TODO: update once there's a gateway with indexer selection providing endpoints
     pub async fn check_availability(&self) -> Result<Vec<IndexerEndpoint>, anyhow::Error> {
-        tracing::info!("Check availability");
+        tracing::info!("Checking availability");
 
-        let mut endpoints = vec![];
-        // Loop through indexer endpoints and query data availability for the desired subfile
-        //TODO: parallelize
-        for url in &self.static_endpoints {
-            // Ping availability endpoint
-            let status_url = url.to_owned() + "/status";
-            let status_response = self.http_client.get(&status_url).send().await?;
+        // Avoid blocked endpoints
+        let blocklist = self
+            .indexer_blocklist
+            .lock()
+            .map_err(|e| anyhow!("Cannot unwrap indexer_blocklist: {}", e.to_string()))?
+            .clone();
+        let filtered_endpoints = self
+            .static_endpoints
+            .iter()
+            .filter(|url| !blocklist.contains(*url))
+            .cloned()
+            .collect::<Vec<_>>();
+        // Use a stream to process the endpoints in parallel
+        let results = stream::iter(&filtered_endpoints)
+            .map(|url| self.check_endpoint_availability(url))
+            .buffer_unordered(filtered_endpoints.len()) // Parallelize up to the number of endpoints
+            .collect::<Vec<Result<IndexerEndpoint, anyhow::Error>>>()
+            .await;
 
-            if status_response.status().is_success() {
-                tracing::info!(status_url = &status_url, "Successful status response");
-                if let Ok(files) = status_response.json::<Vec<String>>().await {
-                    if files.contains(&self.ipfs_hash) {
-                        let operator_url = url.to_owned() + "/operator";
-                        let operator_response = self.http_client.get(&operator_url).send().await?;
-                        if operator_response.status().is_success() {
-                            tracing::info!(
-                                operator_url = &operator_url,
-                                "Successful operator response"
-                            );
-                            //TODO: add indexer pricing to do basic byte prices matching
-                            if let Ok(operator) = operator_response.json::<Operator>().await {
-                                endpoints.push((operator.public_key, url.clone()));
-                            } else {
-                                tracing::error!("Operator response parse error.");
-                                return Err(anyhow!("Operator response parse error."));
-                            }
-                        } else {
-                            tracing::error!("Operator request failed.");
-                            return Err(anyhow!("Operator request failed."));
-                        }
-                    }
-                } else {
-                    tracing::error!("Status request parse error.");
-                    return Err(anyhow!("Status request parse error."));
-                }
-            } else {
-                tracing::error!("Status request failed.");
-                return Err(anyhow!("Status request failed."));
-            }
-        }
+        tracing::debug!(
+            endpoints = tracing::field::debug(&results),
+            blocklist = tracing::field::debug(&self.indexer_blocklist),
+            "Endpoint availability result"
+        );
+        // Collect only the successful results
+        let endpoints = results
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect::<Vec<_>>();
+
         Ok(endpoints)
+    }
+
+    pub fn add_to_indexer_blocklist(&self, endpoint: String) {
+        let mut blocklist = self.indexer_blocklist.lock().expect("Failed to lock mutex");
+        blocklist.insert(endpoint);
     }
 
     /// Read subfile manifiest and download the individual chunk files
@@ -183,7 +180,8 @@ impl SubfileDownloader {
             let end = u64::min(start + chunk_size, chunk_file.total_bytes) - 1;
             let file_clone = Arc::clone(&file);
             let mut rng = rand::thread_rng();
-            let url = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
+            let endpoint = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned()
+            {
                 tracing::debug!(
                     operator,
                     url,
@@ -191,19 +189,21 @@ impl SubfileDownloader {
                     chunk_file = chunk_file_info.name,
                     "Querying operator"
                 );
-                url + "/subfiles/id/" + &self.ipfs_hash
+                url
             } else {
                 let err_msg = "Could not choose an operator to query, data unavailable";
                 tracing::warn!(err_msg);
                 return Err(anyhow!(err_msg));
             };
+            let url = endpoint + "/subfiles/id/" + &self.ipfs_hash;
             let client = self.http_client.clone();
             let auth_token = self.free_query_auth_token.clone();
             let file_name = chunk_file_info.name.clone();
             let chunk_hash = hashes[i as usize].clone();
+            let block_list = self.indexer_blocklist.clone();
 
             // Spawn a new asynchronous task for each range request
-            let handle = task::spawn(async move {
+            let handle = tokio::spawn(async move {
                 download_chunk_and_write_to_file(
                     &client,
                     &url,
@@ -215,6 +215,14 @@ impl SubfileDownloader {
                     file_clone,
                 )
                 .await
+                .map_err(|e| {
+                    // If the download fails, add the URL to the indexer_blocklist
+                    block_list
+                        .lock()
+                        .expect("Cannot access blocklist")
+                        .insert(url);
+                    e
+                })
             });
 
             handles.push(handle);
@@ -252,6 +260,71 @@ impl SubfileDownloader {
         }
 
         Ok(())
+    }
+
+    /// Endpoint must serve operator info and the requested file
+    async fn check_endpoint_availability(
+        &self,
+        url: &str,
+    ) -> Result<IndexerEndpoint, anyhow::Error> {
+        let status_url = format!("{}/status", url);
+        let status_response = match self.http_client.get(&status_url).send().await {
+            Ok(response) => response,
+            Err(_) => {
+                tracing::error!("Status request failed for {}", status_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                return Err(anyhow!("Status request failed."));
+            }
+        };
+
+        if !status_response.status().is_success() {
+            tracing::error!("Status request failed for {}", status_url);
+            self.add_to_indexer_blocklist(url.to_string());
+            return Err(anyhow!("Status request failed."));
+        }
+
+        let files = match status_response.json::<Vec<String>>().await {
+            Ok(files) => files,
+            Err(_) => {
+                tracing::error!("Status response parse error for {}", status_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                return Err(anyhow!("Status response parse error."));
+            }
+        };
+
+        if !files.contains(&self.ipfs_hash) {
+            tracing::error!("IPFS hash not found in files served at {}", status_url);
+            self.add_to_indexer_blocklist(url.to_string());
+            return Err(anyhow!(
+                "IPFS hash not found in files served at {}",
+                status_url
+            ));
+        }
+
+        let operator_url = format!("{}/operator", url);
+        let operator_response = match self.http_client.get(&operator_url).send().await {
+            Ok(response) => response,
+            Err(_) => {
+                tracing::error!("Operator request failed for {}", operator_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                return Err(anyhow!("Operator request failed."));
+            }
+        };
+
+        if !operator_response.status().is_success() {
+            tracing::error!("Operator request failed for {}", operator_url);
+            self.add_to_indexer_blocklist(url.to_string());
+            return Err(anyhow!("Operator request failed."));
+        }
+
+        match operator_response.json::<Operator>().await {
+            Ok(operator) => Ok((operator.public_key, url.to_string())),
+            Err(_) => {
+                tracing::error!("Operator response parse error for {}", operator_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                Err(anyhow!("Operator response parse error."))
+            }
+        }
     }
 }
 

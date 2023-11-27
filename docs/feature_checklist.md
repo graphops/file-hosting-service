@@ -31,9 +31,9 @@
     - [x] Take a subfile IPFS hash and get the file using IPFS client
     - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
       - [x] Take metainfo of chunk_file and search for access by the local_path
-      - [ ] Verify local file against the chunk hashes
+      - [x] Verify local file against the chunk hashes
     - [x] vectorize service for multiple subfiles
-    - [ ] Once all verified, add to file to the service availability endpoint
+    - [x] Once verified, add to file to the service availability endpoint
   - [x] Route `/` for "Ready to roll!"
   - [x] Route `/operator` for operator info
   - [x] Route `/status` for availability
@@ -67,6 +67,7 @@
     - [ ] This may live somewhere else (Gateway?)
       - [x] Read subfile manifest
     - [x] Ping indexer endpoints data availability
+      - [x] Parallel requests
     - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
       - [x] Use random endpoints
     - [x] Construct and send requests to indexer endpoints 
