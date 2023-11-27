@@ -1,5 +1,6 @@
 pub mod config;
 pub mod file_hasher;
+pub mod file_reader;
 pub mod ipfs;
 pub mod publisher;
 pub mod subfile_client;

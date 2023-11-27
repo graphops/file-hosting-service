@@ -19,7 +19,7 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 use crate::config::DownloaderArgs;
-use crate::file_hasher::hash_chunk;
+use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
 use crate::publisher::FileMetaInfo;
 use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
@@ -276,10 +276,9 @@ async fn download_chunk_and_write_to_file(
         end,
     )
     .await?;
-    let downloaded_chunk_hash = hash_chunk(&data);
 
     // Verify the chunk by reading the chunk file and
-    if &downloaded_chunk_hash != chunk_hash {
+    if !verify_chunk(&data, chunk_hash) {
         tracing::warn!(query_endpoint, "Failed to validate a chunk from indexer");
         return Err(anyhow!("Terminate the download, blacklist the indexer"));
     }

@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use merkle_cbt::merkle_tree::{Merge, CBMT};
 use merkle_cbt::{MerkleProof, MerkleTree};
 use sha2::{Digest, Sha256};
@@ -127,6 +128,12 @@ pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyho
     // output_file.write_all(yaml.as_bytes())?;
 
     Ok(yaml)
+}
+
+/// Verify a vector of Bytes against a canonical hash
+pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
+    let downloaded_chunk_hash = hash_chunk(data);
+    &downloaded_chunk_hash == chunk_hash
 }
 
 #[cfg(test)]

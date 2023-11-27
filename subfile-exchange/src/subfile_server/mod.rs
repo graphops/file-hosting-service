@@ -7,6 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::config::{validate_subfile_entries, ServerArgs};
+use crate::file_hasher::verify_chunk;
+use crate::file_reader::read_chunk;
 use crate::ipfs::IpfsClient;
 use crate::subfile_reader::read_subfile;
 use crate::subfile_server::util::{package_version, public_key};
@@ -100,10 +102,52 @@ async fn initialize_subfile_server_context(
             .expect("Failed to initiate with operator wallet"),
     };
 
-    // Fetch the file using IPFS client, should be verified
+    // Fetch the file using IPFS client
     for (ipfs_hash, local_path) in subfile_entries {
         let subfile = read_subfile(client, &ipfs_hash, local_path).await?;
-        tracing::debug!(subfile = tracing::field::debug(&subfile), "Read subfile");
+        tracing::debug!(
+            subfile = tracing::field::debug(&subfile),
+            "Read and verify subfile"
+        );
+
+        //TODO: Refactor
+        // Read all files in subfile to verify locally. This may cause a long initialization time
+        for chunk_file in &subfile.chunk_files {
+            // read file by chunk_file.file_name
+            let mut file_path = subfile.local_path.clone();
+            file_path.push(chunk_file.file_name.clone());
+            tracing::trace!(file_path = tracing::field::debug(&file_path), "Verify file");
+
+            // loop through chunk file  byte range
+            for i in 0..(chunk_file.total_bytes / chunk_file.chunk_size + 1) {
+                // read range
+                let start = i * chunk_file.chunk_size;
+                let end = u64::min(start + chunk_file.chunk_size, chunk_file.total_bytes) - 1;
+                tracing::trace!(
+                    i,
+                    start_byte = tracing::field::debug(&start),
+                    end_byte = tracing::field::debug(&end),
+                    "Verify chunk index"
+                );
+                let chunk_hash = chunk_file.chunk_hashes[i as usize].clone();
+
+                // read chunk
+                let chunk_data = read_chunk(&file_path, (start, end))?;
+                // verify chunk
+                if !verify_chunk(&chunk_data, &chunk_hash) {
+                    tracing::error!(
+                        file = tracing::field::debug(&file_path),
+                        chunk_index = tracing::field::debug(&i),
+                        chunk_hash = tracing::field::debug(&chunk_hash),
+                        "Cannot locally verify the serving file"
+                    );
+                    panic!("Local verification failed")
+                }
+            }
+        }
+
+        tracing::info!("Successfully verified the local serving files");
+
         server_state
             .subfiles
             .insert(subfile.ipfs_hash.clone(), subfile);
