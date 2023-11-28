@@ -2,7 +2,12 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use crate::file_hasher::verify_chunk;
+use crate::ipfs::IpfsClient;
+use crate::subfile_reader::read_subfile;
+use crate::types::Subfile;
 
 // TODO: REFACTOR; read chunk can be further refactors, check for valid path, and use in serve_file_range
 // Read a chunk from the file at the file_path from specified start and end bytes
@@ -41,4 +46,56 @@ pub fn read_chunk(file_path: &Path, (start, end): (u64, u64)) -> Result<Bytes, a
     };
 
     Ok(buffer.into())
+}
+
+/// Validate the local files against a given subfile specification
+pub async fn validate_local_subfile(
+    client: &IpfsClient,
+    ipfs_hash: String,
+    local_path: PathBuf,
+) -> Result<Subfile, anyhow::Error> {
+    let subfile = read_subfile(client, &ipfs_hash, local_path).await?;
+    tracing::debug!(
+        subfile = tracing::field::debug(&subfile),
+        "Read and verify subfile"
+    );
+
+    //TODO: Refactor
+    // Read all files in subfile to verify locally. This may cause a long initialization time
+    for chunk_file in &subfile.chunk_files {
+        // read file by chunk_file.file_name
+        let mut file_path = subfile.local_path.clone();
+        file_path.push(chunk_file.file_name.clone());
+        tracing::trace!(file_path = tracing::field::debug(&file_path), "Verify file");
+
+        // loop through chunk file  byte range
+        for i in 0..(chunk_file.total_bytes / chunk_file.chunk_size + 1) {
+            // read range
+            let start = i * chunk_file.chunk_size;
+            let end = u64::min(start + chunk_file.chunk_size, chunk_file.total_bytes) - 1;
+            tracing::trace!(
+                i,
+                start_byte = tracing::field::debug(&start),
+                end_byte = tracing::field::debug(&end),
+                "Verify chunk index"
+            );
+            let chunk_hash = chunk_file.chunk_hashes[i as usize].clone();
+
+            // read chunk
+            let chunk_data = read_chunk(&file_path, (start, end))?;
+            // verify chunk
+            if !verify_chunk(&chunk_data, &chunk_hash) {
+                tracing::error!(
+                    file = tracing::field::debug(&file_path),
+                    chunk_index = tracing::field::debug(&i),
+                    chunk_hash = tracing::field::debug(&chunk_hash),
+                    "Cannot locally verify the serving file"
+                );
+                panic!("Local verification failed")
+            }
+        }
+    }
+
+    tracing::debug!("Successfully verified the local serving files");
+    Ok(subfile)
 }
