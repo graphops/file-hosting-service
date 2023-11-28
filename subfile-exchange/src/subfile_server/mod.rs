@@ -2,6 +2,7 @@
 use anyhow::anyhow;
 use http::header::CONTENT_RANGE;
 use hyper::service::{make_service_fn, service_fn};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -9,6 +10,7 @@ use tokio::sync::Mutex;
 use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::file_reader::validate_local_subfile;
 use crate::ipfs::IpfsClient;
+use crate::subfile_server::admin::handle_admin_request;
 use crate::subfile_server::util::{package_version, public_key};
 use crate::types::{Health, Operator, Subfile};
 // #![cfg(feature = "acceptor")]
@@ -18,16 +20,19 @@ use hyper::{Body, Request, Response, StatusCode};
 use self::range::{parse_range_header, serve_file, serve_file_range};
 use self::util::PackageVersion;
 
+pub mod admin;
 pub mod range;
 pub mod util;
 
 // Define a struct for the server state
 #[derive(Debug)]
 pub struct ServerState {
+    pub client: IpfsClient,
     pub operator_public_key: String,
     pub subfiles: HashMap<String, Subfile>, // Keyed by IPFS hash
     pub release: PackageVersion,
     pub free_query_auth_token: Option<String>, // Add bearer prefix
+    pub admin_auth_token: Option<String>,      // Add bearer prefix
 }
 
 pub type ServerContext = Arc<Mutex<ServerState>>;
@@ -89,13 +94,18 @@ async fn initialize_subfile_server_context(
     let free_query_auth_token = config
         .free_query_auth_token
         .map(|token| format!("Bearer {}", token));
+    let admin_auth_token = config
+        .admin_auth_token
+        .map(|token| format!("Bearer {}", token));
 
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization
     let mut server_state = ServerState {
+        client: client.clone(),
         subfiles: HashMap::new(),
         release: package_version()?,
         free_query_auth_token,
+        admin_auth_token,
         operator_public_key: public_key(&config.mnemonic)
             .expect("Failed to initiate with operator wallet"),
     };
@@ -128,6 +138,7 @@ pub async fn handle_request(
         "/status" => status(&context).await,
         "/health" => health().await,
         "/version" => version(&context).await,
+        "/admin" => handle_admin_request(req, &context).await,
         path if path.starts_with("/subfiles/id/") => file_service(path, &req, &context).await,
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
@@ -158,8 +169,6 @@ pub async fn version(context: &ServerContext) -> Result<Response<Body>, anyhow::
 /// Endpoint for status availability
 pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
     let subfile_mapping = context.lock().await.subfiles.clone();
-    // TODO: check for local access
-
     let subfile_ipfses: Vec<String> = subfile_mapping
         .keys()
         .map(|i| i.to_owned())
@@ -260,4 +269,13 @@ pub async fn file_service(
             .body("Missing required chunk_file_hash header".into())
             .unwrap()),
     }
+}
+
+/// Create an error response
+pub fn create_error_response(msg: &str, status_code: StatusCode) -> Response<Body> {
+    let body = json!({ "error": msg }).to_string();
+    Response::builder()
+        .status(status_code)
+        .body(body.into())
+        .unwrap()
 }

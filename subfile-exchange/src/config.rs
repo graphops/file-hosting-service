@@ -80,6 +80,13 @@ pub struct ServerArgs {
     pub free_query_auth_token: Option<String>,
     #[clap(
         long,
+        value_name = "admin-auth-token",
+        env = "ADMIN_AUTH_TOKEN",
+        help = "Admin Auth token for server management"
+    )]
+    pub admin_auth_token: Option<String>,
+    #[clap(
+        long,
         value_name = "mnemonic",
         env = "MNEMONIC",
         help = "Mnemonic for the operator wallet"
@@ -348,7 +355,7 @@ pub fn validate_subfile_entry(entry: String) -> Result<(String, PathBuf), anyhow
     Ok((ipfs_hash.to_string(), path?))
 }
 
-fn is_valid_ipfs_hash(hash: &str) -> bool {
+pub fn is_valid_ipfs_hash(hash: &str) -> bool {
     // Basic validation for IPFS hash
     // Note: This is a simplified check and may not cover all cases.
     hash.starts_with("Qm") && hash.len() == 46
