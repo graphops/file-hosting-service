@@ -53,3 +53,7 @@ criterion = "0.5"
 [[bench]]
 name = "read_chunk"
 harness = false
+
+[[bench]]
+name = "read_and_validate_file"
+harness = false
