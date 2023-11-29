@@ -57,3 +57,7 @@ harness = false
 [[bench]]
 name = "read_and_validate_file"
 harness = false
+
+[[bench]]
+name = "validate_local_subfile"
+harness = false
