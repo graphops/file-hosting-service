@@ -158,3 +158,43 @@ impl Subfile {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_util::simple_subfile;
+
+    #[test]
+    fn test_read_and_validate_file() {
+        let mut subfile = simple_subfile();
+        let result = subfile.read_and_validate_file(subfile.chunk_files.first().unwrap());
+        assert!(result.is_ok());
+
+        // Add tests for failure cases
+        if let Some(first_chunk_file) = subfile.chunk_files.first_mut() {
+            if let Some(first_hash) = first_chunk_file.chunk_hashes.first_mut() {
+                *first_hash += "1";
+            }
+        }
+        let result = subfile.read_and_validate_file(subfile.chunk_files.first().unwrap());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Damn, Failed to validate the local version of file 0017234600.dbin.zst. Fix before continuing"
+    )]
+    fn test_validate_local_subfile() {
+        let mut subfile = simple_subfile();
+        let result = subfile.validate_local_subfile();
+        assert!(result.is_ok());
+
+        // Add tests for failure cases
+        if let Some(first_chunk_file) = subfile.chunk_files.first_mut() {
+            if let Some(first_hash) = first_chunk_file.chunk_hashes.first_mut() {
+                *first_hash += "1";
+            }
+        }
+        let result = subfile.validate_local_subfile();
+        assert!(result.is_err());
+    }
+}

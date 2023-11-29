@@ -1,8 +1,10 @@
 use rand::seq::IteratorRandom;
 use rand::{distributions::Alphanumeric, Rng};
+use std::env;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
+use crate::config::init_tracing;
 use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, Subfile, SubfileManifest};
 
 // Helper function to create a temporary file with random content of a specified size
@@ -98,4 +100,9 @@ pub fn simple_subfile() -> Subfile {
         },
         chunk_files: [simple_chunk_file()].to_vec(),
     }
+}
+
+pub fn init_logger() {
+    env::set_var("RUST_LOG", "warn,subfile_exchange=trace");
+    init_tracing(String::from("pretty")).unwrap();
 }

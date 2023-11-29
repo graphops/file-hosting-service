@@ -59,9 +59,21 @@ pub enum Role {
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct ServerArgs {
-    #[arg(long, value_name = "HOST", env = "HOST", help = "Subfile server host")]
+    #[arg(
+        long,
+        value_name = "HOST",
+        default_value = "127.0.0.1",
+        env = "HOST",
+        help = "Subfile server host"
+    )]
     pub host: String,
-    #[arg(long, value_name = "PORT", env = "PORT", help = "Subfile server port")]
+    #[arg(
+        long,
+        value_name = "PORT",
+        default_value = "5678",
+        env = "PORT",
+        help = "Subfile server port"
+    )]
     pub port: usize,
     // Taking from config right now, later can read from DB table for managing server states
     #[arg(

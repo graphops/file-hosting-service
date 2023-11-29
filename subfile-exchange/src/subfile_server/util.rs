@@ -1,3 +1,4 @@
+use build_info::BuildInfo;
 use ethers::signers::{
     coins_bip39::English, LocalWallet, MnemonicBuilder, Signer, Wallet, WalletError,
 };
@@ -5,7 +6,6 @@ use ethers_core::k256::ecdsa::SigningKey;
 use serde::Serialize;
 use std::fs;
 use std::{collections::HashMap, io};
-use toml::Value;
 
 /// Build Wallet from Private key or Mnemonic
 pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
@@ -26,36 +26,19 @@ pub struct PackageVersion {
     pub dependencies: HashMap<String, String>,
 }
 
-/// Read the manfiest
-fn read_manifest() -> Result<Value, anyhow::Error> {
-    let toml_string = fs::read_to_string("subfile-exchange/Cargo.toml")
-        .map_err(|e| anyhow::anyhow!("Could not read manifest: {e}"))?;
-    let toml_value: Value = toml::from_str(&toml_string)
-        .map_err(|e| anyhow::anyhow!("Could no read from manifest to toml: {e}"))?;
-    Ok(toml_value)
-}
-
-/// Parse package versioning from the manifest
-pub fn package_version() -> Result<PackageVersion, anyhow::Error> {
-    read_manifest().map(|toml_file| {
-        let pkg = toml_file.as_table().unwrap();
-        let version = pkg
-            .get("package")
-            .and_then(|p| p.get("version"))
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
-        let _dependencies = pkg.get("dependencies").and_then(|d| d.as_table()).unwrap();
-
-        let release = PackageVersion {
-            version,
-            dependencies: HashMap::new(),
-        };
-        tracing::info!("Running package version {:#?}", release);
-
-        release
-    })
+impl From<&BuildInfo> for PackageVersion {
+    fn from(value: &BuildInfo) -> Self {
+        Self {
+            version: value.crate_info.version.to_string(),
+            dependencies: HashMap::from_iter(
+                value
+                    .crate_info
+                    .dependencies
+                    .iter()
+                    .map(|d| (d.name.clone(), d.version.to_string())),
+            ),
+        }
+    }
 }
 
 // Load public certificate from file.

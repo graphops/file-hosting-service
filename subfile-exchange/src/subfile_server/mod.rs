@@ -12,7 +12,7 @@ use crate::ipfs::IpfsClient;
 use crate::subfile::Subfile;
 use crate::subfile_reader::read_subfile;
 use crate::subfile_server::admin::handle_admin_request;
-use crate::subfile_server::util::{package_version, public_key};
+use crate::subfile_server::util::public_key;
 use crate::types::{Health, Operator};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
@@ -99,12 +99,13 @@ async fn initialize_subfile_server_context(
         .admin_auth_token
         .map(|token| format!("Bearer {}", token));
 
+    build_info::build_info!(fn build_info);
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization
     let mut server_state = ServerState {
         client: client.clone(),
         subfiles: HashMap::new(),
-        release: package_version()?,
+        release: PackageVersion::from(build_info()),
         free_query_auth_token,
         admin_auth_token,
         operator_public_key: public_key(&config.mnemonic)
