@@ -9,10 +9,11 @@ use tokio::sync::Mutex;
 
 use crate::config::{validate_subfile_entries, ServerArgs};
 use crate::ipfs::IpfsClient;
+use crate::subfile::Subfile;
 use crate::subfile_reader::read_subfile;
 use crate::subfile_server::admin::handle_admin_request;
 use crate::subfile_server::util::{package_version, public_key};
-use crate::types::{Health, Operator, Subfile};
+use crate::types::{Health, Operator};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::{Body, Request, Response, StatusCode};

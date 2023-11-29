@@ -1,8 +1,10 @@
 use anyhow::anyhow;
 use bytes::Bytes;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
+
+use crate::types::CHUNK_SIZE;
 
 // TODO: REFACTOR; read chunk can be further refactors, check for valid path, and use in serve_file_range
 // Read a chunk from the file at the file_path from specified start and end bytes
@@ -41,4 +43,42 @@ pub fn read_chunk(file_path: &Path, (start, end): (u64, u64)) -> Result<Bytes, a
     };
 
     Ok(buffer.into())
+}
+
+/// Read the file at file_path and chunk the file into bytes
+pub fn chunk_file(file_path: &Path) -> Result<(u64, Vec<Vec<u8>>), anyhow::Error> {
+    println!("Finding the file {:#?}", file_path);
+    let file = File::open(file_path)?;
+    println!("Found the file");
+    let mut reader = BufReader::new(file);
+    let mut chunks = Vec::new();
+    let mut total_bytes = 0;
+
+    loop {
+        let mut buffer = vec![0; CHUNK_SIZE];
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        total_bytes += bytes_read;
+        buffer.truncate(bytes_read);
+        chunks.push(buffer);
+    }
+
+    tracing::debug!(
+        file = tracing::field::debug(file_path),
+        total_bytes,
+        num_chunks = chunks.len(),
+        "Chunked file"
+    );
+    Ok((total_bytes.try_into().unwrap(), chunks))
+}
+
+pub fn format_path(read_dir: &str, file_name: &str) -> String {
+    format!(
+        "{}{}{}",
+        read_dir,
+        if read_dir.ends_with('/') { "" } else { "/" },
+        file_name
+    )
 }

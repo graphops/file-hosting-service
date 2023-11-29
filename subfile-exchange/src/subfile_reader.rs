@@ -1,6 +1,9 @@
 use std::{path::PathBuf, time::Duration};
 
-use crate::{file_hasher::ChunkFile, ipfs::IpfsClient, publisher::SubfileManifest, types::Subfile};
+use crate::{
+    ipfs::IpfsClient,
+    subfile::{ChunkFile, Subfile, SubfileManifest},
+};
 
 /// Parse yaml into Subfile manifest
 pub fn parse_subfile_manifest(yaml: serde_yaml::Value) -> Result<SubfileManifest, anyhow::Error> {

@@ -3,22 +3,8 @@ use merkle_cbt::merkle_tree::{Merge, CBMT};
 use merkle_cbt::{MerkleProof, MerkleTree};
 use sha2::{Digest, Sha256};
 
+use crate::subfile::ChunkFile;
 use serde_yaml::to_string;
-
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::path::Path;
-
-pub const CHUNK_SIZE: usize = 1024 * 1024; // Define the chunk size, e.g., 1 MB
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
-pub struct ChunkFile {
-    // pub merkle_root: String,
-    pub file_name: String,
-    pub total_bytes: u64,
-    pub chunk_size: u64,
-    pub chunk_hashes: Vec<String>,
-}
 
 pub fn hash_chunk(chunk: &[u8]) -> String {
     let mut hasher = Sha256::new();
@@ -29,33 +15,6 @@ pub fn hash_chunk(chunk: &[u8]) -> String {
     let hash_str = base64::encode(hash);
     tracing::debug!(hash_str = tracing::field::debug(&hash_str), "Chunk hash");
     hash_str
-}
-
-/// Read the file at file_path and chunk the file into bytes
-fn chunk_file(file_path: &Path) -> Result<(u64, Vec<Vec<u8>>), anyhow::Error> {
-    let file = File::open(file_path)?;
-    let mut reader = BufReader::new(file);
-    let mut chunks = Vec::new();
-    let mut total_bytes = 0;
-
-    loop {
-        let mut buffer = vec![0; CHUNK_SIZE];
-        let bytes_read = reader.read(&mut buffer)?;
-        if bytes_read == 0 {
-            break;
-        }
-        total_bytes += bytes_read;
-        buffer.truncate(bytes_read);
-        chunks.push(buffer);
-    }
-
-    tracing::debug!(
-        file = tracing::field::debug(file_path),
-        total_bytes,
-        num_chunks = chunks.len(),
-        "Chunked file"
-    );
-    Ok((total_bytes.try_into().unwrap(), chunks))
 }
 
 pub struct MergeU8;
@@ -86,23 +45,6 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
     CBMTU8::build_merkle_proof(leaves, indices)
 }
 
-// pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
-pub fn create_chunk_file(read_dir: &str, file_name: &str) -> Result<ChunkFile, anyhow::Error> {
-    let file_path = format!("{}/{}", read_dir, file_name);
-    // let merkle_root = hex::encode(merkle_tree.root());
-    // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
-    let (total_bytes, chunks) = chunk_file(Path::new(&file_path))?;
-
-    let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(c)).collect();
-
-    Ok(ChunkFile {
-        file_name: file_name.to_string(),
-        total_bytes,
-        chunk_size: CHUNK_SIZE as u64,
-        chunk_hashes,
-    })
-}
-
 pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyhow::Error> {
     // let (_, chunks) = chunk_file(Path::new(&file_path))?;
     // let merkle_tree = build_merkle_tree(chunks);
@@ -110,7 +52,7 @@ pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyho
 
     tracing::trace!(read_dir, file_name, "write_chunk_file",);
 
-    let chunk_file = create_chunk_file(read_dir, file_name)?;
+    let chunk_file = ChunkFile::new(read_dir, file_name)?;
 
     tracing::trace!(
         file = tracing::field::debug(&chunk_file),
@@ -134,7 +76,8 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_util::*;
+    use crate::{file_reader::chunk_file, test_util::*, types::CHUNK_SIZE};
+    use std::path::Path;
 
     #[test]
     fn test_same_files_produce_same_hash() {
@@ -154,10 +97,10 @@ mod tests {
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
-        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
 
-        assert_eq!(chunk_file1, chunk_file2);
+        assert_eq!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 
         // Clean up
         drop(temp_file1);
@@ -179,10 +122,10 @@ mod tests {
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce different chunk file
-        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
-        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
 
-        assert_ne!(chunk_file1, chunk_file2);
+        assert_ne!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 
         // Clean up
         drop(temp_file1);
@@ -199,8 +142,8 @@ mod tests {
         let file_name = path.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = create_chunk_file(readdir, file_name).unwrap();
-        let chunk_file2 = create_chunk_file(readdir, file_name).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir, file_name).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir, file_name).unwrap();
 
         assert_eq!(chunk_file1, chunk_file2);
 
@@ -222,18 +165,20 @@ mod tests {
         let chunks2 = modify_random_element(&mut chunks1.clone());
         assert_ne!(chunks2, chunks1);
 
-        let (_, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
         let path2 = Path::new(&temp_path2);
         let readdir2 = path2.parent().unwrap().to_str().unwrap();
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
+        println!("temp {:#?} {:#?} {:#?}", path2, readdir2, file_name2);
 
         // produce different chunk file
-        let chunk_file1 = create_chunk_file(readdir1, file_name1).unwrap();
-        let chunk_file2 = create_chunk_file(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir1, file_name2).unwrap();
 
-        assert_ne!(chunk_file1, chunk_file2);
+        assert_ne!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 
         // Clean up
         drop(temp_file1);
+        drop(temp_file2);
     }
 }

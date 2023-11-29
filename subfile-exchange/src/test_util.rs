@@ -3,9 +3,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
-use crate::file_hasher::ChunkFile;
-use crate::publisher::{FileMetaInfo, SubfileManifest};
-use crate::types::{BlockRange, Subfile};
+use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, Subfile, SubfileManifest};
 
 // Helper function to create a temporary file with random content of a specified size
 pub fn create_random_temp_file(size: usize) -> std::io::Result<(NamedTempFile, String)> {

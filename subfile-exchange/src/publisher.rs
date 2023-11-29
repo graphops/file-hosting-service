@@ -1,31 +1,7 @@
-use serde::{Deserialize, Serialize};
-
 use crate::config::PublisherArgs;
 use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
-use crate::types::BlockRange;
-
-/// Better mapping of files and chunk files
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct SubfileManifest {
-    pub files: Vec<FileMetaInfo>,
-    pub file_type: String,
-    pub spec_version: String,
-    pub description: String,
-    pub chain_id: String,
-    pub block_range: BlockRange,
-    // pub identifier: String,
-    // pub publisher_url: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct FileMetaInfo {
-    pub name: String,
-    pub hash: String,
-    // pub file_link: String,
-    // pub file_name: String,
-    // pub block_range: BlockRange,
-}
+use crate::subfile::{BlockRange, FileMetaInfo, SubfileManifest};
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
@@ -141,9 +117,11 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore] // Run when there is a localhost IPFS node
     async fn test_publish() {
         let client = IpfsClient::localhost();
         let args = PublisherArgs {
+            read_dir: String::from("../example-file"),
             ..Default::default()
         };
         let builder = SubfilePublisher::new(client, args);

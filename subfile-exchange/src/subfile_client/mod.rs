@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use crate::config::DownloaderArgs;
 use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
-use crate::publisher::{FileMetaInfo, SubfileManifest};
+use crate::subfile::{FileMetaInfo, SubfileManifest};
 use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
 use crate::types::Operator;
 
