@@ -8,8 +8,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::config::{validate_subfile_entries, ServerArgs};
-use crate::file_reader::validate_local_subfile;
 use crate::ipfs::IpfsClient;
+use crate::subfile_reader::read_subfile;
 use crate::subfile_server::admin::handle_admin_request;
 use crate::subfile_server::util::{package_version, public_key};
 use crate::types::{Health, Operator, Subfile};
@@ -112,7 +112,8 @@ async fn initialize_subfile_server_context(
 
     // Fetch the file using IPFS client
     for (ipfs_hash, local_path) in subfile_entries {
-        let subfile = validate_local_subfile(client, ipfs_hash, local_path).await?;
+        let subfile = read_subfile(&server_state.client, &ipfs_hash, local_path).await?;
+        let _ = subfile.validate_local_subfile();
 
         server_state
             .subfiles

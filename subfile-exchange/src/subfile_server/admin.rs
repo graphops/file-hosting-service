@@ -3,7 +3,7 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde_json::{json, Value};
 
 use crate::config::{is_valid_ipfs_hash, validate_subfile_entries};
-use crate::file_reader::validate_local_subfile;
+use crate::subfile_reader::read_subfile;
 
 use super::{create_error_response, ServerContext};
 
@@ -111,16 +111,13 @@ async fn add_subfile(
     };
     let mut server_state = context.lock().await;
     for (ipfs_hash, local_path) in subfile_entries {
-        let subfile =
-            match validate_local_subfile(&server_state.client, ipfs_hash, local_path).await {
-                Ok(s) => s,
-                Err(e) => {
-                    return Ok(create_error_response(
-                        &e.to_string(),
-                        StatusCode::BAD_REQUEST,
-                    ))
-                }
-            };
+        let subfile = read_subfile(&server_state.client, &ipfs_hash, local_path).await?;
+        if let Err(e) = subfile.validate_local_subfile() {
+            return Ok(create_error_response(
+                &e.to_string(),
+                StatusCode::BAD_REQUEST,
+            ));
+        };
 
         server_state
             .subfiles
