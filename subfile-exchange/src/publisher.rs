@@ -14,15 +14,14 @@ pub struct SubfileManifest {
     pub description: String,
     pub chain_id: String,
     pub block_range: BlockRange,
-    //TODO: Add additional metadata as needed
     // pub identifier: String,
+    // pub publisher_url: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FileMetaInfo {
     pub name: String,
     pub hash: String,
-    //TODO: Add additional metadata as needed
     // pub file_link: String,
     // pub file_name: String,
     // pub block_range: BlockRange,
@@ -111,7 +110,6 @@ impl SubfilePublisher {
         Ok(ipfs_hash)
     }
 
-    //TODO: use the full config args for publishing
     pub async fn publish(&self) -> Result<String, anyhow::Error> {
         let meta_info = match self.hash_and_publish_files(&self.config.file_names).await {
             Ok(added_hashes) => added_hashes,
