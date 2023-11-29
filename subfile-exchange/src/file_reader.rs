@@ -47,9 +47,7 @@ pub fn read_chunk(file_path: &Path, (start, end): (u64, u64)) -> Result<Bytes, a
 
 /// Read the file at file_path and chunk the file into bytes
 pub fn chunk_file(file_path: &Path) -> Result<(u64, Vec<Vec<u8>>), anyhow::Error> {
-    println!("Finding the file {:#?}", file_path);
     let file = File::open(file_path)?;
-    println!("Found the file");
     let mut reader = BufReader::new(file);
     let mut chunks = Vec::new();
     let mut total_bytes = 0;

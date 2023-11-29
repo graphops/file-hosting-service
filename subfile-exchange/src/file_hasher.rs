@@ -169,11 +169,10 @@ mod tests {
         let path2 = Path::new(&temp_path2);
         let readdir2 = path2.parent().unwrap().to_str().unwrap();
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
-        println!("temp {:#?} {:#?} {:#?}", path2, readdir2, file_name2);
 
         // produce different chunk file
         let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
-        let chunk_file2 = ChunkFile::new(readdir1, file_name2).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
 
         assert_ne!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 

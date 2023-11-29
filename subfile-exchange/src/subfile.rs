@@ -48,9 +48,7 @@ impl ChunkFile {
         let file_path = format_path(read_dir, file_name);
         // let merkle_root = hex::encode(merkle_tree.root());
         // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
-        println!("Reading file: {:#?}", &file_path);
         let (total_bytes, chunks) = chunk_file(Path::new(&file_path))?;
-        println!("toatla bytes: {:#?}", total_bytes);
 
         let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(c)).collect();
 
