@@ -86,11 +86,6 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
     CBMTU8::build_merkle_proof(leaves, indices)
 }
 
-/// Let chunk_file be
-/// - file name
-/// - chunk size in bytes
-/// - total bytes
-/// - list of hashes in order of the file
 // pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
 pub fn create_chunk_file(read_dir: &str, file_name: &str) -> Result<ChunkFile, anyhow::Error> {
     let file_path = format!("{}/{}", read_dir, file_name);
