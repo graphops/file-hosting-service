@@ -65,3 +65,7 @@ harness = false
 [[bench]]
 name = "validate_local_subfile"
 harness = false
+
+[[bench]]
+name = "write_chunk_file"
+harness = false
