@@ -21,32 +21,6 @@ An indexer running the server must provide configurations that enable the server
   --subfiles "QmY9aHuMqSPoLixVRdcYQei2cAtChBQNbjdtL5VzaQdFzw:./example-file/"
 ```
 
-
-### Admin API
-
-Support basic methods to get, add, and remove subfile services.
-
-```
-✗ curl http://localhost:5678/admin -X POST \    
-  -H "Content-Type: application/json" \
- --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:local_path"],"id":1,"jsonrpc":"2.0"}'
-{"error":"Invalid local path: local_path"}%                                                  
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
- --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./example-file"],"id":1,"jsonrpc":"2.0"}' 
-Subfile(s) added successfully%      
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
- --data '{"method":"get_subfiles","id":1,"jsonrpc":"2.0"}'
-[{
-  "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","subfile":{"chunk_files":[{"chunk_hashes":["uKD2xdfp1WszuvIP1nFNNTYoZ7zvm2KX6KFElwwBfdI=","TrusR0Z+EYg33o4KRXGvSN910yavCkjD7K3pYImGZaQ="],"chunk_size":1048576,"file_name":"example-create-17686085.dbin","total_bytes":1052737},{"chunk_hashes":["/5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=",...],"chunk_size":1048576,"file_name":"0017234500.dbin.zst","total_bytes":24817953},...],
-"ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","local_path":"./example-file","manifest":{"block_range":{"end_block":null,"start_block":null},"chain_id":"0","description":"random flatfiles","file_type":"flatfiles","files":[{"hash":"QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv","name":"example-create-17686085.dbin"}, ...],"spec_version":"0.0.0"}}}, ...]%                            
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
- --data '{"method":"remove_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
-Subfile(s) removed successfully
-```
-
 ### Configuration matrix
 
 | Environment Variable                          | CLI Argument                    | Value                                            |
@@ -74,3 +48,35 @@ Subfile(s) removed successfully
 | `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--sender-aggregator-endpoints-file`       |  Default: `"aggregators.yaml"`    |
 
 Consider access such as to postgres or files requiring authentication
+
+## Admin API
+
+Support basic methods to get, add, and remove subfile services.
+
+```
+✗ curl http://localhost:5678/admin -X POST \    
+  -H "Content-Type: application/json" \
+  -H "AUTHORIZATION: Bearer imadmin" \
+ --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:local_path"],"id":1,"jsonrpc":"2.0"}'
+{"error":"Invalid local path: local_path"}%                                                  
+
+✗ curl http://localhost:5678/admin -X POST \
+  -H "Content-Type: application/json" \
+  -H "AUTHORIZATION: Bearer imadmin" \
+ --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./example-file"],"id":1,"jsonrpc":"2.0"}' 
+Subfile(s) added successfully%      
+
+✗ curl http://localhost:5678/admin -X POST \
+  -H "Content-Type: application/json" \
+  -H "AUTHORIZATION: Bearer imadmin" \
+ --data '{"method":"get_subfiles","id":1,"jsonrpc":"2.0"}'
+[{
+  "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","subfile":{"chunk_files":[{"chunk_hashes":["uKD2xdfp1WszuvIP1nFNNTYoZ7zvm2KX6KFElwwBfdI=","TrusR0Z+EYg33o4KRXGvSN910yavCkjD7K3pYImGZaQ="],"chunk_size":1048576,"file_name":"example-create-17686085.dbin","total_bytes":1052737},{"chunk_hashes":["/5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=",...],"chunk_size":1048576,"file_name":"0017234500.dbin.zst","total_bytes":24817953},...],
+"ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","local_path":"./example-file","manifest":{"block_range":{"end_block":null,"start_block":null},"chain_id":"0","description":"random flatfiles","file_type":"flatfiles","files":[{"hash":"QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv","name":"example-create-17686085.dbin"}, ...],"spec_version":"0.0.0"}}}, ...]%                            
+
+✗ curl http://localhost:5678/admin -X POST \
+  -H "Content-Type: application/json" \
+  -H "AUTHORIZATION: Bearer imadmin" \
+ --data '{"method":"remove_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
+Subfile(s) removed successfully
+```
