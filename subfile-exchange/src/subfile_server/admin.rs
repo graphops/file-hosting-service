@@ -13,24 +13,25 @@ pub async fn handle_admin_request(
     context: &ServerContext,
 ) -> Result<hyper::Response<hyper::Body>, anyhow::Error> {
     // Validate the auth token
-    // let context_ref = context.lock().await;
-    // let auth_token = req
-    //     .headers()
-    //     .get(http::header::AUTHORIZATION)
-    //     .and_then(|t| t.to_str().ok());
+    tracing::debug!("Received admin request");
+    let server_auth_token = context.lock().await.admin_auth_token.clone();
+    let auth_token = req
+        .headers()
+        .get(http::header::AUTHORIZATION)
+        .and_then(|t| t.to_str().ok());
 
-    // let authorized = context_ref.admin_auth_token.is_none()
-    //     || (auth_token.is_some()
-    //         && context_ref.admin_auth_token.is_some()
-    //         && auth_token.unwrap() == context_ref.admin_auth_token.as_deref().unwrap());
+    let authorized = server_auth_token.is_none()
+        || (auth_token.is_some()
+            && server_auth_token.is_some()
+            && auth_token.unwrap() == server_auth_token.as_deref().unwrap());
 
-    // if !authorized {
-    //     tracing::warn!("Respond unauthorized");
-    //     return Ok(Response::builder()
-    //     .status(StatusCode::UNAUTHORIZED)
-    //     .body("Require admin authentication".into())
-    //     .unwrap());
-    // }
+    if !authorized {
+        tracing::warn!("Respond unauthorized");
+        return Ok(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body("Require admin authentication".into())
+            .unwrap());
+    }
 
     let body_bytes = to_bytes(req.into_body()).await?;
 

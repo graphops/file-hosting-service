@@ -233,7 +233,7 @@ pub async fn file_service(
     }
 
     let requested_subfile = match context_ref.subfiles.get(id) {
-        Some(s) => s,
+        Some(s) => s.clone(),
         None => {
             tracing::debug!(
                 server_context = tracing::field::debug(&context_ref),
