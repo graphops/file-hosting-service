@@ -69,3 +69,7 @@ harness = false
 [[bench]]
 name = "write_chunk_file"
 harness = false
+
+[[bench]]
+name = "verify_chunk"
+harness = false

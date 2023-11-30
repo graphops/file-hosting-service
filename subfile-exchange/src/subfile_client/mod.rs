@@ -388,14 +388,13 @@ async fn download_chunk_and_write_to_file(
         .await
         {
             Ok(data) => {
-                // Verify the chunk
                 if verify_chunk(&data, chunk_hash) {
                     // Lock the file for writing
                     let mut file_lock = file.lock().await;
                     file_lock.seek(SeekFrom::Start(start))?;
                     file_lock.write_all(&data)?;
                     drop(file_lock);
-                    return Ok(file); // Successfully written the chunk
+                    return Ok(file); // Successfully written the chunk, exit loop
                 } else {
                     tracing::warn!(query_endpoint, "Failed to validate received chunk");
                 }

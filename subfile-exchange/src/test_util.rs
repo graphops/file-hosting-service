@@ -102,6 +102,25 @@ pub fn simple_subfile() -> Subfile {
     }
 }
 
+// pub const SUBFILE_MANIFEST = r#"files:
+// - name: example-create-17686085.dbin
+//   hash: QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv
+// - name: 0017234500.dbin.zst
+//   hash: Qmexz4ZariJteKHHXMxsSeSjvyLZf7SUWz77bsvLUQG1Vn
+// - name: 0017234600.dbin.zst
+//   hash: QmadNB1AQnap3czUime3gEETBNUj7HHzww6hVh5F6w7Boo
+// - name: 0017686111-c1ed20dc4cffd7bd-ebfe6d2b6a25625a-17686021-default.dbin
+//   hash: QmSEDiCKax7rjxS3kvGJ3dPdHkm2bztFZkR5KDqfpgyuQw
+// - name: 0017686115-f8d105f60fa2e78d-7d23a3e458beaff1-17686021-default.dbin
+//   hash: QmVx3JX5TNrSqMKyP5xQJ2CYmcqG4VaBdPnbji3PuvUFx6
+// file_type: flatfiles
+// spec_version: 0.0.0
+// description: random flatfiles
+// chain_id: '0'
+// block_range:
+//   start_block: null
+//   end_block: null";
+
 pub fn init_logger() {
     env::set_var("RUST_LOG", "warn,subfile_exchange=trace");
     init_tracing(String::from("pretty")).unwrap();

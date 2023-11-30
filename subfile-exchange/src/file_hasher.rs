@@ -46,13 +46,9 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
 }
 
 pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyhow::Error> {
-    // let (_, chunks) = chunk_file(Path::new(&file_path))?;
+    let chunk_file = ChunkFile::new(read_dir, file_name)?;
     // let merkle_tree = build_merkle_tree(chunks);
     // let chunk_file = create_chunk_file(&merkle_tree);
-
-    tracing::trace!(read_dir, file_name, "write_chunk_file",);
-
-    let chunk_file = ChunkFile::new(read_dir, file_name)?;
 
     tracing::trace!(
         file = tracing::field::debug(&chunk_file),
