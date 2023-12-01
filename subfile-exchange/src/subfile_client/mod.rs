@@ -17,7 +17,7 @@ use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
 use crate::subfile::{FileMetaInfo, SubfileManifest};
 use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
-use crate::types::Operator;
+use crate::subfile_server::util::Operator;
 
 // Pair indexer operator address and indexer service endpoint
 // persumeably this should not be handled by clients themselves

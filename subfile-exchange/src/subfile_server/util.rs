@@ -3,7 +3,7 @@ use ethers::signers::{
     coins_bip39::English, LocalWallet, MnemonicBuilder, Signer, Wallet, WalletError,
 };
 use ethers_core::k256::ecdsa::SigningKey;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::fs;
 use std::{collections::HashMap, io};
 
@@ -17,6 +17,17 @@ pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
 /// Get wallet public address to String
 pub fn wallet_address(wallet: &Wallet<SigningKey>) -> String {
     format!("{:?}", wallet.address())
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Health {
+    pub healthy: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Operator {
+    #[serde(alias = "publicKey")]
+    pub public_key: String,
 }
 
 /// Struct for version control

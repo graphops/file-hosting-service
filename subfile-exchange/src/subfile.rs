@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     file_hasher::{hash_chunk, verify_chunk},
     file_reader::{chunk_file, format_path, read_chunk},
-    types::CHUNK_SIZE,
 };
 
 /* Public Manifests */
@@ -44,18 +43,18 @@ pub struct ChunkFile {
 
 impl ChunkFile {
     // pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
-    pub fn new(read_dir: &str, file_name: &str) -> Result<ChunkFile, anyhow::Error> {
+    pub fn new(read_dir: &str, file_name: &str, chunk_size: u64) -> Result<ChunkFile, anyhow::Error> {
         let file_path = format_path(read_dir, file_name);
         // let merkle_root = hex::encode(merkle_tree.root());
         // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
-        let (total_bytes, chunks) = chunk_file(Path::new(&file_path))?;
+        let (total_bytes, chunks) = chunk_file(Path::new(&file_path), chunk_size)?;
 
         let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(c)).collect();
 
         Ok(ChunkFile {
             file_name: file_name.to_string(),
             total_bytes,
-            chunk_size: CHUNK_SIZE as u64,
+            chunk_size,
             chunk_hashes,
         })
     }

@@ -1,7 +1,8 @@
+use serde_yaml::to_string;
+
 use crate::config::PublisherArgs;
-use crate::file_hasher::write_chunk_file;
 use crate::ipfs::{AddResponse, IpfsClient};
-use crate::subfile::{BlockRange, FileMetaInfo, SubfileManifest};
+use crate::subfile::{BlockRange, FileMetaInfo, SubfileManifest, ChunkFile};
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
@@ -21,7 +22,7 @@ impl SubfilePublisher {
         &self,
         file_name: &str,
     ) -> Result<AddResponse, anyhow::Error> {
-        let yaml_str = write_chunk_file(&self.config.read_dir, file_name)?;
+        let yaml_str = self.write_chunk_file(file_name)?;
 
         let added: AddResponse = self.ipfs_client.add(yaml_str.as_bytes().to_vec()).await?;
         tracing::debug!(
@@ -34,10 +35,10 @@ impl SubfilePublisher {
 
     pub async fn hash_and_publish_files(
         &self,
-        file_names: &Vec<String>,
     ) -> Result<Vec<FileMetaInfo>, anyhow::Error> {
         let mut root_hashes = Vec::new();
 
+        let file_names = &self.config.file_names;
         tracing::trace!(
             file_names = tracing::field::debug(&file_names),
             "hash_and_publish_files",
@@ -87,7 +88,7 @@ impl SubfilePublisher {
     }
 
     pub async fn publish(&self) -> Result<String, anyhow::Error> {
-        let meta_info = match self.hash_and_publish_files(&self.config.file_names).await {
+        let meta_info = match self.hash_and_publish_files().await {
             Ok(added_hashes) => added_hashes,
             Err(e) => return Err(e),
         };
@@ -110,6 +111,25 @@ impl SubfilePublisher {
             Err(e) => Err(e.into()),
         }
     }
+
+    pub fn write_chunk_file(&self, file_name: &str) -> Result<String, anyhow::Error> {
+        let chunk_file = ChunkFile::new(&self.config.read_dir, file_name, self.config.chunk_size)?;
+        // let merkle_tree = build_merkle_tree(chunks);
+        // let chunk_file = create_chunk_file(&merkle_tree);
+
+        tracing::trace!(
+            file = tracing::field::debug(&chunk_file),
+            "Created chunk file"
+        );
+
+        let yaml = to_string(&chunk_file)?;
+        // TODO: consider storing a local copy
+        // let mut output_file = File::create(file_path)?;
+        // output_file.write_all(yaml.as_bytes())?;
+
+        Ok(yaml)
+    }
+
 }
 
 #[cfg(test)]

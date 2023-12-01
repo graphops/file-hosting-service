@@ -229,6 +229,15 @@ pub struct PublisherArgs {
 
     #[arg(
         long,
+        value_name = "CHUNK_SIZE",
+        env = "CHUNK_SIZE",
+        default_value = "1048576",
+        help = "Chunk size in bytes to split files (Default: 1048576 bytes = 1MiB)"
+    )]
+    pub chunk_size: u64,
+
+    #[arg(
+        long,
         value_name = "START_BLOCK",
         env = "START_BLOCK",
         help = "Start block for flatfiles"

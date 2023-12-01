@@ -45,24 +45,6 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
     CBMTU8::build_merkle_proof(leaves, indices)
 }
 
-pub fn write_chunk_file(read_dir: &str, file_name: &str) -> Result<String, anyhow::Error> {
-    let chunk_file = ChunkFile::new(read_dir, file_name)?;
-    // let merkle_tree = build_merkle_tree(chunks);
-    // let chunk_file = create_chunk_file(&merkle_tree);
-
-    tracing::trace!(
-        file = tracing::field::debug(&chunk_file),
-        "Created chunk file"
-    );
-
-    let yaml = to_string(&chunk_file)?;
-    // TODO: consider storing a local copy
-    // let mut output_file = File::create(file_path)?;
-    // output_file.write_all(yaml.as_bytes())?;
-
-    Ok(yaml)
-}
-
 /// Verify a vector of Bytes against a canonical hash
 pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
     let downloaded_chunk_hash = hash_chunk(data);
@@ -72,7 +54,7 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{file_reader::chunk_file, test_util::*, types::CHUNK_SIZE};
+    use crate::{file_reader::chunk_file, test_util::*};
     use std::path::Path;
 
     #[test]
@@ -93,8 +75,8 @@ mod tests {
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
-        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1, CHUNK_SIZE).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2, CHUNK_SIZE).unwrap();
 
         assert_eq!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 
@@ -118,8 +100,8 @@ mod tests {
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce different chunk file
-        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
-        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1, CHUNK_SIZE).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2, CHUNK_SIZE).unwrap();
 
         assert_ne!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 
@@ -131,15 +113,15 @@ mod tests {
     #[test]
     fn test_big_size_same_file() {
         let file_size = CHUNK_SIZE * 25;
-        let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
 
         let path = Path::new(&temp_path1);
         let readdir = path.parent().unwrap().to_str().unwrap();
         let file_name = path.file_name().unwrap().to_str().unwrap();
 
         // produce the same chunk file
-        let chunk_file1 = ChunkFile::new(readdir, file_name).unwrap();
-        let chunk_file2 = ChunkFile::new(readdir, file_name).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir, file_name, file_size).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir, file_name, file_size).unwrap();
 
         assert_eq!(chunk_file1, chunk_file2);
 
@@ -150,13 +132,13 @@ mod tests {
     #[test]
     fn test_big_size_different_file() {
         let file_size = CHUNK_SIZE * 25;
-        let (temp_file1, temp_path1) = create_random_temp_file(file_size).unwrap();
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
 
         let path1 = Path::new(&temp_path1);
         let readdir1 = path1.parent().unwrap().to_str().unwrap();
         let file_name1 = path1.file_name().unwrap().to_str().unwrap();
 
-        let (_, chunks1) = chunk_file(Path::new(&temp_path1)).unwrap();
+        let (_, chunks1) = chunk_file(Path::new(&temp_path1), file_size).unwrap();
         // Modify a byte at an arbitrary postiion
         let chunks2 = modify_random_element(&mut chunks1.clone());
         assert_ne!(chunks2, chunks1);
@@ -167,8 +149,8 @@ mod tests {
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce different chunk file
-        let chunk_file1 = ChunkFile::new(readdir1, file_name1).unwrap();
-        let chunk_file2 = ChunkFile::new(readdir2, file_name2).unwrap();
+        let chunk_file1 = ChunkFile::new(readdir1, file_name1, file_size).unwrap();
+        let chunk_file2 = ChunkFile::new(readdir2, file_name2, file_size).unwrap();
 
         assert_ne!(chunk_file1.chunk_hashes, chunk_file2.chunk_hashes);
 

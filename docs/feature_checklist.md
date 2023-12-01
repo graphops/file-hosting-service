@@ -42,19 +42,18 @@
   - [x] Route `/health` for general health
   - [x] Route `/version` for subfile server version
   - [x] Configure and check free query auth token
-  - [ ] Server Certificate 
+  - [ ] (?) Server Certificate
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
     - [x] start off with request as (ipfs_hash, range)
     - [x] Check if ipfs_hash is available
     - [x] Check if range is valid against the subfile and the specific chunk_file
-    - [ ] Valid and store receipt
+    - [ ] TAP: Valid and store receipt
     - [x] Read in the requested chunk
-      - [ ] Add tests
+      - [x] Add tests
     - [x] Construct response and respond
       - [ ] determine if streaming is necessary
   - [x] Start with free service and requiring a free query auth token
     - [ ] then add default cost model, allow updates for pricing per byte
-    - [ ] with paid service, validate receipts pricing wrt cost model
   - [ ] Runs TAP agent for receipt management
 - [ ] Subfile Client 
   - [ ] Take private key/mneomic for wallet connections
@@ -63,12 +62,11 @@
       - [ ] construct receipts using budget and chunk sizes
       - [ ] add receipt to request
     - [x] add free_token to request
-      - [ ] match token with indexer-urls
-    - [ ] This may live somewhere else (Gateway?)
+    - [ ] File discovery and matching (Gateway?)
       - [x] Read subfile manifest
-    - [x] Ping indexer endpoints data availability
+      - [x] Ping indexer endpoints data availability
+      - [ ] Pricing and performances, run indexer selection
       - [x] Parallel requests
-    - [ ] Ping indexer endpoints for pricing and performances, run indexer selection
       - [x] Use random endpoints
     - [x] Construct and send requests to indexer endpoints 
       - [ ] Parallelize requests

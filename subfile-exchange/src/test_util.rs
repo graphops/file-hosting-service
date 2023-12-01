@@ -7,6 +7,8 @@ use tempfile::NamedTempFile;
 use crate::config::init_tracing;
 use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, Subfile, SubfileManifest};
 
+pub const CHUNK_SIZE: u64 = 1024 * 1024; // Define the chunk size, e.g., 1 MB
+
 // Helper function to create a temporary file with random content of a specified size
 pub fn create_random_temp_file(size: usize) -> std::io::Result<(NamedTempFile, String)> {
     let mut temp_file = NamedTempFile::new()?;
