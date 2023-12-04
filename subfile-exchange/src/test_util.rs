@@ -5,7 +5,9 @@ use std::io::Write;
 use tempfile::NamedTempFile;
 
 use crate::config::init_tracing;
-use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, Subfile, SubfileManifest};
+use crate::subfile::{
+    BlockRange, ChunkFile, ChunkFileMeta, FileMetaInfo, Subfile, SubfileManifest,
+};
 
 pub const CHUNK_SIZE: u64 = 1024 * 1024; // Define the chunk size, e.g., 1 MB
 
@@ -46,7 +48,7 @@ pub fn modify_random_element(matrix: &mut Vec<Vec<u8>>) -> Vec<Vec<u8>> {
 
 pub fn simple_chunk_file() -> ChunkFile {
     ChunkFile {
-        file_name: "0017234600.dbin.zst".to_string(),
+        // file_name: "0017234600.dbin.zst".to_string(),
         total_bytes: 26359000,
         chunk_size: 1048576,
         chunk_hashes: [
@@ -82,15 +84,15 @@ pub fn simple_chunk_file() -> ChunkFile {
 }
 
 pub fn simple_subfile() -> Subfile {
+    let meta_info = FileMetaInfo {
+        name: "0017234600.dbin.zst".to_string(),
+        hash: "QmadNB1AQnap3czUime3gEETBNUj7HHzww6hVh5F6w7Boo".to_string(),
+    };
     Subfile {
         ipfs_hash: "QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ".to_string(),
         local_path: "../example-file/".into(),
         manifest: SubfileManifest {
-            files: [FileMetaInfo {
-                name: "0017234600.dbin.zst".to_string(),
-                hash: "QmadNB1AQnap3czUime3gEETBNUj7HHzww6hVh5F6w7Boo".to_string(),
-            }]
-            .to_vec(),
+            files: [meta_info.clone()].to_vec(),
             file_type: "flatfiles".to_string(),
             spec_version: "0.0.0".to_string(),
             description: "random flatfiles".to_string(),
@@ -100,7 +102,11 @@ pub fn simple_subfile() -> Subfile {
                 end_block: None,
             },
         },
-        chunk_files: [simple_chunk_file()].to_vec(),
+        chunk_files: [ChunkFileMeta {
+            meta_info,
+            chunk_file: simple_chunk_file(),
+        }]
+        .to_vec(),
     }
 }
 

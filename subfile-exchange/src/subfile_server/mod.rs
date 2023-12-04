@@ -257,7 +257,6 @@ pub async fn file_service(
                     let range = parse_range_header(r)
                         .map_err(|e| anyhow!(format!("Failed to parse range header: {}", e)))?;
                     //TODO: validate receipt
-                    tracing::info!("Serve file range");
                     serve_file_range(&file_path, range).await
                 }
                 None => {

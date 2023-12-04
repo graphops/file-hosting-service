@@ -22,20 +22,17 @@ pub struct SubfileManifest {
     // pub publisher_url: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct FileMetaInfo {
     pub name: String,
     pub hash: String,
-    // pub file_link: String,
-    // pub file_name: String,
+    // Some tags for discovery and categorization
     // pub block_range: BlockRange,
 }
 
 /* Chunk file */
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct ChunkFile {
-    // pub merkle_root: String,
-    pub file_name: String,
     pub total_bytes: u64,
     pub chunk_size: u64,
     pub chunk_hashes: Vec<String>,
@@ -56,12 +53,17 @@ impl ChunkFile {
         let chunk_hashes: Vec<String> = chunks.iter().map(|c| hash_chunk(c)).collect();
 
         Ok(ChunkFile {
-            file_name: file_name.to_string(),
             total_bytes,
             chunk_size,
             chunk_hashes,
         })
     }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
+pub struct ChunkFileMeta {
+    pub meta_info: FileMetaInfo,
+    pub chunk_file: ChunkFile,
 }
 
 /* Subfile - packaging of chunk files mapped into local files */
@@ -71,7 +73,8 @@ pub struct Subfile {
     pub ipfs_hash: String,
     pub local_path: PathBuf,
     pub manifest: SubfileManifest,
-    pub chunk_files: Vec<ChunkFile>,
+    /// IPFS hash, Chunk file spec
+    pub chunk_files: Vec<ChunkFileMeta>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -108,8 +111,8 @@ impl Subfile {
         );
 
         // Read all files in subfile to verify locally. This may cause a long initialization time
-        for chunk_file in &self.chunk_files {
-            if let Err(e) = self.read_and_validate_file(chunk_file) {
+        for file_meta in &self.chunk_files {
+            if let Err(e) = self.read_and_validate_file(file_meta) {
                 panic!("Damn, {}. Fix before continuing", e);
             };
         }
@@ -119,10 +122,12 @@ impl Subfile {
     }
 
     /// Read and validate file
-    pub fn read_and_validate_file(&self, chunk_file: &ChunkFile) -> Result<(), anyhow::Error> {
+    pub fn read_and_validate_file(&self, file: &ChunkFileMeta) -> Result<(), anyhow::Error> {
         // read file by chunk_file.file_name
+        let meta_info = &file.meta_info;
+        let chunk_file = &file.chunk_file;
         let mut file_path = self.local_path.clone();
-        file_path.push(chunk_file.file_name.clone());
+        file_path.push(meta_info.name.clone());
         tracing::trace!(
             file_path = tracing::field::debug(&file_path),
             chunk_file = tracing::field::debug(&chunk_file),
@@ -154,7 +159,7 @@ impl Subfile {
                 );
                 return Err(anyhow::anyhow!(
                     "Failed to validate the local version of file {}",
-                    chunk_file.file_name
+                    meta_info.hash
                 ));
             }
         }
@@ -169,22 +174,24 @@ mod tests {
     #[test]
     fn test_read_and_validate_file() {
         let mut subfile = simple_subfile();
-        let result = subfile.read_and_validate_file(subfile.chunk_files.first().unwrap());
+        let file_meta = subfile.chunk_files.first().unwrap();
+        let result = subfile.read_and_validate_file(file_meta);
         assert!(result.is_ok());
 
         // Add tests for failure cases
-        if let Some(first_chunk_file) = subfile.chunk_files.first_mut() {
-            if let Some(first_hash) = first_chunk_file.chunk_hashes.first_mut() {
+        if let Some(file_meta) = subfile.chunk_files.first_mut() {
+            if let Some(first_hash) = file_meta.chunk_file.chunk_hashes.first_mut() {
                 *first_hash += "1";
             }
         }
-        let result = subfile.read_and_validate_file(subfile.chunk_files.first().unwrap());
+        let file_meta = subfile.chunk_files.first().unwrap();
+        let result = subfile.read_and_validate_file(file_meta);
         assert!(result.is_err());
     }
 
     #[test]
     #[should_panic(
-        expected = "Damn, Failed to validate the local version of file 0017234600.dbin.zst. Fix before continuing"
+        expected = "Damn, Failed to validate the local version of file QmadNB1AQnap3czUime3gEETBNUj7HHzww6hVh5F6w7Boo. Fix before continuing"
     )]
     fn test_validate_local_subfile() {
         let mut subfile = simple_subfile();
@@ -192,8 +199,8 @@ mod tests {
         assert!(result.is_ok());
 
         // Add tests for failure cases
-        if let Some(first_chunk_file) = subfile.chunk_files.first_mut() {
-            if let Some(first_hash) = first_chunk_file.chunk_hashes.first_mut() {
+        if let Some(file_meta) = subfile.chunk_files.first_mut() {
+            if let Some(first_hash) = file_meta.chunk_file.chunk_hashes.first_mut() {
                 *first_hash += "1";
             }
         }

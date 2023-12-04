@@ -181,7 +181,7 @@ impl SubfileDownloader {
 
         // Open the output file
         let file = File::create(Path::new(
-            &(self.output_dir.clone() + "/" + &chunk_file.file_name),
+            &(self.output_dir.clone() + "/" + &chunk_file_info.name),
         ))
         .unwrap();
         let file = Arc::new(Mutex::new(file));
@@ -204,7 +204,7 @@ impl SubfileDownloader {
                     operator,
                     url,
                     chunk = i,
-                    chunk_file = chunk_file.file_name,
+                    chunk_file = chunk_file_info.name,
                     "Querying operator"
                 );
                 url

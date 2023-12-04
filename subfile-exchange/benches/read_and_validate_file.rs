@@ -6,7 +6,8 @@ fn read_and_validate_file_benchmark(c: &mut Criterion) {
     let subfile = black_box(simple_subfile());
 
     c.bench_function("read_and_validate_file", |b| {
-        b.iter(|| subfile.read_and_validate_file(subfile.chunk_files.first().unwrap()))
+        let meta = black_box(subfile.chunk_files.first().unwrap());
+        b.iter(|| subfile.read_and_validate_file(meta))
     });
 }
 
