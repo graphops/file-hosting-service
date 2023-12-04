@@ -274,7 +274,7 @@ impl SubfileDownloader {
                         "Not modified".to_string()
                     };
 
-                    tracing::info!(
+                    tracing::debug!(
                         metadata = tracing::field::debug(metadata),
                         modification = modified,
                         "Chunk file information"

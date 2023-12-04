@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use subfile_exchange::{test_util::CHUNK_SIZE, subfile::ChunkFile};
+use subfile_exchange::{subfile::ChunkFile, test_util::CHUNK_SIZE};
 
 fn new_chunk_file_benchmark(c: &mut Criterion) {
     // ChunkFile::new(&self.config.read_dir, file_name, self.config.chunk_size)

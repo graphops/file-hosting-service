@@ -3,9 +3,6 @@ use merkle_cbt::merkle_tree::{Merge, CBMT};
 use merkle_cbt::{MerkleProof, MerkleTree};
 use sha2::{Digest, Sha256};
 
-use crate::subfile::ChunkFile;
-use serde_yaml::to_string;
-
 pub fn hash_chunk(chunk: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(chunk);
@@ -53,8 +50,7 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{file_reader::chunk_file, test_util::*};
+    use crate::{file_reader::chunk_file, subfile::ChunkFile, test_util::*};
     use std::path::Path;
 
     #[test]

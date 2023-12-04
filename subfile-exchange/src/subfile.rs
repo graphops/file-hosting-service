@@ -43,7 +43,11 @@ pub struct ChunkFile {
 
 impl ChunkFile {
     // pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
-    pub fn new(read_dir: &str, file_name: &str, chunk_size: u64) -> Result<ChunkFile, anyhow::Error> {
+    pub fn new(
+        read_dir: &str,
+        file_name: &str,
+        chunk_size: u64,
+    ) -> Result<ChunkFile, anyhow::Error> {
         let file_path = format_path(read_dir, file_name);
         // let merkle_root = hex::encode(merkle_tree.root());
         // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();

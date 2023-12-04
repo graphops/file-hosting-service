@@ -2,7 +2,7 @@ use serde_yaml::to_string;
 
 use crate::config::PublisherArgs;
 use crate::ipfs::{AddResponse, IpfsClient};
-use crate::subfile::{BlockRange, FileMetaInfo, SubfileManifest, ChunkFile};
+use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, SubfileManifest};
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
@@ -33,9 +33,7 @@ impl SubfilePublisher {
         Ok(added)
     }
 
-    pub async fn hash_and_publish_files(
-        &self,
-    ) -> Result<Vec<FileMetaInfo>, anyhow::Error> {
+    pub async fn hash_and_publish_files(&self) -> Result<Vec<FileMetaInfo>, anyhow::Error> {
         let mut root_hashes = Vec::new();
 
         let file_names = &self.config.file_names;
@@ -129,7 +127,6 @@ impl SubfilePublisher {
 
         Ok(yaml)
     }
-
 }
 
 #[cfg(test)]

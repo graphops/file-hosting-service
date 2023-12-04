@@ -12,7 +12,7 @@ use crate::ipfs::IpfsClient;
 use crate::subfile::Subfile;
 use crate::subfile_reader::read_subfile;
 use crate::subfile_server::admin::handle_admin_request;
-use crate::subfile_server::util::{Health, Operator, public_key};
+use crate::subfile_server::util::{public_key, Health, Operator};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::{Body, Request, Response, StatusCode};
