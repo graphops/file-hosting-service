@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use bytes::Bytes;
 use merkle_cbt::merkle_tree::{Merge, CBMT};
 use merkle_cbt::{MerkleProof, MerkleTree};
@@ -7,9 +8,7 @@ pub fn hash_chunk(chunk: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(chunk);
     let hash = hasher.finalize().to_vec();
-    tracing::debug!(hash = tracing::field::debug(&hash), "Chunk hash");
-    //TODO: update to a better encoder
-    let hash_str = base64::encode(hash);
+    let hash_str = general_purpose::STANDARD.encode(hash);
     tracing::debug!(hash_str = tracing::field::debug(&hash_str), "Chunk hash");
     hash_str
 }
@@ -45,7 +44,7 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
 /// Verify a vector of Bytes against a canonical hash
 pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
     let downloaded_chunk_hash = hash_chunk(data);
-    &downloaded_chunk_hash == chunk_hash
+    downloaded_chunk_hash == chunk_hash
 }
 
 #[cfg(test)]

@@ -32,7 +32,7 @@ pub fn create_temp_file(content: &[u8]) -> std::io::Result<(tempfile::NamedTempF
 }
 
 // Helper function to modify a single element at a random position
-pub fn modify_random_element(matrix: &mut Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+pub fn modify_random_element(matrix: &mut [Vec<u8>]) -> Vec<Vec<u8>> {
     let mut rng = rand::thread_rng();
 
     if let Some(outer_idx) = matrix.iter().enumerate().choose(&mut rng) {
