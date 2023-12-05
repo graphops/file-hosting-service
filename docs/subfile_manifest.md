@@ -1,6 +1,75 @@
 ## Subfile manfiest specifications
 
-Document the structure of subfile and chunk files.
+Structure of subfile and chunk files
+
+```mermaid
+erDiagram
+    Publisher ||..|{ ChunkFile : publishes
+    ChunkFile ||--|| FileMetaInfo : hash
+    FileMetaInfo }|--|| SupFile : belongs_to
+    Publisher ||..|| SupFile : publishes
+    Server }|..|| SupFile : host
+    Server }|--|{ ChunkFile : resolve
+    Client }|..|| SupFile : discover
+    Client }|..|| Server : request
+    Client }|--|{ ChunkFile : validate
+
+    ChunkFile {
+        u64 total_bytes
+        u64 chunk_size
+        VecString chunk_hashes
+    }
+    Publisher {
+        String read_dir
+        String subfile_name
+        VecString file_names
+        String file_type
+        String file_version
+        OptionString identifier
+        u64 chunk_size
+        Optionu64 start_block
+        Optionu64 end_block
+        String description
+        String chain_id
+    }
+    FileMetaInfo {
+        String name
+        String hash
+    }
+
+    SupFile {
+        VecFileMetaInfo files
+        String file_type
+        String spec_version
+        String description
+        String chain_id
+        BlockRange block_range
+    }
+
+    Server {
+        String host
+        usize port
+        VecString subfiles
+        OptionString free_query_auth_token
+        OptionString admin_auth_token
+        String mnemonic
+    }
+
+    Client {
+        String supfile_hash
+        VecString server_endpoints
+        String output_dir
+        OptionString free_query_auth_token
+        u64 max_retry
+    }
+    
+```
+
+A file will have the same Chunk file CID if they share the same content, chunked by the same size, and with the same hashing scheme; the file name and publisher properties will not affect the chunk file CID.
+
+The CID for the subfile can vary based on the makeup of the files and meta information about the set of the files. 
+
+While servers and clients can simply exchange a published subfile by the exact files contained, we expect the possibility to match availability on a chunk file CID level, so the server serving a subfile with overlapping set of files with the target subfile can still provide for the overlapping content. 
 
 
 ### Packaging options
@@ -206,26 +275,33 @@ subfile_store_path: String, // The path to store subfile.yaml once it has been g
 
 #### Subfile manifest
 
-https://ipfs.network.thegraph.com/api/v0/cat?arg=QmakV6VEwnydfe7PXFR3TRxHbhVm7mQRXqVHdsizhTRrGw
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v
 ```
 files:
-- name: example0017686312.dbin
-  hash: QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ
 - name: example-create-17686085.dbin
-  hash: QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv
-- ...
+  hash: QmeKabcCQBtgU6QjM3rp3w6pDHFW4r54ee89nGdhuyDuhi
+- name: 0017234500.dbin.zst
+  hash: QmeE38uPSqT5XuHfM8X2JZAYgDCEwmDyMYULmZaRnNqPCj
+- name: 0017234600.dbin.zst
+  hash: QmWs8dkshZ7abxFYQ3h9ie1Em7SqzAkwtVJXaBapwEWqR9
+file_type: flatfiles
+spec_version: 0.0.0
+description: random flatfiles
+chain_id: '0'
+block_range:
+  start_block: null
+  end_block: null
 ```
 
 #### Chunk file schema
 
-https://ipfs.network.thegraph.com/api/v0/cat?arg=QmSy2UtZNJbwWFED6CroKzRmMz43WjrN8Y1Bns1EFqjeKJ
+https://ipfs.network.thegraph.com/api/v0/cat?arg=QmeE38uPSqT5XuHfM8X2JZAYgDCEwmDyMYULmZaRnNqPCj
 ```
-file_name: example0017686312.dbin
-total_bytes: 1508787
+total_bytes: 24817953
 chunk_size: 1048576
 chunk_hashes:
-- yuNejH3+kUTZdxgTsih4kOgEE7636mQkTFNBdWAXGpI=
-- vxvhGxafsav82K0Qa5wQoJSu9u3k6v5yTfaBLcPNy+c=
+- /5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=
+- tgs2sJ7RPrB1lhmSQWncez9XuL8esCxJLzwsogAVoPw=
 - ...
 ```
 
