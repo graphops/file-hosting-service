@@ -64,7 +64,7 @@ impl SubfileDownloader {
     //TODO: Use eventuals for continuous pings
     //TODO: Availability by file hash
     pub async fn check_availability(&self) -> Result<Vec<IndexerEndpoint>, anyhow::Error> {
-        tracing::debug!("Checking availability");
+        tracing::debug!(subfile_hash = &self.ipfs_hash, "Checking availability");
 
         // Avoid blocked endpoints
         let blocklist = self
@@ -292,7 +292,7 @@ impl SubfileDownloader {
         };
 
         if !files.contains(&self.ipfs_hash) {
-            tracing::error!("IPFS hash not found in files served at {}", status_url);
+            tracing::error!(status_url, files = tracing::field::debug(&files), "IPFS hash not found in files served");
             self.add_to_indexer_blocklist(url.to_string());
             return Err(anyhow!(
                 "IPFS hash not found in files served at {}",
@@ -352,7 +352,7 @@ impl SubfileDownloader {
         //TODO: do no add ipfs_hash here, let query_endpoint be for later
         //TODO: replace file_name header with file_hash for the file level IPFS
         let query_endpoint = url + "/subfiles/id/" + &self.ipfs_hash;
-        let file_name = meta.meta_info.name.clone();
+        let file_hash = meta.meta_info.hash.clone();
         let start = i * meta.chunk_file.chunk_size;
         let end = u64::min(
             start + meta.chunk_file.chunk_size,
@@ -361,7 +361,7 @@ impl SubfileDownloader {
         let chunk_hash = meta.chunk_file.chunk_hashes[i as usize].clone();
         Ok(DownloadRangeRequest {
             query_endpoint,
-            file_name,
+            file_hash,
             start,
             end,
             chunk_hash,
@@ -375,7 +375,7 @@ impl SubfileDownloader {
 pub struct DownloadRangeRequest {
     query_endpoint: String,
     auth_token: Option<String>,
-    file_name: String,
+    file_hash: String,
     start: u64,
     end: u64,
     chunk_hash: String,
@@ -396,7 +396,7 @@ async fn download_chunk_and_write_to_file(
             http_client,
             &request.query_endpoint,
             request.auth_token.clone(),
-            &request.file_name,
+            &request.file_hash,
             request.start,
             request.end,
         )
@@ -430,7 +430,7 @@ async fn request_chunk(
     http_client: &Client,
     query_endpoint: &str,
     auth_token: Option<String>,
-    file_name: &str,
+    file_hash: &str,
     start: u64,
     end: u64,
 ) -> Result<Bytes, anyhow::Error> {
@@ -448,7 +448,7 @@ async fn request_chunk(
     tracing::debug!(query_endpoint, range, "Make range request");
     let response = http_client
         .get(query_endpoint)
-        .header("file_name", file_name)
+        .header("file_hash", file_hash)
         .header(CONTENT_RANGE, range)
         .header(
             AUTHORIZATION,

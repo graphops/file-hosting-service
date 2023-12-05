@@ -9,7 +9,7 @@ pub fn hash_chunk(chunk: &[u8]) -> String {
     hasher.update(chunk);
     let hash = hasher.finalize().to_vec();
     let hash_str = general_purpose::STANDARD.encode(hash);
-    tracing::debug!(hash_str = tracing::field::debug(&hash_str), "Chunk hash");
+    tracing::trace!(hash_str = tracing::field::debug(&hash_str), "Chunk hash");
     hash_str
 }
 

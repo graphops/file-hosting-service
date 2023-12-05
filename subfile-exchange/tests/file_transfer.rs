@@ -20,6 +20,7 @@ mod tests {
             IpfsClient::localhost()
         };
 
+        let target_subfile = "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v".to_string();
         // 1. Setup server
         let mut server_process = Command::new("cargo")
             .arg("run")
@@ -29,7 +30,7 @@ mod tests {
             .arg("--mnemonic")
             .arg("sheriff obscure trick beauty army fat wink legal flee leader section suit")
             .arg("--subfiles")
-            .arg("QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./../example-file/")
+            .arg(format!("{}:./../example-file/", target_subfile))
             .spawn()
             .expect("Failed to start server");
         tracing::debug!("Wait 10 seconds");
@@ -42,7 +43,7 @@ mod tests {
 
         let downloader_args = DownloaderArgs {
             output_dir: output_dir.to_str().unwrap().to_string(),
-            ipfs_hash: "QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ".to_string(),
+            ipfs_hash: target_subfile,
             indexer_endpoints: [
                 "http://localhost:5678".to_string(),
                 "http://localhost:5677".to_string(),

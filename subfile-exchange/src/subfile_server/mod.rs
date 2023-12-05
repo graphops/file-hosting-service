@@ -246,10 +246,17 @@ pub async fn file_service(
         }
     };
 
-    match req.headers().get("file_name") {
+    match req.headers().get("file_hash") {
         Some(hash) if hash.to_str().is_ok() => {
             let mut file_path = requested_subfile.local_path.clone();
-            file_path.push(hash.to_str().unwrap());
+            let chunk_file = match requested_subfile.chunk_files.iter().find(|file| {file.meta_info.hash == hash.to_str().unwrap()}) {
+                Some(c) => c,
+                None => return Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body("Chunk file not found".into())
+                .unwrap())
+            };
+            file_path.push(chunk_file.meta_info.name.clone());
             // Parse the range header to get the start and end bytes
             match req.headers().get(CONTENT_RANGE) {
                 Some(r) => {
