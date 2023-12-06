@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use bytes::Bytes;
 use futures::{stream, StreamExt};
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
@@ -13,6 +12,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::config::DownloaderArgs;
+use crate::errors::Error;
 use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
 use crate::subfile::{ChunkFileMeta, Subfile};
@@ -65,17 +65,10 @@ impl SubfileDownloader {
     //TODO: update once there's a gateway with indexer selection providing endpoints
     //TODO: Use eventuals for continuous pings
     //TODO: Availability by file hash
-    pub async fn check_availability(
-        &self,
-        endpoint_checklist: &[String],
-    ) -> Result<(), anyhow::Error> {
+    pub async fn check_availability(&self, endpoint_checklist: &[String]) -> Result<(), Error> {
         tracing::debug!(subfile_hash = &self.ipfs_hash, "Checking availability");
         // Avoid blocked endpoints
-        let blocklist = self
-            .indexer_blocklist
-            .lock()
-            .map_err(|e| anyhow!("Cannot unwrap indexer_blocklist: {}", e.to_string()))?
-            .clone();
+        let blocklist = self.indexer_blocklist.lock().unwrap().clone();
         let filtered_endpoints = endpoint_checklist
             .iter()
             .filter(|url| !blocklist.contains(*url))
@@ -85,7 +78,7 @@ impl SubfileDownloader {
         let results = stream::iter(&filtered_endpoints)
             .map(|url| self.check_endpoint_availability(url))
             .buffer_unordered(filtered_endpoints.len()) // Parallelize up to the number of endpoints
-            .collect::<Vec<Result<IndexerEndpoint, anyhow::Error>>>()
+            .collect::<Vec<Result<IndexerEndpoint, Error>>>()
             .await;
 
         tracing::trace!(
@@ -129,7 +122,7 @@ impl SubfileDownloader {
 
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
-    pub async fn download_subfile(&self) -> Result<(), anyhow::Error> {
+    pub async fn download_subfile(&self) -> Result<(), Error> {
         let subfile = read_subfile(
             &self.ipfs_client,
             &self.ipfs_hash,
@@ -164,7 +157,7 @@ impl SubfileDownloader {
                 tracing::field::debug(&incomplete_files),
             );
             tracing::warn!(msg);
-            return Err(anyhow!(msg));
+            return Err(Error::DataUnavilable(msg));
         } else {
             tracing::info!("Chunk files download completed");
         }
@@ -183,7 +176,7 @@ impl SubfileDownloader {
 
     /// Download a file by reading its chunk manifest
     //TODO: update once there is payment
-    pub async fn download_chunk_file(&self, meta: ChunkFileMeta) -> Result<(), anyhow::Error> {
+    pub async fn download_chunk_file(&self, meta: ChunkFileMeta) -> Result<(), Error> {
         tracing::debug!(
             file_spec = tracing::field::debug(&meta),
             "Download chunk file"
@@ -203,16 +196,12 @@ impl SubfileDownloader {
                 let chunk_file_hash = meta.meta_info.hash.clone();
                 let client = self.http_client.clone();
                 //TODO: can utilize operator address for on-chain checks
-                let request = match self.download_range_request(&meta, i, file.clone()) {
-                    Ok(r) => r,
-                    // Break early if not possible to make range request
-                    Err(e) => return Err(anyhow::anyhow!("Cannot make range request: {e}")),
-                };
+                let request = self.download_range_request(&meta, i, file.clone())?;
                 let block_list = self.indexer_blocklist.clone();
                 let target_chunks = self.target_chunks.clone();
                 let url = request.query_endpoint.clone();
                 // Spawn a new asynchronous task for each range request
-                let handle: tokio::task::JoinHandle<Result<Arc<Mutex<File>>, anyhow::Error>> =
+                let handle: tokio::task::JoinHandle<Result<Arc<Mutex<File>>, Error>> =
                     tokio::spawn(async move {
                         match download_chunk_and_write_to_file(&client, request).await {
                             Ok(r) => {
@@ -245,9 +234,12 @@ impl SubfileDownloader {
             }
 
             for handle in handles {
-                match handle.await? {
+                match handle
+                    .await
+                    .map_err(|e| Error::DataUnavilable(e.to_string()))?
+                {
                     Ok(file) => {
-                        let metadata = file.lock().await.metadata()?;
+                        let metadata = file.lock().await.metadata().map_err(Error::FileIOError)?;
 
                         let modified = if let Ok(time) = metadata.modified() {
                             format!("Modified: {:#?}", time)
@@ -277,32 +269,29 @@ impl SubfileDownloader {
     }
 
     /// Endpoint must serve operator info and the requested file
-    async fn check_endpoint_availability(
-        &self,
-        url: &str,
-    ) -> Result<IndexerEndpoint, anyhow::Error> {
+    async fn check_endpoint_availability(&self, url: &str) -> Result<IndexerEndpoint, Error> {
         let status_url = format!("{}/status", url);
         let status_response = match self.http_client.get(&status_url).send().await {
             Ok(response) => response,
-            Err(_) => {
+            Err(e) => {
                 tracing::error!("Status request failed for {}", status_url);
                 self.add_to_indexer_blocklist(url.to_string());
-                return Err(anyhow!("Status request failed."));
+                return Err(Error::Request(e));
             }
         };
 
         if !status_response.status().is_success() {
-            tracing::error!("Status request failed for {}", status_url);
+            let err_msg = format!("Status request unsuccessful for {}", status_url);
             self.add_to_indexer_blocklist(url.to_string());
-            return Err(anyhow!("Status request failed."));
+            return Err(Error::DataUnavilable(err_msg));
         }
 
         let files = match status_response.json::<Vec<String>>().await {
             Ok(files) => files,
-            Err(_) => {
+            Err(e) => {
                 tracing::error!("Status response parse error for {}", status_url);
                 self.add_to_indexer_blocklist(url.to_string());
-                return Err(anyhow!("Status response parse error."));
+                return Err(Error::Request(e));
             }
         };
 
@@ -313,34 +302,36 @@ impl SubfileDownloader {
                 "IPFS hash not found in files served"
             );
             self.add_to_indexer_blocklist(url.to_string());
-            return Err(anyhow!(
+            return Err(Error::DataUnavilable(format!(
                 "IPFS hash not found in files served at {}",
                 status_url
-            ));
+            )));
         }
 
         let operator_url = format!("{}/operator", url);
         let operator_response = match self.http_client.get(&operator_url).send().await {
             Ok(response) => response,
-            Err(_) => {
+            Err(e) => {
                 tracing::error!("Operator request failed for {}", operator_url);
                 self.add_to_indexer_blocklist(url.to_string());
-                return Err(anyhow!("Operator request failed."));
+                return Err(Error::Request(e));
             }
         };
 
         if !operator_response.status().is_success() {
             tracing::error!("Operator request failed for {}", operator_url);
             self.add_to_indexer_blocklist(url.to_string());
-            return Err(anyhow!("Operator request failed."));
+            return Err(Error::DataUnavilable(
+                "Operator request failed.".to_string(),
+            ));
         }
 
         match operator_response.json::<Operator>().await {
             Ok(operator) => Ok((operator.public_key, url.to_string())),
-            Err(_) => {
+            Err(e) => {
                 tracing::error!("Operator response parse error for {}", operator_url);
                 self.add_to_indexer_blocklist(url.to_string());
-                Err(anyhow!("Operator response parse error."))
+                Err(Error::Request(e))
             }
         }
     }
@@ -351,7 +342,7 @@ impl SubfileDownloader {
         meta: &ChunkFileMeta,
         i: u64,
         file: Arc<Mutex<File>>,
-    ) -> Result<DownloadRangeRequest, anyhow::Error> {
+    ) -> Result<DownloadRangeRequest, Error> {
         let mut rng = rand::thread_rng();
         let query_endpoints = &self.indexer_urls.lock().unwrap();
         let url = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
@@ -366,7 +357,7 @@ impl SubfileDownloader {
         } else {
             let err_msg = "Could not choose an operator to query, data unavailable";
             tracing::warn!(err_msg);
-            return Err(anyhow!(err_msg));
+            return Err(Error::DataUnavilable(err_msg.to_string()));
         };
         //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'subfiles/id/:id'
         let query_endpoint = url + "/subfiles/id/" + &self.ipfs_hash;
@@ -406,7 +397,7 @@ pub struct DownloadRangeRequest {
 async fn download_chunk_and_write_to_file(
     http_client: &Client,
     request: DownloadRangeRequest,
-) -> Result<Arc<Mutex<File>>, anyhow::Error> {
+) -> Result<Arc<Mutex<File>>, Error> {
     let mut attempts = 0;
 
     tracing::debug!(
@@ -429,12 +420,20 @@ async fn download_chunk_and_write_to_file(
                 if verify_chunk(&data, &request.chunk_hash) {
                     // Lock the file for writing
                     let mut file_lock = request.file.lock().await;
-                    file_lock.seek(SeekFrom::Start(request.start))?;
-                    file_lock.write_all(&data)?;
+                    file_lock
+                        .seek(SeekFrom::Start(request.start))
+                        .map_err(Error::FileIOError)?;
+                    file_lock.write_all(&data).map_err(Error::FileIOError)?;
                     drop(file_lock);
                     return Ok(request.file); // Successfully written the chunk, exit loop
                 } else {
-                    tracing::warn!(request.query_endpoint, "Failed to validate received chunk");
+                    // Immediately return and blacklist the indexer when a chunk received is invalid
+                    let msg = format!(
+                        "Failed to validate received chunk: {}",
+                        &request.query_endpoint
+                    );
+                    tracing::warn!(msg);
+                    return Err(Error::ChunkInvalid(msg));
                 }
             }
             Err(e) => tracing::error!("Chunk download error: {:?}", e),
@@ -442,7 +441,9 @@ async fn download_chunk_and_write_to_file(
 
         attempts += 1;
         if attempts >= request.max_retry {
-            return Err(anyhow!("Max retry attempts reached for chunk download"));
+            return Err(Error::DataUnavilable(
+                "Max retry attempts reached for chunk download".to_string(),
+            ));
         }
 
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -457,7 +458,7 @@ async fn request_chunk(
     file_hash: &str,
     start: u64,
     end: u64,
-) -> Result<Bytes, anyhow::Error> {
+) -> Result<Bytes, Error> {
     // For example, to request the first 1024 bytes
     // The client should be smart enough to take care of proper chunking through subfile metadata
     let range = format!("bytes={}-{}", start, end);
@@ -479,11 +480,12 @@ async fn request_chunk(
             auth_token.expect("No payment nor auth token"),
         )
         .send()
-        .await?;
+        .await
+        .map_err(Error::Request)?;
 
     // Check if the server supports range requests
     if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
-        Ok(response.bytes().await?)
+        Ok(response.bytes().await.map_err(Error::Request)?)
     } else {
         let err_msg = format!(
             "Server does not support range requests or the request failed: {:#?}",
@@ -495,7 +497,7 @@ async fn request_chunk(
             chunk = tracing::field::debug(&response),
             "Server does not support range requests or the request failed"
         );
-        Err(anyhow!("Range request failed: {}", err_msg))
+        Err(Error::InvalidRange(err_msg))
     }
 }
 

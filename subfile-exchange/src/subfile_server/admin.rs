@@ -3,6 +3,7 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde_json::{json, Value};
 
 use crate::config::{is_valid_ipfs_hash, validate_subfile_entries};
+use crate::errors::Error;
 use crate::subfile_reader::read_subfile;
 
 use super::{create_error_response, ServerContext};
@@ -11,7 +12,7 @@ use super::{create_error_response, ServerContext};
 pub async fn handle_admin_request(
     req: Request<hyper::Body>,
     context: &ServerContext,
-) -> Result<hyper::Response<hyper::Body>, anyhow::Error> {
+) -> Result<hyper::Response<hyper::Body>, Error> {
     // Validate the auth token
     tracing::debug!("Received admin request");
     let server_auth_token = context.lock().await.admin_auth_token.clone();
@@ -27,20 +28,27 @@ pub async fn handle_admin_request(
 
     if !authorized {
         tracing::warn!("Respond unauthorized");
-        return Ok(Response::builder()
+        return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body("Require admin authentication".into())
-            .unwrap());
+            .map_err(|e| {
+                Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                    e.to_string(),
+                ))
+            });
     }
 
-    let body_bytes = to_bytes(req.into_body()).await?;
+    let body_bytes = to_bytes(req.into_body()).await.map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::RequestBodyError(e.to_string()))
+    })?;
 
-    let json: Value = serde_json::from_slice(&body_bytes).map_err(anyhow::Error::new)?;
+    let json: Value = serde_json::from_slice(&body_bytes).map_err(Error::JsonError)?;
 
-    let method = json
-        .get("method")
-        .and_then(Value::as_str)
-        .ok_or_else(|| anyhow::Error::msg("Method not found in request"))?;
+    let method = json.get("method").and_then(Value::as_str).ok_or_else(|| {
+        Error::ServerError(crate::errors::ServerError::MethodParseError(
+            "Method not found in request".to_string(),
+        ))
+    })?;
     let params = json.get("params");
 
     tracing::info!("Received valid/authorized subfiles management request");
@@ -50,7 +58,11 @@ pub async fn handle_admin_request(
         "add_subfile" => {
             add_subfile(
                 params
-                    .ok_or_else(|| anyhow::Error::msg("Params not found in request"))?
+                    .ok_or_else(|| {
+                        Error::ServerError(crate::errors::ServerError::ParamsParseError(
+                            "Params not found in request".to_string(),
+                        ))
+                    })?
                     .clone(),
                 context,
             )
@@ -59,7 +71,11 @@ pub async fn handle_admin_request(
         "remove_subfile" => {
             remove_subfile(
                 params
-                    .ok_or_else(|| anyhow::Error::msg("Params not found in request"))?
+                    .ok_or_else(|| {
+                        Error::ServerError(crate::errors::ServerError::ParamsParseError(
+                            "Params not found in request".to_string(),
+                        ))
+                    })?
                     .clone(),
                 context,
             )
@@ -68,13 +84,17 @@ pub async fn handle_admin_request(
         _ => Ok(hyper::Response::builder()
             .status(hyper::StatusCode::METHOD_NOT_ALLOWED)
             .body("Method not supported".into())
-            .unwrap()),
+            .map_err(|e| {
+                Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                    e.to_string(),
+                ))
+            })?),
     }
 }
 
 //TODO: rich the details
 /// Function to retrieve all subfiles and their details
-async fn get_subfiles(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+async fn get_subfiles(context: &ServerContext) -> Result<Response<Body>, Error> {
     let server_state = context.lock().await;
     // Create a JSON object or array containing the subfiles' details
     let subfiles_info = server_state
@@ -84,7 +104,7 @@ async fn get_subfiles(context: &ServerContext) -> Result<Response<Body>, anyhow:
         .collect::<Vec<_>>();
     drop(server_state);
 
-    let body = serde_json::to_string(&subfiles_info)?;
+    let body = serde_json::to_string(&subfiles_info).map_err(Error::JsonError)?;
     tracing::trace!("Built get_subfile response");
 
     Ok(Response::builder()
@@ -94,11 +114,8 @@ async fn get_subfiles(context: &ServerContext) -> Result<Response<Body>, anyhow:
 }
 
 /// Add a subfile to the server state
-async fn add_subfile(
-    params: Value,
-    context: &ServerContext,
-) -> Result<Response<Body>, anyhow::Error> {
-    let entries: Vec<String> = serde_json::from_value(params).map_err(|e| anyhow::anyhow!(e))?;
+async fn add_subfile(params: Value, context: &ServerContext) -> Result<Response<Body>, Error> {
+    let entries: Vec<String> = serde_json::from_value(params).map_err(Error::JsonError)?;
 
     // Validate before adding to the server state
     let subfile_entries = match validate_subfile_entries(entries) {
@@ -132,11 +149,8 @@ async fn add_subfile(
 }
 
 /// Remove a subfile from the server state
-async fn remove_subfile(
-    params: Value,
-    context: &ServerContext,
-) -> Result<Response<Body>, anyhow::Error> {
-    let ipfs_hashes: Vec<String> = serde_json::from_value(params).map_err(anyhow::Error::new)?;
+async fn remove_subfile(params: Value, context: &ServerContext) -> Result<Response<Body>, Error> {
+    let ipfs_hashes: Vec<String> = serde_json::from_value(params).map_err(Error::JsonError)?;
 
     for ipfs_hash in &ipfs_hashes {
         match !is_valid_ipfs_hash(ipfs_hash) {

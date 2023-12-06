@@ -1,4 +1,5 @@
 pub mod config;
+pub mod errors;
 pub mod file_hasher;
 pub mod file_reader;
 pub mod ipfs;

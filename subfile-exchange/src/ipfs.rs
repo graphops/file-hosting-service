@@ -1,4 +1,3 @@
-use anyhow::Error;
 use bytes::Bytes;
 use futures::Stream;
 use http::header::CONTENT_LENGTH;
@@ -19,7 +18,7 @@ pub struct IpfsClient {
 }
 
 impl IpfsClient {
-    pub fn new(base: &str) -> Result<Self, Error> {
+    pub fn new(base: &str) -> Result<Self, http::uri::InvalidUri> {
         Ok(IpfsClient {
             client: reqwest::Client::new(),
             base: Arc::new(Uri::from_str(base)?),

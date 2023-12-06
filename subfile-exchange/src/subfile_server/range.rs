@@ -5,33 +5,35 @@ use hyper::{Body, Response, StatusCode};
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 
-use anyhow::anyhow;
 use std::path::Path;
 
+use crate::errors::Error;
+
 // Function to parse the Range header and return the start and end bytes
-pub fn parse_range_header(
-    range_header: &hyper::header::HeaderValue,
-) -> Result<(u64, u64), anyhow::Error> {
+pub fn parse_range_header(range_header: &hyper::header::HeaderValue) -> Result<(u64, u64), Error> {
     let range_str = range_header
-        // .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "Range header missing"))?
         .to_str()
-        .map_err(|_| anyhow!("Invalid Range header"))?;
+        .map_err(|e| Error::InvalidRange(format!("Invalid Range header: {}", e)))?;
 
     if !range_str.starts_with("bytes=") {
-        return Err(anyhow!("Range does not start with 'bytes='"));
+        return Err(Error::InvalidRange(
+            "Range does not start with 'bytes='".to_string(),
+        ));
     }
 
     let ranges: Vec<&str> = range_str["bytes=".len()..].split('-').collect();
     if ranges.len() != 2 {
-        return Err(anyhow!("Invalid Range header format"));
+        return Err(Error::InvalidRange(
+            "Invalid Range header format".to_string(),
+        ));
     }
 
     let start = ranges[0]
         .parse::<u64>()
-        .map_err(|_| anyhow!("Invalid start range"))?;
+        .map_err(|e| Error::InvalidRange(format!("Invalid start range: {}", e)))?;
     let end = ranges[1]
         .parse::<u64>()
-        .map_err(|_| anyhow!("Invalid end range"))?;
+        .map_err(|e| Error::InvalidRange(format!("Invalid end range: {}", e)))?;
 
     Ok((start, end))
 }
@@ -39,7 +41,7 @@ pub fn parse_range_header(
 pub async fn serve_file_range(
     file_path: &Path,
     (start, end): (u64, u64),
-) -> Result<Response<Body>, anyhow::Error> {
+) -> Result<Response<Body>, Error> {
     tracing::debug!(
         file_path = tracing::field::debug(&file_path),
         start_byte = tracing::field::debug(&start),
@@ -110,15 +112,23 @@ pub async fn serve_file_range(
         .status(StatusCode::PARTIAL_CONTENT)
         .header(
             CONTENT_RANGE,
-            format!("bytes {}-{}/{}", start, end, file.metadata()?.len()),
+            format!(
+                "bytes {}-{}/{}",
+                start,
+                end,
+                file.metadata().map_err(Error::FileIOError)?.len()
+            ),
         )
-        // .header(ACCEPT_RANGES, "bytes")
         .header(CONTENT_LENGTH, length.to_string())
         .body(Body::from(buffer))
-        .map_err(|e| anyhow!(format!("Failed to build response: {}", e)))
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
 }
 
-pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, anyhow::Error> {
+pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, Error> {
     // If no Range header is present, serve the entire file
     let file = match fs::read(file_path) {
         Ok(f) => f,
@@ -130,7 +140,9 @@ pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, anyhow::Erro
         }
     };
 
-    Response::builder()
-        .body(Body::from(file))
-        .map_err(|e| anyhow!(format!("Failed to build response: {}", e)))
+    Response::builder().body(Body::from(file)).map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::BuildResponseError(
+            e.to_string(),
+        ))
+    })
 }

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    errors::Error,
     file_hasher::{hash_chunk, verify_chunk},
     file_reader::{chunk_file, format_path, read_chunk},
 };
@@ -39,11 +40,7 @@ pub struct ChunkFile {
 }
 
 impl ChunkFile {
-    pub fn new(
-        read_dir: &str,
-        file_name: &str,
-        chunk_size: u64,
-    ) -> Result<ChunkFile, anyhow::Error> {
+    pub fn new(read_dir: &str, file_name: &str, chunk_size: u64) -> Result<ChunkFile, Error> {
         let file_path = format_path(read_dir, file_name);
         // let merkle_root = hex::encode(merkle_tree.root());
         // let chunk_hashes: Vec<String> = merkle_tree.nodes().iter().map(hex::encode).collect();
@@ -103,7 +100,7 @@ pub struct BlockRange {
 
 impl Subfile {
     /// Validate the local files against a given subfile specification
-    pub fn validate_local_subfile(&self) -> Result<&Self, anyhow::Error> {
+    pub fn validate_local_subfile(&self) -> Result<&Self, Error> {
         tracing::debug!(
             subfile = tracing::field::debug(self),
             "Read and verify subfile"
@@ -111,9 +108,7 @@ impl Subfile {
 
         // Read all files in subfile to verify locally. This may cause a long initialization time
         for file_meta in &self.chunk_files {
-            if let Err(e) = self.read_and_validate_file(file_meta) {
-                panic!("Damn, {}. Fix before continuing", e);
-            };
+            self.read_and_validate_file(file_meta)?;
         }
 
         tracing::debug!("Successfully verified the local serving files");
@@ -121,7 +116,7 @@ impl Subfile {
     }
 
     /// Read and validate file
-    pub fn read_and_validate_file(&self, file: &ChunkFileMeta) -> Result<(), anyhow::Error> {
+    pub fn read_and_validate_file(&self, file: &ChunkFileMeta) -> Result<(), Error> {
         // read file by chunk_file.file_name
         let meta_info = &file.meta_info;
         let chunk_file = &file.chunk_file;
@@ -156,10 +151,10 @@ impl Subfile {
                     chunk_hash = tracing::field::debug(&chunk_hash),
                     "Cannot locally verify the serving file"
                 );
-                return Err(anyhow::anyhow!(
+                return Err(Error::InvalidConfig(format!(
                     "Failed to validate the local version of file {}",
                     meta_info.hash
-                ));
+                )));
             }
         }
         Ok(())
@@ -189,9 +184,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "Damn, Failed to validate the local version of file QmadNB1AQnap3czUime3gEETBNUj7HHzww6hVh5F6w7Boo. Fix before continuing"
-    )]
     fn test_validate_local_subfile() {
         let mut subfile = simple_subfile();
         let result = subfile.validate_local_subfile();

@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::{collections::HashMap, io};
 
+use crate::errors::Error;
+
 /// Build Wallet from Private key or Mnemonic
 pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
     value
@@ -54,31 +56,49 @@ impl From<&BuildInfo> for PackageVersion {
 
 // Load public certificate from file.
 #[allow(unused)]
-fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, anyhow::Error> {
+fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
     // Open certificate file.
-    let certfile = fs::File::open(filename)
-        .map_err(|e| anyhow::anyhow!(format!("failed to open {}: {}", filename, e)))?;
+    let certfile = fs::File::open(filename).map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+            "failed to open {}: {}",
+            filename, e
+        )))
+    })?;
     let mut reader = io::BufReader::new(certfile);
 
     // Load and return certificate.
-    let certs = rustls_pemfile::certs(&mut reader)
-        .map_err(|e| anyhow::anyhow!(format!("failed to load certificate: {:#?}", e)))?;
+    let certs = rustls_pemfile::certs(&mut reader).map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+            "failed to load certificate: {:#?}",
+            e
+        )))
+    })?;
     Ok(certs.into_iter().map(rustls::Certificate).collect())
 }
 
 // Load private key from file.
 #[allow(unused)]
-fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, anyhow::Error> {
+fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
     // Open keyfile.
-    let keyfile = fs::File::open(filename)
-        .map_err(|e| anyhow::anyhow!(format!("failed to open {}: {}", filename, e)))?;
+    let keyfile = fs::File::open(filename).map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+            "failed to open {}: {}",
+            filename, e
+        )))
+    })?;
     let mut reader = io::BufReader::new(keyfile);
 
     // Load and return a single private key.
-    let keys = rustls_pemfile::rsa_private_keys(&mut reader)
-        .map_err(|e| anyhow::anyhow!("failed to load private key: {:#?}", e))?;
+    let keys = rustls_pemfile::rsa_private_keys(&mut reader).map_err(|e| {
+        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+            "failed to load private key: {:#?}",
+            e
+        )))
+    })?;
     if keys.len() != 1 {
-        return Err(anyhow::anyhow!("expected a single private key"));
+        return Err(Error::ServerError(
+            crate::errors::ServerError::ContextError("Expected a single private key".to_string()),
+        ));
     }
 
     Ok(rustls::PrivateKey(keys[0].clone()))

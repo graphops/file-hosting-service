@@ -1,5 +1,4 @@
 // #![cfg(feature = "acceptor")]
-use anyhow::anyhow;
 use http::header::CONTENT_RANGE;
 use hyper::service::{make_service_fn, service_fn};
 use serde_json::json;
@@ -8,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::config::{validate_subfile_entries, ServerArgs};
+use crate::errors::Error;
 use crate::ipfs::IpfsClient;
 use crate::subfile::Subfile;
 use crate::subfile_reader::read_subfile;
@@ -79,7 +79,7 @@ pub async fn init_server(client: &IpfsClient, config: ServerArgs) {
 async fn initialize_subfile_server_context(
     client: &IpfsClient,
     config: ServerArgs,
-) -> Result<ServerContext, anyhow::Error> {
+) -> Result<ServerContext, Error> {
     tracing::debug!(
         config = tracing::field::debug(&config),
         "Initializing server context"
@@ -129,7 +129,7 @@ async fn initialize_subfile_server_context(
 pub async fn handle_request(
     req: Request<Body>,
     context: ServerContext,
-) -> Result<Response<Body>, anyhow::Error> {
+) -> Result<Response<Body>, Error> {
     tracing::trace!("Received request");
     match req.uri().path() {
         "/" => Ok(Response::builder()
@@ -151,50 +151,66 @@ pub async fn handle_request(
 }
 
 /// Endpoint for server health
-pub async fn health() -> Result<Response<Body>, anyhow::Error> {
+pub async fn health() -> Result<Response<Body>, Error> {
     let health = Health { healthy: true };
-    let health_json = serde_json::to_string(&health).map_err(|e| anyhow!(e.to_string()))?;
-    Ok(Response::builder()
+    let health_json = serde_json::to_string(&health).map_err(Error::JsonError)?;
+    Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(health_json))
-        .unwrap())
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
 }
 
 /// Endpoint for package version
-pub async fn version(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+pub async fn version(context: &ServerContext) -> Result<Response<Body>, Error> {
     let version = context.lock().await.release.version.clone();
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(version))
-        .unwrap())
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
 }
 
 /// Endpoint for status availability
-pub async fn status(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+pub async fn status(context: &ServerContext) -> Result<Response<Body>, Error> {
     let subfile_mapping = context.lock().await.subfiles.clone();
     let subfile_ipfses: Vec<String> = subfile_mapping
         .keys()
         .map(|i| i.to_owned())
         .collect::<Vec<String>>();
-    let json = serde_json::to_string(&subfile_ipfses).map_err(|e| anyhow!(e.to_string()))?;
+    let json = serde_json::to_string(&subfile_ipfses).map_err(Error::JsonError)?;
 
     tracing::debug!(json, "Serving status");
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))
-        .unwrap())
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
 }
 
 // Define a handler function for the `/info` route
-pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, anyhow::Error> {
+pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, Error> {
     let public_key = context.lock().await.operator_public_key.clone();
     let operator = Operator { public_key };
-    let json = serde_json::to_string(&operator).map_err(|e| anyhow!(e.to_string()))?;
+    let json = serde_json::to_string(&operator).map_err(Error::JsonError)?;
     tracing::debug!(json, "Operator info response");
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))
-        .unwrap())
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
 }
 
 // Serve file requests
@@ -202,7 +218,7 @@ pub async fn file_service(
     path: &str,
     req: &Request<Body>,
     context: &ServerContext,
-) -> Result<Response<Body>, anyhow::Error> {
+) -> Result<Response<Body>, Error> {
     tracing::debug!("Received file range request");
     let id = path.trim_start_matches("/subfiles/id/");
 
@@ -268,8 +284,7 @@ pub async fn file_service(
             match req.headers().get(CONTENT_RANGE) {
                 Some(r) => {
                     tracing::debug!("Parse content range header");
-                    let range = parse_range_header(r)
-                        .map_err(|e| anyhow!(format!("Failed to parse range header: {}", e)))?;
+                    let range = parse_range_header(r)?;
                     //TODO: validate receipt
                     serve_file_range(&file_path, range).await
                 }

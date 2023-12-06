@@ -1,6 +1,7 @@
 use serde_yaml::to_string;
 
 use crate::config::PublisherArgs;
+use crate::errors::Error;
 use crate::ipfs::{AddResponse, IpfsClient};
 use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, SubfileManifest};
 
@@ -18,13 +19,14 @@ impl SubfilePublisher {
     }
 
     /// Takes file_path, create chunk_file, build merkle tree, publish, write to output
-    pub async fn hash_and_publish_file(
-        &self,
-        file_name: &str,
-    ) -> Result<AddResponse, anyhow::Error> {
+    pub async fn hash_and_publish_file(&self, file_name: &str) -> Result<AddResponse, Error> {
         let yaml_str = self.write_chunk_file(file_name)?;
 
-        let added: AddResponse = self.ipfs_client.add(yaml_str.as_bytes().to_vec()).await?;
+        let added: AddResponse = self
+            .ipfs_client
+            .add(yaml_str.as_bytes().to_vec())
+            .await
+            .map_err(Error::IPFSError)?;
         tracing::debug!(
             added = tracing::field::debug(&added),
             "Added yaml file to IPFS"
@@ -33,7 +35,7 @@ impl SubfilePublisher {
         Ok(added)
     }
 
-    pub async fn hash_and_publish_files(&self) -> Result<Vec<FileMetaInfo>, anyhow::Error> {
+    pub async fn hash_and_publish_files(&self) -> Result<Vec<FileMetaInfo>, Error> {
         let mut root_hashes = Vec::new();
 
         let file_names = &self.config.file_names;
@@ -56,7 +58,7 @@ impl SubfilePublisher {
     pub fn construct_subfile_manifest(
         &self,
         file_meta_info: Vec<FileMetaInfo>,
-    ) -> Result<String, serde_yaml::Error> {
+    ) -> Result<String, Error> {
         let manifest = SubfileManifest {
             files: file_meta_info,
             file_type: self.config.file_type.clone(),
@@ -68,49 +70,51 @@ impl SubfilePublisher {
                 end_block: self.config.end_block,
             },
         };
-        let yaml = serde_yaml::to_string(&manifest)?;
+        let yaml = serde_yaml::to_string(&manifest).map_err(Error::YamlError)?;
         Ok(yaml)
     }
 
-    pub async fn publish_subfile_manifest(
-        &self,
-        manifest_yaml: &str,
-    ) -> Result<String, anyhow::Error> {
+    pub async fn publish_subfile_manifest(&self, manifest_yaml: &str) -> Result<String, Error> {
         let ipfs_hash = self
             .ipfs_client
             .add(manifest_yaml.as_bytes().to_vec())
-            .await?
+            .await
+            .map_err(Error::IPFSError)?
             .hash;
 
         Ok(ipfs_hash)
     }
 
-    pub async fn publish(&self) -> Result<String, anyhow::Error> {
-        let meta_info = match self.hash_and_publish_files().await {
-            Ok(added_hashes) => added_hashes,
-            Err(e) => return Err(e),
-        };
+    pub async fn publish(&self) -> Result<String, Error> {
+        let meta_info = self.hash_and_publish_files().await?;
+        //  {
+        //     Ok(added_hashes) => added_hashes,
+        //     Err(e) => return Err(e),
+        // };
 
         tracing::trace!(
             meta_info = tracing::field::debug(&meta_info),
             "hash_and_publish_files",
         );
         match self.construct_subfile_manifest(meta_info) {
-            Ok(manifest_yaml) => match self.publish_subfile_manifest(&manifest_yaml).await {
-                Ok(ipfs_hash) => {
-                    tracing::info!(
-                        "Published subfile manifest to IPFS with hash: {}",
-                        ipfs_hash
-                    );
-                    Ok(ipfs_hash)
-                }
-                Err(e) => Err(e),
-            },
-            Err(e) => Err(e.into()),
+            Ok(manifest_yaml) => {
+                let ipfs_hash = self.publish_subfile_manifest(&manifest_yaml).await?;
+                tracing::info!(
+                    "Published subfile manifest to IPFS with hash: {}",
+                    &ipfs_hash
+                );
+                Ok(ipfs_hash)
+            }
+            //  {
+            //     Ok(ipfs_hash) => {
+            //     }
+            //     Err(e) => Err(e),
+            // },
+            Err(e) => Err(e),
         }
     }
 
-    pub fn write_chunk_file(&self, file_name: &str) -> Result<String, anyhow::Error> {
+    pub fn write_chunk_file(&self, file_name: &str) -> Result<String, Error> {
         let chunk_file = ChunkFile::new(&self.config.read_dir, file_name, self.config.chunk_size)?;
         // let merkle_tree = build_merkle_tree(chunks);
         // let chunk_file = create_chunk_file(&merkle_tree);
@@ -120,7 +124,7 @@ impl SubfilePublisher {
             "Created chunk file"
         );
 
-        let yaml = to_string(&chunk_file)?;
+        let yaml = to_string(&chunk_file).map_err(Error::YamlError)?;
         // TODO: consider storing a local copy
         // let mut output_file = File::create(file_path)?;
         // output_file.write_all(yaml.as_bytes())?;

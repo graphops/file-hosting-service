@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use clap::{arg, ValueEnum};
 use clap::{command, Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -8,6 +7,8 @@ use std::str::FromStr;
 use tracing::subscriber::SetGlobalDefaultError;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
+
+use crate::errors::Error;
 
 #[derive(Clone, Debug, Parser, Serialize, Deserialize)]
 #[command(
@@ -340,9 +341,7 @@ impl fmt::Display for LogFormat {
 }
 
 /// Validate the subfile configurations at initialization
-pub fn validate_subfile_entries(
-    entries: Vec<String>,
-) -> Result<Vec<(String, PathBuf)>, anyhow::Error> {
+pub fn validate_subfile_entries(entries: Vec<String>) -> Result<Vec<(String, PathBuf)>, Error> {
     let mut results = Vec::new();
 
     for entry in entries {
@@ -353,10 +352,13 @@ pub fn validate_subfile_entries(
 }
 
 /// Subfile entry must be in the format of "valid_ipfs_hash:valid_local_path"
-pub fn validate_subfile_entry(entry: String) -> Result<(String, PathBuf), anyhow::Error> {
+pub fn validate_subfile_entry(entry: String) -> Result<(String, PathBuf), Error> {
     let parts: Vec<&str> = entry.split(':').collect();
     if parts.len() != 2 {
-        return Err(anyhow!("Invalid format for entry: {}", entry));
+        return Err(Error::InvalidConfig(format!(
+            "Invalid format for entry: {}",
+            entry
+        )));
     }
 
     let ipfs_hash = parts[0];
@@ -364,16 +366,22 @@ pub fn validate_subfile_entry(entry: String) -> Result<(String, PathBuf), anyhow
 
     // Validate IPFS hash (this is a placeholder, you'll need to define what a valid IPFS hash is)
     if !is_valid_ipfs_hash(ipfs_hash) {
-        return Err(anyhow!("Invalid IPFS hash: {}", ipfs_hash));
+        return Err(Error::InvalidConfig(format!(
+            "Invalid IPFS hash: {}",
+            ipfs_hash
+        )));
     }
 
     // Validate local path
-    let path = PathBuf::from_str(local_path);
-    if path.is_err() || !path.as_ref().unwrap().exists() {
-        return Err(anyhow!("Invalid local path: {}", local_path));
+    let path = PathBuf::from_str(local_path).map_err(|e| Error::InvalidConfig(e.to_string()))?;
+    if !path.exists() {
+        return Err(Error::InvalidConfig(format!(
+            "Path do not exist: {}",
+            local_path
+        )));
     }
 
-    Ok((ipfs_hash.to_string(), path?))
+    Ok((ipfs_hash.to_string(), path))
 }
 
 pub fn is_valid_ipfs_hash(hash: &str) -> bool {
