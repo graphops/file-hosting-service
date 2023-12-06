@@ -141,6 +141,7 @@ pub async fn handle_request(
         "/health" => health().await,
         "/version" => version(&context).await,
         "/admin" => handle_admin_request(req, &context).await,
+        //TODO: consider routing through file level IPFS
         path if path.starts_with("/subfiles/id/") => file_service(path, &req, &context).await,
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
@@ -249,12 +250,18 @@ pub async fn file_service(
     match req.headers().get("file_hash") {
         Some(hash) if hash.to_str().is_ok() => {
             let mut file_path = requested_subfile.local_path.clone();
-            let chunk_file = match requested_subfile.chunk_files.iter().find(|file| {file.meta_info.hash == hash.to_str().unwrap()}) {
+            let chunk_file = match requested_subfile
+                .chunk_files
+                .iter()
+                .find(|file| file.meta_info.hash == hash.to_str().unwrap())
+            {
                 Some(c) => c,
-                None => return Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body("Chunk file not found".into())
-                .unwrap())
+                None => {
+                    return Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body("Chunk file not found".into())
+                        .unwrap())
+                }
             };
             file_path.push(chunk_file.meta_info.name.clone());
             // Parse the range header to get the start and end bytes

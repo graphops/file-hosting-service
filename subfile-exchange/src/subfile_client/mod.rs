@@ -15,8 +15,8 @@ use tokio::sync::Mutex;
 use crate::config::DownloaderArgs;
 use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
-use crate::subfile::{ChunkFileMeta, FileMetaInfo, SubfileManifest};
-use crate::subfile_reader::{fetch_chunk_file_from_ipfs, fetch_subfile_from_ipfs};
+use crate::subfile::{ChunkFileMeta, Subfile};
+use crate::subfile_reader::read_subfile;
 use crate::subfile_server::util::Operator;
 
 // Pair indexer operator address and indexer service endpoint
@@ -32,9 +32,10 @@ pub struct SubfileDownloader {
     static_endpoints: Vec<String>,
     output_dir: String,
     free_query_auth_token: Option<String>,
+    indexer_urls: Arc<StdMutex<Vec<IndexerEndpoint>>>,
     indexer_blocklist: Arc<StdMutex<HashSet<String>>>,
     // key is the chunk file identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
-    chunks_to_download: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
+    target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     chunk_max_retry: u64,
 }
 
@@ -50,8 +51,9 @@ impl SubfileDownloader {
             static_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
             free_query_auth_token: args.free_query_auth_token,
+            indexer_urls: Arc::new(StdMutex::new(Vec::new())),
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
-            chunks_to_download: Arc::new(Mutex::new(HashMap::new())),
+            target_chunks: Arc::new(StdMutex::new(HashMap::new())),
             chunk_max_retry: args.max_retry,
         }
     }
@@ -63,17 +65,18 @@ impl SubfileDownloader {
     //TODO: update once there's a gateway with indexer selection providing endpoints
     //TODO: Use eventuals for continuous pings
     //TODO: Availability by file hash
-    pub async fn check_availability(&self) -> Result<Vec<IndexerEndpoint>, anyhow::Error> {
+    pub async fn check_availability(
+        &self,
+        endpoint_checklist: &[String],
+    ) -> Result<(), anyhow::Error> {
         tracing::debug!(subfile_hash = &self.ipfs_hash, "Checking availability");
-
         // Avoid blocked endpoints
         let blocklist = self
             .indexer_blocklist
             .lock()
             .map_err(|e| anyhow!("Cannot unwrap indexer_blocklist: {}", e.to_string()))?
             .clone();
-        let filtered_endpoints = self
-            .static_endpoints
+        let filtered_endpoints = endpoint_checklist
             .iter()
             .filter(|url| !blocklist.contains(*url))
             .cloned()
@@ -85,7 +88,7 @@ impl SubfileDownloader {
             .collect::<Vec<Result<IndexerEndpoint, anyhow::Error>>>()
             .await;
 
-        tracing::debug!(
+        tracing::trace!(
             endpoints = tracing::field::debug(&results),
             blocklist = tracing::field::debug(&self.indexer_blocklist),
             "Endpoint availability result"
@@ -94,9 +97,15 @@ impl SubfileDownloader {
         let endpoints = results
             .into_iter()
             .filter_map(Result::ok)
-            .collect::<Vec<_>>();
+            .collect::<Vec<IndexerEndpoint>>();
+        self.update_indexer_urls(endpoints);
 
-        Ok(endpoints)
+        Ok(())
+    }
+
+    pub fn update_indexer_urls(&self, endpoints: Vec<IndexerEndpoint>) {
+        self.indexer_urls.lock().unwrap().clear();
+        self.indexer_urls.lock().unwrap().extend(endpoints);
     }
 
     pub fn add_to_indexer_blocklist(&self, endpoint: String) {
@@ -105,35 +114,46 @@ impl SubfileDownloader {
     }
 
     /// Read manifest to prepare chunks download
-    pub async fn chunks_to_download(&self) -> Result<SubfileManifest, anyhow::Error> {
-        let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
-        for chunk_file in &subfile.files {
-            let mut chunks_to_download = self.chunks_to_download.lock().await;
-            let chunks_set = chunks_to_download
-                .entry(chunk_file.hash.clone())
-                .or_insert_with(HashSet::new);
-            let chunk_file =
-                fetch_chunk_file_from_ipfs(&self.ipfs_client, &chunk_file.hash).await?;
-            let chunk_size = chunk_file.chunk_size;
-            for i in 0..(chunk_file.total_bytes / chunk_size + 1) {
+    pub fn target_chunks(&self, subfile: &Subfile) {
+        for chunk_file_meta in &subfile.chunk_files {
+            let mut target_chunks = self.target_chunks.lock().unwrap();
+            let chunks_set = target_chunks
+                .entry(chunk_file_meta.meta_info.hash.clone())
+                .or_default();
+            let chunk_size = chunk_file_meta.chunk_file.chunk_size;
+            for i in 0..(chunk_file_meta.chunk_file.total_bytes / chunk_size + 1) {
                 chunks_set.insert(i);
             }
         }
-        Ok(subfile)
     }
 
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
     pub async fn download_subfile(&self) -> Result<(), anyhow::Error> {
-        // Read subfile from ipfs
-        let subfile = fetch_subfile_from_ipfs(&self.ipfs_client, &self.ipfs_hash).await?;
+        let subfile = read_subfile(
+            &self.ipfs_client,
+            &self.ipfs_hash,
+            self.output_dir.clone().into(),
+        )
+        .await?;
+        self.target_chunks(&subfile);
+        tracing::info!(
+            chunks = tracing::field::debug(self.target_chunks.clone()),
+            "Chunk files download starting"
+        );
+
+        // check data availability from gateway/indexer_endpoints
+        self.check_availability(&self.static_endpoints).await?;
+        tracing::debug!(
+            query_endpoints = tracing::field::debug(&self.indexer_urls.lock().unwrap()),
+            "Basic matching with query availability"
+        );
 
         // Loop through chunk files for downloading
         let mut incomplete_files = vec![];
-        for chunk_file in &subfile.files {
-            match self.download_chunk_file(chunk_file).await {
-                Ok(r) => tracing::info!(file = tracing::field::debug(&r), "Downloaded chunk file"),
-                Err(e) => incomplete_files.push(e),
+        for chunk_file in &subfile.chunk_files {
+            if let Err(e) = self.download_chunk_file(chunk_file.clone()).await {
+                incomplete_files.push(e);
             }
         }
 
@@ -151,114 +171,109 @@ impl SubfileDownloader {
         Ok(())
     }
 
+    /// Get the remaining chunks to download for a file
+    pub fn remaining_chunks(&self, chunk_file_hash: &String) -> Vec<u64> {
+        self.target_chunks
+            .lock()
+            .unwrap()
+            .get(chunk_file_hash)
+            .map(|chunks| chunks.clone().into_iter().collect())
+            .unwrap_or_default()
+    }
+
     /// Download a file by reading its chunk manifest
     //TODO: update once there is payment
-    pub async fn download_chunk_file(
-        &self,
-        chunk_file_info: &FileMetaInfo,
-    ) -> Result<ChunkFileMeta, anyhow::Error> {
+    pub async fn download_chunk_file(&self, meta: ChunkFileMeta) -> Result<(), anyhow::Error> {
         tracing::debug!(
-            info = tracing::field::debug(&chunk_file_info),
+            file_spec = tracing::field::debug(&meta),
             "Download chunk file"
-        );
-        // First read subfile manifest for a chunk file, maybe the chunk_file ipfs_hash has been passed in
-        let chunk_file =
-            fetch_chunk_file_from_ipfs(&self.ipfs_client, &chunk_file_info.hash).await?;
-
-        let meta = ChunkFileMeta {
-            meta_info: chunk_file_info.clone(),
-            chunk_file: chunk_file.clone(),
-        };
-        // check data availability from gateway/indexer_endpoints
-        let query_endpoints = self.check_availability().await?;
-        tracing::debug!(
-            query_endpoints = tracing::field::debug(&query_endpoints),
-            "Basic matching with query availability"
         );
 
         // Open the output file
         let file = File::create(Path::new(
-            &(self.output_dir.clone() + "/" + &chunk_file_info.name),
+            &(self.output_dir.clone() + "/" + &meta.meta_info.name),
         ))
         .unwrap();
         let file = Arc::new(Mutex::new(file));
 
-        // Calculate the ranges and spawn threads to download each chunk
-        let chunk_size = chunk_file.chunk_size;
-        let mut handles = Vec::new();
-
-        //TODO: use chunks_to_download indices
-        for i in 0..(chunk_file.total_bytes / chunk_size + 1) {
-            tracing::trace!(i, "Download chunk index");
-            let chunk_file_hash = chunk_file_info.hash.to_string();
-            let client = self.http_client.clone();
-            let request =
-                match self.download_range_request(&meta, &query_endpoints, i, file.clone()) {
+        while !self.remaining_chunks(&meta.meta_info.hash).is_empty() {
+            // Wait for all chunk tasks to complete and collect the results
+            let mut handles = Vec::new();
+            for i in self.remaining_chunks(&meta.meta_info.hash) {
+                let chunk_file_hash = meta.meta_info.hash.clone();
+                let client = self.http_client.clone();
+                //TODO: can utilize operator address for on-chain checks
+                let request = match self.download_range_request(&meta, i, file.clone()) {
                     Ok(r) => r,
+                    // Break early if not possible to make range request
                     Err(e) => return Err(anyhow::anyhow!("Cannot make range request: {e}")),
                 };
-            let block_list = self.indexer_blocklist.clone();
-            let chunks_to_download = self.chunks_to_download.clone();
-            let url = request.query_endpoint.clone();
-            // Spawn a new asynchronous task for each range request
-            let handle = tokio::spawn(async move {
-                match download_chunk_and_write_to_file(&client, request).await {
-                    Ok(r) => {
-                        // Update downloaded status
-                        chunks_to_download
-                            .lock()
-                            .await
-                            .entry(chunk_file_hash)
-                            .or_insert_with(HashSet::new)
-                            .remove(&i);
-                        Ok(r)
+                let block_list = self.indexer_blocklist.clone();
+                let target_chunks = self.target_chunks.clone();
+                let url = request.query_endpoint.clone();
+                // Spawn a new asynchronous task for each range request
+                let handle: tokio::task::JoinHandle<Result<Arc<Mutex<File>>, anyhow::Error>> =
+                    tokio::spawn(async move {
+                        match download_chunk_and_write_to_file(&client, request).await {
+                            Ok(r) => {
+                                // Update downloaded status
+                                target_chunks
+                                    .lock()
+                                    .unwrap()
+                                    .entry(chunk_file_hash)
+                                    .or_default()
+                                    .remove(&i);
+                                Ok(r)
+                            }
+                            Err(e) => {
+                                // If the download fails, add the URL to the indexer_blocklist
+                                let url = match extract_base_url(&url) {
+                                    Some(url) => url.to_string(),
+                                    None => url,
+                                };
+                                //TODO: with Error enum, add blocklist based on the error
+                                block_list
+                                    .lock()
+                                    .expect("Cannot access blocklist")
+                                    .insert(url);
+                                Err(e)
+                            }
+                        }
+                    });
+
+                handles.push(handle);
+            }
+
+            for handle in handles {
+                match handle.await? {
+                    Ok(file) => {
+                        let metadata = file.lock().await.metadata()?;
+
+                        let modified = if let Ok(time) = metadata.modified() {
+                            format!("Modified: {:#?}", time)
+                        } else {
+                            "Not modified".to_string()
+                        };
+
+                        tracing::debug!(
+                            metadata = tracing::field::debug(metadata),
+                            modification = modified,
+                            "Chunk file information"
+                        );
                     }
                     Err(e) => {
-                        // If the download fails, add the URL to the indexer_blocklist
-                        //TODO: with Error enum, add blocklist based on the error
-                        block_list
-                            .lock()
-                            .expect("Cannot access blocklist")
-                            .insert(url);
-                        Err(e)
+                        tracing::warn!(err = e.to_string(), "Chunk file download incomplete");
                     }
-                }
-            });
-
-            handles.push(handle);
-        }
-        // Wait for all tasks to complete and collect the results
-        let mut failed = vec![];
-        for handle in handles {
-            match handle.await? {
-                Ok(file) => {
-                    let metadata = file.lock().await.metadata()?;
-
-                    let modified = if let Ok(time) = metadata.modified() {
-                        format!("Modified: {:#?}", time)
-                    } else {
-                        "Not modified".to_string()
-                    };
-
-                    tracing::debug!(
-                        metadata = tracing::field::debug(metadata),
-                        modification = modified,
-                        "Chunk file information"
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!(err = e.to_string(), "Chunk file download incomplete");
-                    failed.push(e.to_string());
                 }
             }
         }
 
-        //TODO: track incompletness
-        if !failed.is_empty() {
-            return Err(anyhow!("Failed chunks: {:#?}", failed));
-        }
-
-        Ok(meta)
+        tracing::info!(
+            chunks = tracing::field::debug(self.target_chunks.clone()),
+            file_info = tracing::field::debug(&meta.meta_info),
+            "File finished"
+        );
+        Ok(())
     }
 
     /// Endpoint must serve operator info and the requested file
@@ -292,7 +307,11 @@ impl SubfileDownloader {
         };
 
         if !files.contains(&self.ipfs_hash) {
-            tracing::error!(status_url, files = tracing::field::debug(&files), "IPFS hash not found in files served");
+            tracing::error!(
+                status_url,
+                files = tracing::field::debug(&files),
+                "IPFS hash not found in files served"
+            );
             self.add_to_indexer_blocklist(url.to_string());
             return Err(anyhow!(
                 "IPFS hash not found in files served at {}",
@@ -330,11 +349,11 @@ impl SubfileDownloader {
     fn download_range_request(
         &self,
         meta: &ChunkFileMeta,
-        query_endpoints: &Vec<(String, String)>,
         i: u64,
         file: Arc<Mutex<File>>,
     ) -> Result<DownloadRangeRequest, anyhow::Error> {
         let mut rng = rand::thread_rng();
+        let query_endpoints = &self.indexer_urls.lock().unwrap();
         let url = if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
             tracing::debug!(
                 operator,
@@ -343,14 +362,13 @@ impl SubfileDownloader {
                 chunk_file = meta.meta_info.hash,
                 "Querying operator"
             );
-            url
+            url.clone()
         } else {
             let err_msg = "Could not choose an operator to query, data unavailable";
             tracing::warn!(err_msg);
             return Err(anyhow!(err_msg));
         };
-        //TODO: do no add ipfs_hash here, let query_endpoint be for later
-        //TODO: replace file_name header with file_hash for the file level IPFS
+        //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'subfiles/id/:id'
         let query_endpoint = url + "/subfiles/id/" + &self.ipfs_hash;
         let file_hash = meta.meta_info.hash.clone();
         let start = i * meta.chunk_file.chunk_size;
@@ -372,6 +390,7 @@ impl SubfileDownloader {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DownloadRangeRequest {
     query_endpoint: String,
     auth_token: Option<String>,
@@ -390,6 +409,10 @@ async fn download_chunk_and_write_to_file(
 ) -> Result<Arc<Mutex<File>>, anyhow::Error> {
     let mut attempts = 0;
 
+    tracing::debug!(
+        request = tracing::field::debug(&request),
+        "Making a range request"
+    );
     loop {
         // Make the range request to download the chunk
         match request_chunk(
@@ -425,6 +448,7 @@ async fn download_chunk_and_write_to_file(
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
+
 /// Make range request for a file to the subfile server
 async fn request_chunk(
     http_client: &Client,
@@ -472,5 +496,14 @@ async fn request_chunk(
             "Server does not support range requests or the request failed"
         );
         Err(anyhow!("Range request failed: {}", err_msg))
+    }
+}
+
+/// extract base indexer_url from `indexer_url/subfiles/id/subfile_id`
+fn extract_base_url(query_endpoint: &str) -> Option<&str> {
+    if let Some(index) = query_endpoint.find("/subfiles/id/") {
+        Some(&query_endpoint[..index])
+    } else {
+        None
     }
 }

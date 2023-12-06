@@ -39,7 +39,6 @@ pub struct ChunkFile {
 }
 
 impl ChunkFile {
-    // pub fn create_chunk_file(merkle_tree: &MerkleTreeU8) -> ChunkFile {
     pub fn new(
         read_dir: &str,
         file_name: &str,
