@@ -11,15 +11,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_transfer() {
-        std::env::set_var("RUST_LOG", "off,subfile_exchange=info,file_transfer=trace");
+        std::env::set_var("RUST_LOG", "off,subfile_exchange=debug,file_transfer=trace");
         subfile_exchange::config::init_tracing(String::from("pretty")).unwrap();
 
-        let client = if let Ok(client) = IpfsClient::new("https://ipfs.network.thegraph.com") {
-            client
-        } else {
-            IpfsClient::localhost()
-        };
-
+        let client = IpfsClient::new("https://ipfs.network.thegraph.com")
+            .expect("Could not create client to thegraph IPFS gateway");
         let target_subfile = "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v".to_string();
         // 1. Setup server
         let mut server_process = Command::new("cargo")
