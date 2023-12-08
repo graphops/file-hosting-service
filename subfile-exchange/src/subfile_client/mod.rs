@@ -76,7 +76,7 @@ impl SubfileDownloader {
             .collect::<Vec<_>>();
         // Use a stream to process the endpoints in parallel
         let results = stream::iter(&filtered_endpoints)
-            .map(|url| self.check_endpoint_availability(url))
+            .map(|url| self.subfile_availability(url))
             .buffer_unordered(filtered_endpoints.len()) // Parallelize up to the number of endpoints
             .collect::<Vec<Result<IndexerEndpoint, Error>>>()
             .await;
@@ -212,6 +212,7 @@ impl SubfileDownloader {
                                     .entry(chunk_file_hash)
                                     .or_default()
                                     .remove(&i);
+                                tracing::trace!(i, "Chunk downloaded");
                                 Ok(r)
                             }
                             Err(e) => {
@@ -220,7 +221,10 @@ impl SubfileDownloader {
                                     Some(url) => url.to_string(),
                                     None => url,
                                 };
-                                //TODO: with Error enum, add blocklist based on the error
+                                tracing::warn!(
+                                    err = e.to_string(),
+                                    "Chunk file download incomplete"
+                                );
                                 block_list
                                     .lock()
                                     .expect("Cannot access blocklist")
@@ -234,29 +238,9 @@ impl SubfileDownloader {
             }
 
             for handle in handles {
-                match handle
+                let _ = handle
                     .await
-                    .map_err(|e| Error::DataUnavilable(e.to_string()))?
-                {
-                    Ok(file) => {
-                        let metadata = file.lock().await.metadata().map_err(Error::FileIOError)?;
-
-                        let modified = if let Ok(time) = metadata.modified() {
-                            format!("Modified: {:#?}", time)
-                        } else {
-                            "Not modified".to_string()
-                        };
-
-                        tracing::debug!(
-                            metadata = tracing::field::debug(metadata),
-                            modification = modified,
-                            "Chunk file information"
-                        );
-                    }
-                    Err(e) => {
-                        tracing::warn!(err = e.to_string(), "Chunk file download incomplete");
-                    }
-                }
+                    .map_err(|e| Error::DataUnavilable(e.to_string()))?;
             }
         }
 
@@ -268,8 +252,36 @@ impl SubfileDownloader {
         Ok(())
     }
 
-    /// Endpoint must serve operator info and the requested file
-    async fn check_endpoint_availability(&self, url: &str) -> Result<IndexerEndpoint, Error> {
+    async fn indexer_operator(&self, url: &str) -> Result<String, Error> {
+        let operator_url = format!("{}/operator", url);
+        let operator_response = match self.http_client.get(&operator_url).send().await {
+            Ok(response) => response,
+            Err(e) => {
+                tracing::error!("Operator request failed for {}", operator_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                return Err(Error::Request(e));
+            }
+        };
+
+        if !operator_response.status().is_success() {
+            tracing::error!("Operator request failed for {}", operator_url);
+            self.add_to_indexer_blocklist(url.to_string());
+            return Err(Error::DataUnavilable(
+                "Operator request failed.".to_string(),
+            ));
+        }
+
+        match operator_response.json::<Operator>().await {
+            Ok(operator) => Ok(operator.public_key),
+            Err(e) => {
+                tracing::error!("Operator response parse error for {}", operator_url);
+                self.add_to_indexer_blocklist(url.to_string());
+                Err(Error::Request(e))
+            }
+        }
+    }
+
+    async fn indexer_status(&self, url: &str) -> Result<Vec<String>, Error> {
         let status_url = format!("{}/status", url);
         let status_response = match self.http_client.get(&status_url).send().await {
             Ok(response) => response,
@@ -295,45 +307,28 @@ impl SubfileDownloader {
             }
         };
 
+        Ok(files)
+    }
+
+    /// Endpoint must serve operator info and the requested file
+    async fn subfile_availability(&self, url: &str) -> Result<IndexerEndpoint, Error> {
+        let files = self.indexer_status(url).await?;
+        let operator: String = self.indexer_operator(url).await?;
+
         if !files.contains(&self.ipfs_hash) {
             tracing::error!(
-                status_url,
+                url,
                 files = tracing::field::debug(&files),
                 "IPFS hash not found in files served"
             );
             self.add_to_indexer_blocklist(url.to_string());
             return Err(Error::DataUnavilable(format!(
                 "IPFS hash not found in files served at {}",
-                status_url
+                url
             )));
         }
 
-        let operator_url = format!("{}/operator", url);
-        let operator_response = match self.http_client.get(&operator_url).send().await {
-            Ok(response) => response,
-            Err(e) => {
-                tracing::error!("Operator request failed for {}", operator_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                return Err(Error::Request(e));
-            }
-        };
-
-        if !operator_response.status().is_success() {
-            tracing::error!("Operator request failed for {}", operator_url);
-            self.add_to_indexer_blocklist(url.to_string());
-            return Err(Error::DataUnavilable(
-                "Operator request failed.".to_string(),
-            ));
-        }
-
-        match operator_response.json::<Operator>().await {
-            Ok(operator) => Ok((operator.public_key, url.to_string())),
-            Err(e) => {
-                tracing::error!("Operator response parse error for {}", operator_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                Err(Error::Request(e))
-            }
-        }
+        Ok((operator, url.to_string()))
     }
 
     /// Generate a request to download a chunk
