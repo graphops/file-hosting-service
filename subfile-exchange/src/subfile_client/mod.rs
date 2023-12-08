@@ -16,13 +16,15 @@ use crate::errors::Error;
 use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
 use crate::subfile::{ChunkFileMeta, Subfile};
-use crate::subfile_reader::read_subfile;
+use crate::subfile_reader::{fetch_subfile_from_ipfs, read_subfile};
 use crate::subfile_server::util::Operator;
 
-// Pair indexer operator address and indexer service endpoint
+// Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves
 //TODO: smarter type for tracking available endpoints
 pub type IndexerEndpoint = (String, String);
+pub type FileAvailbilityMap =
+    Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<IndexerEndpoint, Vec<String>>>>>>>;
 
 pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
@@ -91,14 +93,104 @@ impl SubfileDownloader {
             .into_iter()
             .filter_map(Result::ok)
             .collect::<Vec<IndexerEndpoint>>();
-        self.update_indexer_urls(endpoints);
+        self.update_indexer_urls(&endpoints);
 
+        if endpoints.is_empty() {
+            Err(Error::DataUnavilable(String::from(
+                "No eligible endpoints serving the subfile",
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub async fn file_discovery(
+        &self,
+        endpoint_checklist: &[String],
+    ) -> Result<FileAvailbilityMap, Error> {
+        let subfile = read_subfile(
+            &self.ipfs_client,
+            &self.ipfs_hash,
+            self.output_dir.clone().into(),
+        )
+        .await?;
+        // To fill in availability for each file, get a vector of (IndexerEndpoint, SubfileIPFS) that serves the file
+        let target_hashes: FileAvailbilityMap = Arc::new(Mutex::new(
+            subfile
+                .chunk_files
+                .iter()
+                .map(|chunk_file| {
+                    (
+                        chunk_file.meta_info.hash.clone(),
+                        Arc::new(Mutex::new(HashMap::new())),
+                    )
+                })
+                .collect(),
+        ));
+
+        for url in endpoint_checklist {
+            if let Err(_e) = self.file_availability(url, target_hashes.clone()).await {
+                tracing::debug!("Failed to get file availability: {:#?}", url);
+            };
+        }
+
+        tracing::info!("Discovered file availability map: {:#?}", target_hashes);
+        Ok(target_hashes)
+    }
+
+    /// Gather file availability
+    pub async fn file_availability(
+        &self,
+        url: &str,
+        file_map: FileAvailbilityMap,
+    ) -> Result<(), Error> {
+        let operator = self.indexer_operator(url).await?;
+        let indexer_endpoint = (operator, url.to_string());
+        let subfiles = self.indexer_status(url).await?;
+
+        // Map of indexer_endpoints to served Subfiles
+        // For each endpoint, populate indexer_map with the available files
+        for subfile in subfiles {
+            let file_hashes: Vec<String> = fetch_subfile_from_ipfs(&self.ipfs_client, &subfile)
+                .await?
+                .files
+                .iter()
+                .map(|file| file.hash.clone())
+                .collect();
+            let file_map_lock = file_map.lock().await;
+            for (target_file, availability_map) in file_map_lock.iter() {
+                // Record serving indexer and subfile for each target file
+                if file_hashes.contains(target_file) {
+                    availability_map
+                        .lock()
+                        .await
+                        .entry(indexer_endpoint.clone())
+                        .and_modify(|e| e.push(subfile.clone()))
+                        .or_insert(vec![subfile.clone()]);
+                }
+            }
+        }
+
+        match contains_key_with_empty_map(&file_map).await {
+            files if !files.is_empty() => {
+                return Err(Error::DataUnavilable(format!(
+                    "File availability incomplete, missing files: {:#?}",
+                    files
+                )));
+            }
+            _ => {}
+        }
+
+        // Return the map of file hash to serving indexer
         Ok(())
     }
 
-    pub fn update_indexer_urls(&self, endpoints: Vec<IndexerEndpoint>) {
+    pub fn update_indexer_urls(&self, endpoints: &[IndexerEndpoint]) {
         self.indexer_urls.lock().unwrap().clear();
-        self.indexer_urls.lock().unwrap().extend(endpoints);
+        self.indexer_urls
+            .lock()
+            .unwrap()
+            .extend(endpoints.to_owned());
     }
 
     pub fn add_to_indexer_blocklist(&self, endpoint: String) {
@@ -135,12 +227,34 @@ impl SubfileDownloader {
             "Chunk files download starting"
         );
 
-        // check data availability from gateway/indexer_endpoints
-        self.check_availability(&self.static_endpoints).await?;
-        tracing::debug!(
-            query_endpoints = tracing::field::debug(&self.indexer_urls.lock().unwrap()),
-            "Basic matching with query availability"
-        );
+        // check subfile availability from gateway/indexer_endpoints
+        if let Err(e) = self.check_availability(&self.static_endpoints).await {
+            tracing::warn!(
+                query_endpoints = tracing::field::debug(&self.indexer_urls.lock().unwrap()),
+                err = tracing::field::debug(&e),
+                "No endpoint satisfy the subfile requested, sieve through available subfiles for individual files"
+            );
+
+            // check files availability from gateway/indexer_endpoints
+            match self.file_discovery(&self.static_endpoints).await {
+                Ok(map) => {
+                    let msg = format!(
+                        "Files available on other available subfiles: {:#?}",
+                        tracing::field::debug(&map.lock().await),
+                    );
+                    return Err(Error::DataUnavilable(msg));
+                }
+                Err(e) => {
+                    let msg = format!(
+                        "Cannot match the files: {:?}, {:?}",
+                        tracing::field::debug(&self.indexer_urls.lock().unwrap()),
+                        tracing::field::debug(&e),
+                    );
+                    tracing::error!(msg);
+                    return Err(Error::DataUnavilable(msg));
+                }
+            }
+        };
 
         // Loop through chunk files for downloading
         let mut incomplete_files = vec![];
@@ -316,10 +430,10 @@ impl SubfileDownloader {
         let operator: String = self.indexer_operator(url).await?;
 
         if !files.contains(&self.ipfs_hash) {
-            tracing::error!(
+            tracing::trace!(
                 url,
                 files = tracing::field::debug(&files),
-                "IPFS hash not found in files served"
+                "IPFS hash not found in served subfile status"
             );
             self.add_to_indexer_blocklist(url.to_string());
             return Err(Error::DataUnavilable(format!(
@@ -350,7 +464,7 @@ impl SubfileDownloader {
             );
             url.clone()
         } else {
-            let err_msg = "Could not choose an operator to query, data unavailable";
+            let err_msg = "No operator serving the file, data unavailable".to_string();
             tracing::warn!(err_msg);
             return Err(Error::DataUnavilable(err_msg.to_string()));
         };
@@ -503,4 +617,17 @@ fn extract_base_url(query_endpoint: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+/// Check if there is a key in target_hashes where the corresponding availability is empty
+async fn contains_key_with_empty_map(file_map: &FileAvailbilityMap) -> Vec<String> {
+    let mut missing_file = vec![];
+    let hashes = file_map.lock().await;
+    for (key, inner_map_arc) in hashes.iter() {
+        let inner_map = inner_map_arc.lock().await; // Lock the Mutex to access the inner map
+        if inner_map.is_empty() {
+            missing_file.push(key.clone());
+        }
+    }
+    missing_file
 }

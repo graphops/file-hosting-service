@@ -81,6 +81,7 @@ pub struct ServerArgs {
         long,
         value_name = "SUBFILES",
         env = "SUBFILES",
+        value_delimiter = ',',
         help = "Comma separated list of IPFS hashes and local location of the subfiles to serve upon start-up; format: [ipfs_hash:local_path]"
     )]
     pub subfiles: Vec<String>,
