@@ -1,65 +1,75 @@
-## To run an indexer-subfile server
+# File Sharing Server
 
-To start, you would need to provide several configurations
+You hold the key to unlocking the network's true potential. By sharing your meticulously indexed data, you become the architect of information accessibility. Imagine, your contribution fueling a vibrant ecosystem of knowledge, where fellow indexers can build upon your work, unleashing a torrent of information to the world. In return, your generosity is rewarded with precious tokens, a testament to the invaluable role you play in this decentralized revolution. Become the data hero we need, and together, let us build a brighter future fueled by open access and boundless knowledge!
 
-### Requirements
+This document provides an overview of the P2P file sharing server, intended for web3 engineers familiar with blockchain nodes and large datasets.
 
-An indexer running the server must provide configurations that enable the server to access the served files. The local paths are matched for individual subfiles, and subfiles should contain a list of file metainfo that specify a file name that is commonly agreed upon. (TODO: Regex matching can allow more varity of file names for separate indexers)
+Jump to [Quick Start](###getting-started)
 
-> Based on how packaging and verification schemes are set up, the server may need to generate merkle proofs along side range requests
+## File Transfer Protocol
 
-> With TAP, Server should parse for receipts in the range request header. Receipts should be verified and stored and RAV be saved for (receiver, sender, subfile_id). Server can have configurable RAV collection requirements.
+The server utilizes HTTP2 over HTTPS for secure and efficient file transfer. This ensures data integrity and confidentiality while leveraging the performance benefits of HTTP2.
 
+## Server Discovery (TODO)
 
-### CLI example
+The server registers its endpoint on a designated smart contract (can be indexed by a subgraph). This allows clients to discover the server and initiate file transfers.
+
+## Access Control
+
+The server offers
+
+- Free queries: Server will always respond to queries about their operator info, software versioning, server health, and file availability.
+- Free Query Auth Token: Users can obtain a free query auth token for limited access to files. This token allows them to download small files.
+- Receipts: Users need to provide TAP receipts in the HTTP header. These receipts serve as proof of payment and grant access to the requested resources.
+
+## Server Management
+
+The server includes an admin endpoint for on-the-fly management. This endpoint allows administrators to perform various tasks such as:
+
+- Adding and removing files
+- Monitoring server status
+- (TODO) maintenance operations such as modifying auth token and pricing model.
+
+## Technical Stack
+The server utilizes a combination of open-source technologies for optimal performance and security. The core components include:
+
+- Backend: Rust for robust and efficient server-side processing.
+- Database: (Current: In-memory for server management, file paths for local access). 
+- Database: (TODO: PostgreSQL for persisted server management, generic storage paths to allow cloud/object storage). 
+- Smart Contract: (TODO) Solidity for secure and transparent server registration and discovery.
+- User Interface: CLI to start up the server, HTTP requests for managing files and accessing receipts (TODO: Terminal UI).
+
+## System Requirements
+- Operating System: Linux/MacOS
+- RAM: __
+- Disk Space: ___
+- CPU: ___
+- Rust: 1.73.0
+- Docker (optional, TODO)
+
+## Installation and Configuration
+
+### Getting Started
+
+1. Download the source code from the repository.
+2. Build and run the server.
+
+CLI example
 ```
 ✗ cargo run -p subfile-exchange server \
   --host 0.0.0.0 \
   --port 5678 \
   --mnemonic "abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon" \
   --admin-auth-token "imadmin" \
-  --subfiles "QmY9aHuMqSPoLixVRdcYQei2cAtChBQNbjdtL5VzaQdFzw:./example-file/"
+  --free-query-auth-token "imafriend" \
+  --subfiles "QmY9aHuMqSPoLixVRdcYQei2cAtChBQNbjdtL5VzaQdFzw:./example-file/,IPFS_HASH:SUBFILE_PATH"
 ```
+Run `cargo run -p subfile-exchange --help` for more configurations and the corresponding ENV variable names.
 
-### Configuration matrix
+3. Access the server via the admin endpoint.
 
-| Environment Variable                          | CLI Argument                    | Value                                            |
-| --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
-| `SUBFILE_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for indexer operator           |
-| `SUBFILE_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`, `goerli`, `arbitrum-one`, `arbigrum-goerli`                              |
-| `SUBFILE_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of the indexer              |
-| `SUBFILE_SERVICE_FILES`             | `--files`             | IPFS hash of the initial subfiles and their location `QmHash1:filePath1,QmHash2:filePath2` TODO: Use an advanced configuration file for input               |
-
-## To add
-| Environment Variable                          | CLI Argument                    | Value                                            |
-| --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
-| `SUBFILE_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmVQrrgeGGHEqRdjAByeLvnNnDMjdt85jZZB5EFZk62JWs` (`mainnet`) |
-| `SUBFILE_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet`           |
-| `SUBFILE_SERVICE_METRICS_PORT`       | `--metrics-port`       |  Default: `7200`    |
-| `SUBFILE_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       |  `0x982D10c56b8BBbD6e09048F5c5f01b43C65D5aE0`    |
-| `SUBFILE_SERVICE_LOG_LEVEL`       | `--log-level`       |  Default: `info`    |
-| `SUBFILE_SERVICE_ALLOCATION_SYNCING_INTERVAL`       | `--allocation-syncing-interval`       |  Default: `120000`    |
-| `SUBFILE_SERVICE_ESCROW_SUBGRAPH_ENDPOINT`       | `--escrow-subgraph-endpoint`       |  `'https://api.studio.thegraph.com/proxy/53925/eth-goerli-tap-subgraph/version/latest/'`    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--escrow-syncing-interval`       |  Default: `120000`    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--receipts-verifier-chain-id`       |  1, 5    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--receipts-verifier-address `       |  '0xD46c60558F7960407F4D00098145D77Fd061aD90'    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--rav-request-trigger-value`       |  Default: `10000000000000000000`    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--rav-request-timestamp-buffer-ns`       |  Default: `1000000000`    |
-| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--sender-aggregator-endpoints-file`       |  Default: `"aggregators.yaml"`    |
-
-Consider access such as to postgres or files requiring authentication
-
-## Admin API
-
-Support basic methods to get, add, and remove subfile services.
-
+HTTP request example to get, add, and remove subfile services
 ```
-✗ curl http://localhost:5678/admin -X POST \    
-  -H "Content-Type: application/json" \
-  -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:local_path"],"id":1,"jsonrpc":"2.0"}'
-{"error":"Invalid local path: local_path"}%                                                  
-
 ✗ curl http://localhost:5678/admin -X POST \
   -H "Content-Type: application/json" \
   -H "AUTHORIZATION: Bearer imadmin" \
@@ -80,3 +90,34 @@ Subfile(s) added successfully%
  --data '{"method":"remove_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
 Subfile(s) removed successfully
 ```
+
+4. (TODO) Register the server endpoint on the smart contract.
+
+You are open for business!
+
+### Security Considerations
+
+The server enforces various security measures to protect user data and system integrity. These measures include:
+
+- Secure communication protocols (HTTPS)
+- Access control mechanisms
+- Regular security updates
+
+It is crucial to follow best practices for server security and maintain the software updated to mitigate any potential vulnerabilities.
+
+### Support and Community
+
+For further assistance, please consult the following resources:
+
+- Discord channel (to be created)
+- Documentation
+- GitHub repository
+
+We encourage you to actively participate in the community to share feedback, report issues, and contribute to the project's development.
+
+### Next Steps
+
+This document provides a high-level overview of the server. We encourage you to explore the additional documentation and resources to gain a deeper understanding of the server's capabilities and configuration options.
+
+We are confident that this server will empower you to leverage your technical expertise and extensive file collection to contribute to the decentralized file sharing ecosystem.
+

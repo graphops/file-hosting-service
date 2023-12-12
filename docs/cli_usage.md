@@ -86,8 +86,26 @@
 
 ### Server
 
-Serve multiple files in 1 subfile
+Serve multiple files in multiple subfile
 
+## To add
+| Environment Variable                          | CLI Argument                    | Value                                            |
+| --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
+| `SUBFILE_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmVQrrgeGGHEqRdjAByeLvnNnDMjdt85jZZB5EFZk62JWs` (`mainnet`) |
+| `SUBFILE_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet`           |
+| `SUBFILE_SERVICE_METRICS_PORT`       | `--metrics-port`       |  Default: `7200`    |
+| `SUBFILE_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       |  `0x982D10c56b8BBbD6e09048F5c5f01b43C65D5aE0`    |
+| `SUBFILE_SERVICE_LOG_LEVEL`       | `--log-level`       |  Default: `info`    |
+| `SUBFILE_SERVICE_ALLOCATION_SYNCING_INTERVAL`       | `--allocation-syncing-interval`       |  Default: `120000`    |
+| `SUBFILE_SERVICE_ESCROW_SUBGRAPH_ENDPOINT`       | `--escrow-subgraph-endpoint`       |  `'https://api.studio.thegraph.com/proxy/53925/eth-goerli-tap-subgraph/version/latest/'`    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--escrow-syncing-interval`       |  Default: `120000`    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--receipts-verifier-chain-id`       |  1, 5    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--receipts-verifier-address `       |  '0xD46c60558F7960407F4D00098145D77Fd061aD90'    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--rav-request-trigger-value`       |  Default: `10000000000000000000`    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--rav-request-timestamp-buffer-ns`       |  Default: `1000000000`    |
+| `SUBFILE_SERVICE_ESCROW_SYNCING_INTERVAL`       | `--sender-aggregator-endpoints-file`       |  Default: `"aggregators.yaml"`    |
+
+Consider access such as to postgres or files requiring authentication
 
 ```
 ➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange server \
