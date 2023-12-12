@@ -13,6 +13,25 @@ Subfile-exchange leverages IPFS for file discovery and verification, ensuring th
 
 This documentation is tailored for individuals who have a basic understanding of decentralized technologies, peer-to-peer networks, and cryptographic principles. Whether you are an indexer running various blockchain nodes looking for sharing and verifying your data, an indexer looking to launch service for a new chain, or simply a user interested in the world of decentralized file sharing, this guide aims to provide you with a clear and comprehensive understanding of how Subfile-service operates.
 
+## Features
+
+- Decentralized File Sharing: Utilize peer-to-peer networks for direct file transfers, eliminating central points of failure.
+- IPFS Integration: Employ IPFS for efficient and reliable file discovery and content verification.
+- SHA2-256 Hashing: Ensure data integrity through robust cryptographic hashing.
+- HTTPS over HTTP2: Leverage the latest web protocols for secure and efficient data transfer.
+
+**To be supported:**
+- Micropayments Support: Implement a system of micropayments to facilitate fair compensation and reduce trust requirements.
+- Scalability and Performance: Designed with a focus on handling large volumes of data and high user traffic.
+- User-Friendly Interface: Intuitive design for easy navigation and operation.
+
+More details can be found in [Feature checklist](docs/feature_checklist.md)
+
+
+## Upgrading
+
+The project will follow conventional semantic versioning specified [here](https://semver.org/). Server will expose an endpoint for package versioning to ensure correct versions are used during exchanges. 
+
 ## Background Resources
 
 You may learn background information on various components of the exchange
@@ -26,15 +45,20 @@ You may learn background information on various components of the exchange
 4. **Blockchain**: [World of data services](https://forum.thegraph.com/t/gip-0042-a-world-of-data-services/3761), [flatfiles for Ethereum](https://github.com/streamingfast/firehose-ethereum), [use case](https://eips.ethereum.org/EIPS/eip-4444).
 
 
-
 ## Documentation
 
-#### [Feature checklist](docs/feature_checklist.md)
+#### [Design Principle](docs/architecture.md)
 
 #### [Packaging](docs/subfile_manifest.md)
 
-#### [Publisher Guide](docs/publisher_guide.md)
+### Quickstarts and Configuring
 
 #### [Server Guide](docs/server_guide.md)
 
 #### [Client Guide](docs/client_guide.md)
+
+#### [Publisher Guide](docs/publisher_guide.md)
+
+## Contributing
+
+We welcome and appreciate your contributions! Please see the [Contributor Guide](/CONTRIBUTING.md), [Code Of Conduct](/CODE_OF_CONDUCT.md) and [Security Notes](/SECURITY.md) for this repository.

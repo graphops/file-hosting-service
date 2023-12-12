@@ -27,6 +27,7 @@
   - [x] Deserialize and serialize yaml files
 - [ ] Subfile server 
   - [x] require operator mnemonic
+  - [ ] Use a generic path
   - [x] Initialize service; for one subfile, take (ipfs_hash, local_path)
     - [x] Take a subfile IPFS hash and get the file using IPFS client
     - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 

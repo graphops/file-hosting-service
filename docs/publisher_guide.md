@@ -1,3 +1,7 @@
+# Publisher
+
+This documentation provides a quick guide to publish verification files for indexed data files on IPFS. 
+
 ## To publish a subfile
 
 To start, you would need to provide several configurations
@@ -21,24 +25,7 @@ Publisher must have read access to all files contained in the package. The publi
   --chain-id 1
 ```
 
-
-### Configuration matrix
-
-| Environment Variable                          | CLI Argument                    | Value                                            |
-| --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
-| `READ_DIR`             | `--read-dir`             | Read directory for the files to publish               |
-| `SUBFILE_NAME`             | `--subfile-name`             | Give a name to the subfile (Q: removable as it can cause unnecessary change in subfile hash)               |
-| `FILE_TYPE`             | `--file-type`             | flatfile, snapshot, ...               |
-| `FILE_VERSION`             | `--file-version`             | Subfile version               |
-| `FILE_NAMES`             | `--file-names`             | name of the files to include in the package               |
-| `IDENTIFIER`             | `--identifier`             | Optional, Useful for deployment specific files                |
-| `PUBLISHER_URL`             | `--publisher-url`             | Optional, include in subfile manifest for self advertisement               |
-| `DESCRIPTION`             | `--description`             | Descibe the subfile content               |
-| `SUBFILE_SERVICE_ETHEREUM_NETWORK`            | `--chain-id`            | mainnet: `1`, goerli: `5`, arbitrum-one: `42161`, sepolia: `58008`                              |
-
-### To add
-| Environment Variable                          | CLI Argument                    | Value                                            |
-| --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
-| `SUBFILE_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for connecting to a wallet for publishing on-chain           |
-
-Consider access such as to postgres or files requiring authentication
+For more information 
+```
+➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange --help
+```
