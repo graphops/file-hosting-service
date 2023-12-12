@@ -51,6 +51,11 @@ tracing-subscriber = { version = "0.3", features = [
 [dev-dependencies]
 criterion = "0.5"
 
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["precommit-hook", "run-cargo-fmt", "run-cargo-clippy"]
+
 [build-dependencies]
 build-info-build = "0.0.34"
 
