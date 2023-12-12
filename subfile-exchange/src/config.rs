@@ -106,6 +106,15 @@ pub struct ServerArgs {
         help = "Mnemonic for the operator wallet"
     )]
     pub mnemonic: String,
+    //TODO: More complex price management
+    #[arg(
+        long,
+        value_name = "PRICE_PER_BYTE",
+        default_value = "1",
+        env = "PRICE_PER_BYTE",
+        help = "Price per byte; price do not currently have a unit, perhaps use DAI or GRT, refer to TAP"
+    )]
+    pub price_per_byte: f32,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]

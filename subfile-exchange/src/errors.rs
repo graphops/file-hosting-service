@@ -13,6 +13,7 @@ pub enum Error {
     ServerError(ServerError),
     JsonError(serde_json::Error),
     YamlError(serde_yaml::Error),
+    InvalidPriceFormat(String),
 }
 
 impl fmt::Display for Error {
@@ -29,6 +30,7 @@ impl fmt::Display for Error {
             Error::ServerError(ref err) => write!(f, "Server error: {}", err),
             Error::JsonError(ref err) => write!(f, "JSON error: {}", err),
             Error::YamlError(ref err) => write!(f, "YAML error: {}", err),
+            Error::InvalidPriceFormat(ref msg) => write!(f, "Price format error: {}", msg),
         }
     }
 }

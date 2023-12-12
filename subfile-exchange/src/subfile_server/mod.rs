@@ -33,6 +33,7 @@ pub struct ServerState {
     pub release: PackageVersion,
     pub free_query_auth_token: Option<String>, // Add bearer prefix
     pub admin_auth_token: Option<String>,      // Add bearer prefix
+    pub price_per_byte: f32,
 }
 
 pub type ServerContext = Arc<Mutex<ServerState>>;
@@ -109,6 +110,7 @@ async fn initialize_subfile_server_context(
         admin_auth_token,
         operator_public_key: public_key(&config.mnemonic)
             .expect("Failed to initiate with operator wallet"),
+        price_per_byte: config.price_per_byte,
     };
 
     // Fetch the file using IPFS client
@@ -140,6 +142,7 @@ pub async fn handle_request(
         "/status" => status(&context).await,
         "/health" => health().await,
         "/version" => version(&context).await,
+        "/cost" => cost(&context).await,
         "/admin" => handle_admin_request(req, &context).await,
         //TODO: consider routing through file level IPFS
         path if path.starts_with("/subfiles/id/") => file_service(path, &req, &context).await,
@@ -170,6 +173,19 @@ pub async fn version(context: &ServerContext) -> Result<Response<Body>, Error> {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(version))
+        .map_err(|e| {
+            Error::ServerError(crate::errors::ServerError::BuildResponseError(
+                e.to_string(),
+            ))
+        })
+}
+
+/// Endpoint for cost to download per byte
+pub async fn cost(context: &ServerContext) -> Result<Response<Body>, Error> {
+    let price = context.lock().await.price_per_byte.to_string();
+    Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(price))
         .map_err(|e| {
             Error::ServerError(crate::errors::ServerError::BuildResponseError(
                 e.to_string(),
