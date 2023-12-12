@@ -2,7 +2,7 @@
 
 You hold the key to unlocking the network's true potential. By sharing your meticulously indexed data, you become the architect of information accessibility. Imagine, your contribution fueling a vibrant ecosystem of knowledge, where fellow indexers can build upon your work, unleashing a torrent of information to the world. In return, your generosity is rewarded with precious tokens, a testament to the invaluable role you play in this decentralized revolution. Become the data hero we need, and together, let us build a brighter future fueled by open access and boundless knowledge!
 
-This document provides an overview of the P2P file sharing server, intended for web3 engineers familiar with blockchain nodes and large datasets.
+This document provides an overview of the P2P file sharing server, intended for those familiar with blockchain nodes and large datasets.
 
 Jump to [Quick Start](###getting-started)
 
