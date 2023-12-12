@@ -2,7 +2,7 @@
 members = [
     "subfile-exchange", 
 ]
-resolver = "1"
+resolver = "2"
 
 [profile.dev]
 panic = "abort"

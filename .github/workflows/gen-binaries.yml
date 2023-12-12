@@ -1,0 +1,48 @@
+name: Build and upload release binaries
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build release binary
+        run: |
+          cargo build --release
+      - name: Upload Ubuntu binary
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./target/release/subfile-exchange
+          asset_name: subfile-exchange-${{ github.event.release.tag_name }}-ubuntu
+          asset_content_type: binary/octet-stream
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build release binary
+        run: |
+          cargo build --release
+      - name: Upload MacOS binary
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./target/release/subfile-exchange
+          asset_name: subfile-exchange-${{ github.event.release.tag_name }}-macos
+          asset_content_type: binary/octet-stream

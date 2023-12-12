@@ -1,0 +1,71 @@
+name: tests
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    container: 
+      image: rust:1.74-bookworm
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          rustup component add rustfmt
+          cargo fmt --all -- --check
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    container: 
+      image: rust:1.74-bookworm
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
+      - run: |
+          rustup component add clippy
+          # Temporarily allowing dead-code, while denying all other warnings
+          cargo clippy --all-features --all-targets -- -A dead-code -D warnings
+
+  test-and-coverage:
+    name: cargo test and coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    container:
+      image: rust:1.74-bookworm
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Run tests and generate coverage report
+        run: cargo llvm-cov test --all-features --workspace --lcov --output-path lcov.info
+      - name: Test documentation code snippets
+        run: cargo test --doc --all-features --workspace
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2.2.0
+        with:
+          file: ./lcov.info
