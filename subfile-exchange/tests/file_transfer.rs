@@ -45,11 +45,16 @@ mod tests {
                 "http://localhost:5677".to_string(),
             ]
             .to_vec(),
+            chain_id: 421614,
+            verifier: String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF"),
+            mnemonic: String::from(
+                "sheriff obscure trick beauty army fat wink legal flee leader section suit",
+            ),
             free_query_auth_token: Some("Bearer free-token".to_string()),
             ..Default::default()
         };
 
-        let downloader = SubfileDownloader::new(client, downloader_args);
+        let downloader = SubfileDownloader::new(client, downloader_args).await;
 
         // 3. Perform the download
         let download_result = downloader.download_subfile().await;

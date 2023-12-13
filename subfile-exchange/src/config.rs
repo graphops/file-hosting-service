@@ -134,6 +134,27 @@ pub struct DownloaderArgs {
         help = "Client pings the gateway for file discovery; TODO: currently gateway_url is used to ping local server url directly"
     )]
     pub gateway_url: Option<String>,
+    #[clap(
+        long,
+        value_name = "mnemonic",
+        env = "MNEMONIC",
+        help = "Mnemonic for payment wallet"
+    )]
+    pub mnemonic: String,
+    #[clap(
+        long,
+        value_name = "chain_id",
+        env = "CHAIN_ID",
+        help = "Protocol network's Chain ID"
+    )]
+    pub chain_id: u64,
+    #[clap(
+        long,
+        value_name = "verifier",
+        env = "VERIFIER",
+        help = "TAP verifier contract address"
+    )]
+    pub verifier: String,
     // Trust tracking should be done by the gateway/DHT
     #[arg(
         long,

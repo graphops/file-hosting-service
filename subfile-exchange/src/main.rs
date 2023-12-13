@@ -28,7 +28,7 @@ async fn main() {
                 "Downloader request"
             );
             // Create client
-            let downloader = SubfileDownloader::new(client, config);
+            let downloader = SubfileDownloader::new(client, config).await;
 
             // Send range request
             match downloader.download_subfile().await {

@@ -1,11 +1,15 @@
+use alloy_primitives::{Address, U256};
 use bytes::Bytes;
+
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
 use rand::seq::SliceRandom;
 use reqwest::Client;
+use secp256k1::SecretKey;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -17,11 +21,16 @@ use crate::ipfs::IpfsClient;
 use crate::subfile::{ChunkFileMeta, Subfile};
 use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
 use crate::subfile_reader::read_subfile;
+use crate::subfile_server::util::build_wallet;
+
+use self::signer::ReceiptSigner;
+
+pub mod signer;
 
 pub struct SubfileDownloader {
-    ipfs_client: IpfsClient,
     http_client: reqwest::Client,
     ipfs_hash: String,
+    subfile: Subfile,
     _gateway_url: Option<String>,
     static_endpoints: Vec<String>,
     output_dir: String,
@@ -32,14 +41,35 @@ pub struct SubfileDownloader {
     target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     chunk_max_retry: u64,
     subfile_finder: SubfileFinder,
+    #[allow(dead_code)]
+    receipt_signer: ReceiptSigner,
 }
 
 impl SubfileDownloader {
-    pub fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
+    pub async fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
+        let subfile = read_subfile(
+            &ipfs_client,
+            &args.ipfs_hash,
+            args.output_dir.clone().into(),
+        )
+        .await
+        .expect("Read subfile");
+
+        let wallet = build_wallet(&args.mnemonic).expect("Mnemonic build wallet");
+        let signing_key = wallet.signer().to_bytes();
+        let secp256k1_private_key =
+            SecretKey::from_slice(&signing_key).expect("Private key from wallet");
+        let receipt_signer = ReceiptSigner::new(
+            secp256k1_private_key,
+            U256::from(args.chain_id),
+            Address::from_str(&args.verifier).expect("Parse verifier"),
+        )
+        .await;
+
         SubfileDownloader {
-            ipfs_client: ipfs_client.clone(),
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
+            subfile,
             _gateway_url: args.gateway_url,
             static_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
@@ -49,6 +79,7 @@ impl SubfileDownloader {
             target_chunks: Arc::new(StdMutex::new(HashMap::new())),
             chunk_max_retry: args.max_retry,
             subfile_finder: SubfileFinder::new(ipfs_client),
+            receipt_signer,
         }
     }
 
@@ -82,13 +113,7 @@ impl SubfileDownloader {
     /// Read subfile manifiest and download the individual chunk files
     //TODO: update once there is payment
     pub async fn download_subfile(&self) -> Result<(), Error> {
-        let subfile = read_subfile(
-            &self.ipfs_client,
-            &self.ipfs_hash,
-            self.output_dir.clone().into(),
-        )
-        .await?;
-        self.target_chunks(&subfile);
+        self.target_chunks(&self.subfile);
         tracing::info!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
             "Chunk files download starting"
@@ -99,7 +124,7 @@ impl SubfileDownloader {
 
         // Loop through chunk files for downloading
         let mut incomplete_files = vec![];
-        for chunk_file in &subfile.chunk_files {
+        for chunk_file in &self.subfile.chunk_files {
             if let Err(e) = self.download_chunk_file(chunk_file.clone()).await {
                 incomplete_files.push(e);
             }
