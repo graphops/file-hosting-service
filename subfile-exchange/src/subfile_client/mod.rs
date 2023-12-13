@@ -38,11 +38,9 @@ impl SubfileDownloader {
     pub fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
         SubfileDownloader {
             ipfs_client: ipfs_client.clone(),
-            //TODO: consider a more advanced config such as if a proxy should be used for the client
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
             _gateway_url: args.gateway_url,
-            //TODO: Check for healthy indexers in args.indexer_endpoints
             static_endpoints: args.indexer_endpoints,
             output_dir: args.output_dir,
             free_query_auth_token: args.free_query_auth_token,
@@ -97,50 +95,7 @@ impl SubfileDownloader {
         );
 
         // check subfile availability from gateway/indexer_endpoints
-        let blocklist = self.indexer_blocklist.lock().unwrap().clone();
-        let endpoints = &self
-            .static_endpoints
-            .iter()
-            .filter(|url| !blocklist.contains(*url))
-            .cloned()
-            .collect::<Vec<_>>();
-        self.update_indexer_urls(
-            &self
-                .subfile_finder
-                .subfile_availabilities(&self.ipfs_hash, endpoints)
-                .await,
-        );
-        let indexer_endpoints = self.indexer_urls.lock().unwrap().clone();
-        if indexer_endpoints.is_empty() {
-            tracing::warn!(
-                subfile_hash = &self.ipfs_hash,
-                "No endpoint satisfy the subfile requested, sieve through available subfiles for individual files"
-            );
-
-            // check files availability from gateway/indexer_endpoints
-            match self
-                .subfile_finder
-                .file_discovery(&self.ipfs_hash, endpoints)
-                .await
-            {
-                Ok(map) => {
-                    let msg = format!(
-                        "Files available on these available subfiles: {:#?}",
-                        tracing::field::debug(&map.lock().await),
-                    );
-                    return Err(Error::DataUnavilable(msg));
-                }
-                Err(e) => {
-                    let msg = format!(
-                        "Cannot match the files: {:?}, {:?}",
-                        tracing::field::debug(&self.indexer_urls.lock().unwrap()),
-                        tracing::field::debug(&e),
-                    );
-                    tracing::error!(msg);
-                    return Err(Error::DataUnavilable(msg));
-                }
-            }
-        };
+        let _ = self.availbility_check().await;
 
         // Loop through chunk files for downloading
         let mut incomplete_files = vec![];
@@ -294,6 +249,54 @@ impl SubfileDownloader {
             max_retry: self.chunk_max_retry,
             auth_token: self.free_query_auth_token.clone(),
         })
+    }
+
+    async fn availbility_check(&self) -> Result<(), Error> {
+        let blocklist = self.indexer_blocklist.lock().unwrap().clone();
+        let endpoints = &self
+            .static_endpoints
+            .iter()
+            .filter(|url| !blocklist.contains(*url))
+            .cloned()
+            .collect::<Vec<_>>();
+        self.update_indexer_urls(
+            &self
+                .subfile_finder
+                .subfile_availabilities(&self.ipfs_hash, endpoints)
+                .await,
+        );
+        let indexer_endpoints = self.indexer_urls.lock().unwrap().clone();
+        if indexer_endpoints.is_empty() {
+            tracing::warn!(
+                subfile_hash = &self.ipfs_hash,
+                "No endpoint satisfy the subfile requested, sieve through available subfiles for individual files"
+            );
+
+            // check files availability from gateway/indexer_endpoints
+            match self
+                .subfile_finder
+                .file_discovery(&self.ipfs_hash, endpoints)
+                .await
+            {
+                Ok(map) => {
+                    let msg = format!(
+                        "Files available on these available subfiles: {:#?}",
+                        tracing::field::debug(&map.lock().await),
+                    );
+                    return Err(Error::DataUnavilable(msg));
+                }
+                Err(e) => {
+                    let msg = format!(
+                        "Cannot match the files: {:?}, {:?}",
+                        tracing::field::debug(&self.indexer_urls.lock().unwrap()),
+                        tracing::field::debug(&e),
+                    );
+                    tracing::error!(msg);
+                    return Err(Error::DataUnavilable(msg));
+                }
+            }
+        };
+        Ok(())
     }
 }
 
