@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use http::StatusCode;
     use std::{process::Command, time::Duration};
     use tempfile::tempdir;
     use tokio::fs;
 
     use subfile_exchange::{
         config::DownloaderArgs, ipfs::IpfsClient, subfile_client::SubfileDownloader,
+        test_util::server_ready,
     };
 
     #[tokio::test]
@@ -61,25 +61,5 @@ mod tests {
         // 5. Cleanup
         fs::remove_dir_all(temp_dir).await.unwrap();
         let _ = server_process.kill();
-    }
-
-    async fn server_ready(url: &str) -> Result<(), anyhow::Error> {
-        loop {
-            match reqwest::get(url).await {
-                Ok(response) => {
-                    if response.status() == StatusCode::OK {
-                        tracing::trace!("Server is healthy!");
-                        return Ok(());
-                    } else {
-                        tracing::trace!("Server responded with status: {}", response.status());
-                    }
-                }
-                Err(e) => {
-                    tracing::trace!("Failed to connect to server: {}", e);
-                }
-            }
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
     }
 }

@@ -18,6 +18,7 @@ use crate::subfile_server::util::Operator;
 // persumeably this should not be handled by clients themselves
 //TODO: smarter type for tracking available endpoints
 pub type IndexerEndpoint = (String, String);
+// Pair HashMap< ChunkFileIPFS, HashMap< IndexerEndpoint, Vec< MatchedSubfileIPFS > > >
 pub type FileAvailbilityMap =
     Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<IndexerEndpoint, Vec<String>>>>>>>;
 
@@ -148,7 +149,7 @@ impl SubfileFinder {
             }
         }
 
-        match contains_key_with_empty_map(&file_map).await {
+        match unavailble_files(&file_map).await {
             files if !files.is_empty() => {
                 return Err(Error::DataUnavilable(format!(
                     "File availability incomplete, missing files: {:#?}",
@@ -216,7 +217,7 @@ impl SubfileFinder {
 }
 
 /// Check if there is a key in target_hashes where the corresponding availability is empty
-async fn contains_key_with_empty_map(file_map: &FileAvailbilityMap) -> Vec<String> {
+pub async fn unavailble_files(file_map: &FileAvailbilityMap) -> Vec<String> {
     let mut missing_file = vec![];
     let hashes = file_map.lock().await;
     for (key, inner_map_arc) in hashes.iter() {
