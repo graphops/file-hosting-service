@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use futures::{stream, StreamExt};
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
 use rand::seq::SliceRandom;
 use reqwest::Client;
@@ -16,15 +15,8 @@ use crate::errors::Error;
 use crate::file_hasher::verify_chunk;
 use crate::ipfs::IpfsClient;
 use crate::subfile::{ChunkFileMeta, Subfile};
-use crate::subfile_reader::{fetch_subfile_from_ipfs, read_subfile};
-use crate::subfile_server::util::Operator;
-
-// Pair indexer operator address and indexer service endpoint (operator, indexer_url)
-// persumeably this should not be handled by clients themselves
-//TODO: smarter type for tracking available endpoints
-pub type IndexerEndpoint = (String, String);
-pub type FileAvailbilityMap =
-    Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<IndexerEndpoint, Vec<String>>>>>>>;
+use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
+use crate::subfile_reader::read_subfile;
 
 pub struct SubfileDownloader {
     ipfs_client: IpfsClient,
@@ -39,12 +31,13 @@ pub struct SubfileDownloader {
     // key is the chunk file identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
     target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     chunk_max_retry: u64,
+    subfile_finder: SubfileFinder,
 }
 
 impl SubfileDownloader {
     pub fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
         SubfileDownloader {
-            ipfs_client,
+            ipfs_client: ipfs_client.clone(),
             //TODO: consider a more advanced config such as if a proxy should be used for the client
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
@@ -57,132 +50,8 @@ impl SubfileDownloader {
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
             target_chunks: Arc::new(StdMutex::new(HashMap::new())),
             chunk_max_retry: args.max_retry,
+            subfile_finder: SubfileFinder::new(ipfs_client),
         }
-    }
-
-    /// Check the availability of a subfile, ideally this should go through a gateway/DHT
-    /// but for now we ping an indexer endpoint directly, which is what a gateway
-    /// would do in behave of the downloader
-    /// Return a list of endpoints where the desired subfile is hosted
-    //TODO: update once there's a gateway with indexer selection providing endpoints
-    //TODO: Use eventuals for continuous pings
-    //TODO: Availability by file hash
-    pub async fn check_availability(&self, endpoint_checklist: &[String]) -> Result<(), Error> {
-        tracing::debug!(subfile_hash = &self.ipfs_hash, "Checking availability");
-        // Avoid blocked endpoints
-        let blocklist = self.indexer_blocklist.lock().unwrap().clone();
-        let filtered_endpoints = endpoint_checklist
-            .iter()
-            .filter(|url| !blocklist.contains(*url))
-            .cloned()
-            .collect::<Vec<_>>();
-        // Use a stream to process the endpoints in parallel
-        let results = stream::iter(&filtered_endpoints)
-            .map(|url| self.subfile_availability(url))
-            .buffer_unordered(filtered_endpoints.len()) // Parallelize up to the number of endpoints
-            .collect::<Vec<Result<IndexerEndpoint, Error>>>()
-            .await;
-
-        tracing::trace!(
-            endpoints = tracing::field::debug(&results),
-            blocklist = tracing::field::debug(&self.indexer_blocklist),
-            "Endpoint availability result"
-        );
-        // Collect only the successful results
-        let endpoints = results
-            .into_iter()
-            .filter_map(Result::ok)
-            .collect::<Vec<IndexerEndpoint>>();
-        self.update_indexer_urls(&endpoints);
-
-        if endpoints.is_empty() {
-            Err(Error::DataUnavilable(String::from(
-                "No eligible endpoints serving the subfile",
-            )))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub async fn file_discovery(
-        &self,
-        endpoint_checklist: &[String],
-    ) -> Result<FileAvailbilityMap, Error> {
-        let subfile = read_subfile(
-            &self.ipfs_client,
-            &self.ipfs_hash,
-            self.output_dir.clone().into(),
-        )
-        .await?;
-        // To fill in availability for each file, get a vector of (IndexerEndpoint, SubfileIPFS) that serves the file
-        let target_hashes: FileAvailbilityMap = Arc::new(Mutex::new(
-            subfile
-                .chunk_files
-                .iter()
-                .map(|chunk_file| {
-                    (
-                        chunk_file.meta_info.hash.clone(),
-                        Arc::new(Mutex::new(HashMap::new())),
-                    )
-                })
-                .collect(),
-        ));
-
-        for url in endpoint_checklist {
-            if let Err(_e) = self.file_availability(url, target_hashes.clone()).await {
-                tracing::debug!("Failed to get file availability: {:#?}", url);
-            };
-        }
-
-        tracing::info!("Discovered file availability map: {:#?}", target_hashes);
-        Ok(target_hashes)
-    }
-
-    /// Gather file availability
-    pub async fn file_availability(
-        &self,
-        url: &str,
-        file_map: FileAvailbilityMap,
-    ) -> Result<(), Error> {
-        let operator = self.indexer_operator(url).await?;
-        let indexer_endpoint = (operator, url.to_string());
-        let subfiles = self.indexer_status(url).await?;
-
-        // Map of indexer_endpoints to served Subfiles
-        // For each endpoint, populate indexer_map with the available files
-        for subfile in subfiles {
-            let file_hashes: Vec<String> = fetch_subfile_from_ipfs(&self.ipfs_client, &subfile)
-                .await?
-                .files
-                .iter()
-                .map(|file| file.hash.clone())
-                .collect();
-            let file_map_lock = file_map.lock().await;
-            for (target_file, availability_map) in file_map_lock.iter() {
-                // Record serving indexer and subfile for each target file
-                if file_hashes.contains(target_file) {
-                    availability_map
-                        .lock()
-                        .await
-                        .entry(indexer_endpoint.clone())
-                        .and_modify(|e| e.push(subfile.clone()))
-                        .or_insert(vec![subfile.clone()]);
-                }
-            }
-        }
-
-        match contains_key_with_empty_map(&file_map).await {
-            files if !files.is_empty() => {
-                return Err(Error::DataUnavilable(format!(
-                    "File availability incomplete, missing files: {:#?}",
-                    files
-                )));
-            }
-            _ => {}
-        }
-
-        // Return the map of file hash to serving indexer
-        Ok(())
     }
 
     pub fn update_indexer_urls(&self, endpoints: &[IndexerEndpoint]) {
@@ -228,18 +97,35 @@ impl SubfileDownloader {
         );
 
         // check subfile availability from gateway/indexer_endpoints
-        if let Err(e) = self.check_availability(&self.static_endpoints).await {
+        let blocklist = self.indexer_blocklist.lock().unwrap().clone();
+        let endpoints = &self
+            .static_endpoints
+            .iter()
+            .filter(|url| !blocklist.contains(*url))
+            .cloned()
+            .collect::<Vec<_>>();
+        self.update_indexer_urls(
+            &self
+                .subfile_finder
+                .subfile_availabilities(&self.ipfs_hash, endpoints)
+                .await,
+        );
+        let indexer_endpoints = self.indexer_urls.lock().unwrap().clone();
+        if indexer_endpoints.is_empty() {
             tracing::warn!(
-                query_endpoints = tracing::field::debug(&self.indexer_urls.lock().unwrap()),
-                err = tracing::field::debug(&e),
+                subfile_hash = &self.ipfs_hash,
                 "No endpoint satisfy the subfile requested, sieve through available subfiles for individual files"
             );
 
             // check files availability from gateway/indexer_endpoints
-            match self.file_discovery(&self.static_endpoints).await {
+            match self
+                .subfile_finder
+                .file_discovery(&self.ipfs_hash, endpoints)
+                .await
+            {
                 Ok(map) => {
                     let msg = format!(
-                        "Files available on other available subfiles: {:#?}",
+                        "Files available on these available subfiles: {:#?}",
                         tracing::field::debug(&map.lock().await),
                     );
                     return Err(Error::DataUnavilable(msg));
@@ -366,85 +252,6 @@ impl SubfileDownloader {
         Ok(())
     }
 
-    async fn indexer_operator(&self, url: &str) -> Result<String, Error> {
-        let operator_url = format!("{}/operator", url);
-        let operator_response = match self.http_client.get(&operator_url).send().await {
-            Ok(response) => response,
-            Err(e) => {
-                tracing::error!("Operator request failed for {}", operator_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                return Err(Error::Request(e));
-            }
-        };
-
-        if !operator_response.status().is_success() {
-            tracing::error!("Operator request failed for {}", operator_url);
-            self.add_to_indexer_blocklist(url.to_string());
-            return Err(Error::DataUnavilable(
-                "Operator request failed.".to_string(),
-            ));
-        }
-
-        match operator_response.json::<Operator>().await {
-            Ok(operator) => Ok(operator.public_key),
-            Err(e) => {
-                tracing::error!("Operator response parse error for {}", operator_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                Err(Error::Request(e))
-            }
-        }
-    }
-
-    async fn indexer_status(&self, url: &str) -> Result<Vec<String>, Error> {
-        let status_url = format!("{}/status", url);
-        let status_response = match self.http_client.get(&status_url).send().await {
-            Ok(response) => response,
-            Err(e) => {
-                tracing::error!("Status request failed for {}", status_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                return Err(Error::Request(e));
-            }
-        };
-
-        if !status_response.status().is_success() {
-            let err_msg = format!("Status request unsuccessful for {}", status_url);
-            self.add_to_indexer_blocklist(url.to_string());
-            return Err(Error::DataUnavilable(err_msg));
-        }
-
-        let files = match status_response.json::<Vec<String>>().await {
-            Ok(files) => files,
-            Err(e) => {
-                tracing::error!("Status response parse error for {}", status_url);
-                self.add_to_indexer_blocklist(url.to_string());
-                return Err(Error::Request(e));
-            }
-        };
-
-        Ok(files)
-    }
-
-    /// Endpoint must serve operator info and the requested file
-    async fn subfile_availability(&self, url: &str) -> Result<IndexerEndpoint, Error> {
-        let files = self.indexer_status(url).await?;
-        let operator: String = self.indexer_operator(url).await?;
-
-        if !files.contains(&self.ipfs_hash) {
-            tracing::trace!(
-                url,
-                files = tracing::field::debug(&files),
-                "IPFS hash not found in served subfile status"
-            );
-            self.add_to_indexer_blocklist(url.to_string());
-            return Err(Error::DataUnavilable(format!(
-                "IPFS hash not found in files served at {}",
-                url
-            )));
-        }
-
-        Ok((operator, url.to_string()))
-    }
-
     /// Generate a request to download a chunk
     fn download_range_request(
         &self,
@@ -568,8 +375,6 @@ async fn request_chunk(
     start: u64,
     end: u64,
 ) -> Result<Bytes, Error> {
-    // For example, to request the first 1024 bytes
-    // The client should be smart enough to take care of proper chunking through subfile metadata
     let range = format!("bytes={}-{}", start, end);
     //TODO: implement payment flow
     // if auth_token.is_none() {
@@ -617,17 +422,4 @@ fn extract_base_url(query_endpoint: &str) -> Option<&str> {
     } else {
         None
     }
-}
-
-/// Check if there is a key in target_hashes where the corresponding availability is empty
-async fn contains_key_with_empty_map(file_map: &FileAvailbilityMap) -> Vec<String> {
-    let mut missing_file = vec![];
-    let hashes = file_map.lock().await;
-    for (key, inner_map_arc) in hashes.iter() {
-        let inner_map = inner_map_arc.lock().await; // Lock the Mutex to access the inner map
-        if inner_map.is_empty() {
-            missing_file.push(key.clone());
-        }
-    }
-    missing_file
 }
