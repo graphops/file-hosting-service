@@ -21,7 +21,7 @@ use crate::ipfs::IpfsClient;
 use crate::subfile::{ChunkFileMeta, Subfile};
 use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
 use crate::subfile_reader::read_subfile;
-use crate::subfile_server::util::build_wallet;
+use crate::util::build_wallet;
 
 use self::signer::ReceiptSigner;
 

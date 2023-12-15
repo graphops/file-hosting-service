@@ -1,10 +1,11 @@
 use hyper::body::to_bytes;
 use hyper::{Body, Request, Response, StatusCode};
 use serde_json::{json, Value};
-
-use crate::config::{is_valid_ipfs_hash, validate_subfile_entries};
-use crate::errors::Error;
-use crate::subfile_reader::read_subfile;
+use subfile_exchange::errors::ServerError;
+use subfile_exchange::{
+    errors::Error, ipfs::is_valid_ipfs_hash, subfile::validate_subfile_entries,
+    subfile_reader::read_subfile,
+};
 
 use super::{create_error_response, ServerContext};
 
@@ -31,11 +32,7 @@ pub async fn handle_admin_request(
         return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body("Require admin authentication".into())
-            .map_err(|e| {
-                Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                    e.to_string(),
-                ))
-            });
+            .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())));
     }
 
     let (method, params) = match parse_admin_request(req).await {
@@ -62,23 +59,19 @@ pub async fn handle_admin_request(
         _ => Ok(hyper::Response::builder()
             .status(hyper::StatusCode::METHOD_NOT_ALLOWED)
             .body("Method not supported".into())
-            .map_err(|e| {
-                Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                    e.to_string(),
-                ))
-            })?),
+            .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))?),
     }
 }
 
 async fn parse_admin_request(req: Request<hyper::Body>) -> Result<(String, Option<Value>), Error> {
-    let body_bytes = to_bytes(req.into_body()).await.map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::RequestBodyError(e.to_string()))
-    })?;
+    let body_bytes = to_bytes(req.into_body())
+        .await
+        .map_err(|e| Error::ServerError(ServerError::RequestBodyError(e.to_string())))?;
 
     let json: Value = serde_json::from_slice(&body_bytes).map_err(Error::JsonError)?;
 
     let method = json.get("method").and_then(Value::as_str).ok_or_else(|| {
-        Error::ServerError(crate::errors::ServerError::MethodParseError(
+        Error::ServerError(ServerError::MethodParseError(
             "Method not found in request".to_string(),
         ))
     })?;

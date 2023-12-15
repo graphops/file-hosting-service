@@ -6,13 +6,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::config::{validate_subfile_entries, ServerArgs};
-use crate::errors::Error;
-use crate::ipfs::IpfsClient;
-use crate::subfile::Subfile;
-use crate::subfile_reader::read_subfile;
-use crate::subfile_server::admin::handle_admin_request;
-use crate::subfile_server::util::{public_key, Health, Operator};
+use subfile_exchange::errors::{Error, ServerError};
+use subfile_exchange::ipfs::IpfsClient;
+use subfile_exchange::subfile::{validate_subfile_entries, Subfile};
+use subfile_exchange::subfile_reader::read_subfile;
+
+use crate::config::ServerArgs;
+use crate::subfile_server::{
+    admin::handle_admin_request,
+    util::{public_key, Health, Operator},
+};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::{Body, Request, Response, StatusCode};
@@ -160,11 +163,7 @@ pub async fn health() -> Result<Response<Body>, Error> {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(health_json))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 /// Endpoint for package version
@@ -173,11 +172,7 @@ pub async fn version(context: &ServerContext) -> Result<Response<Body>, Error> {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(version))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 /// Endpoint for cost to download per byte
@@ -186,11 +181,7 @@ pub async fn cost(context: &ServerContext) -> Result<Response<Body>, Error> {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(price))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 /// Endpoint for status availability
@@ -206,11 +197,7 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, Error> {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 // Define a handler function for the `/info` route
@@ -222,11 +209,7 @@ pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, Er
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(json))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 // Serve file requests

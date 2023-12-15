@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +9,7 @@ use crate::{
     errors::Error,
     file_hasher::{hash_chunk, verify_chunk},
     file_reader::{chunk_file, format_path, read_chunk},
+    ipfs::is_valid_ipfs_hash,
 };
 
 /* Public Manifests */
@@ -159,6 +163,49 @@ impl Subfile {
         }
         Ok(())
     }
+}
+
+/// Validate the subfile configurations at initialization
+pub fn validate_subfile_entries(entries: Vec<String>) -> Result<Vec<(String, PathBuf)>, Error> {
+    let mut results = Vec::new();
+
+    for entry in entries {
+        results.push(validate_subfile_entry(entry)?);
+    }
+
+    Ok(results)
+}
+
+/// Subfile entry must be in the format of "valid_ipfs_hash:valid_local_path"
+pub fn validate_subfile_entry(entry: String) -> Result<(String, PathBuf), Error> {
+    let parts: Vec<&str> = entry.split(':').collect();
+    if parts.len() != 2 {
+        return Err(Error::InvalidConfig(format!(
+            "Invalid format for entry: {}",
+            entry
+        )));
+    }
+
+    let ipfs_hash = parts[0];
+    let local_path = parts[1];
+
+    if !is_valid_ipfs_hash(ipfs_hash) {
+        return Err(Error::InvalidConfig(format!(
+            "Invalid IPFS hash: {}",
+            ipfs_hash
+        )));
+    }
+
+    // Validate local path
+    let path = PathBuf::from_str(local_path).map_err(|e| Error::InvalidConfig(e.to_string()))?;
+    if !path.exists() {
+        return Err(Error::InvalidConfig(format!(
+            "Path do not exist: {}",
+            local_path
+        )));
+    }
+
+    Ok((ipfs_hash.to_string(), path))
 }
 
 #[cfg(test)]

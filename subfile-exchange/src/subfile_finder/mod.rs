@@ -1,4 +1,5 @@
 use futures::{stream, StreamExt};
+use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
@@ -12,7 +13,6 @@ use crate::errors::Error;
 use crate::ipfs::IpfsClient;
 
 use crate::subfile_reader::{fetch_subfile_from_ipfs, read_subfile};
-use crate::subfile_server::util::Operator;
 
 // Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves
@@ -149,7 +149,7 @@ impl SubfileFinder {
             }
         }
 
-        match unavailble_files(&file_map).await {
+        match unavailable_files(&file_map).await {
             files if !files.is_empty() => {
                 return Err(Error::DataUnavilable(format!(
                     "File availability incomplete, missing files: {:#?}",
@@ -217,7 +217,7 @@ impl SubfileFinder {
 }
 
 /// Check if there is a key in target_hashes where the corresponding availability is empty
-pub async fn unavailble_files(file_map: &FileAvailbilityMap) -> Vec<String> {
+pub async fn unavailable_files(file_map: &FileAvailbilityMap) -> Vec<String> {
     let mut missing_file = vec![];
     let hashes = file_map.lock().await;
     for (key, inner_map_arc) in hashes.iter() {
@@ -227,4 +227,11 @@ pub async fn unavailble_files(file_map: &FileAvailbilityMap) -> Vec<String> {
         }
     }
     missing_file
+}
+
+//TODO: directly access the field instead
+#[derive(Serialize, Deserialize)]
+pub struct Operator {
+    #[serde(alias = "publicKey")]
+    pub public_key: String,
 }

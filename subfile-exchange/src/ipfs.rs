@@ -8,7 +8,12 @@ use serde::Deserialize;
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 
-/// Reference type, clones will share the connection pool.
+pub fn is_valid_ipfs_hash(hash: &str) -> bool {
+    // Basic validation for IPFS hash
+    // Note: This is a simplified check and may not cover all cases.
+    hash.starts_with("Qm") && hash.len() == 46
+}
+
 #[derive(Clone, Debug)]
 pub struct IpfsClient {
     base: Arc<Uri>,

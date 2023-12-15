@@ -1,25 +1,12 @@
 use build_info::BuildInfo;
-use ethers::signers::{
-    coins_bip39::English, LocalWallet, MnemonicBuilder, Signer, Wallet, WalletError,
-};
-use ethers_core::k256::ecdsa::SigningKey;
+use ethers::signers::WalletError;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::{collections::HashMap, io};
+use subfile_exchange::util::{build_wallet, wallet_address};
 
-use crate::errors::Error;
-
-/// Build Wallet from Private key or Mnemonic
-pub fn build_wallet(value: &str) -> Result<Wallet<SigningKey>, WalletError> {
-    value
-        .parse::<LocalWallet>()
-        .or(MnemonicBuilder::<English>::default().phrase(value).build())
-}
-
-/// Get wallet public address to String
-pub fn wallet_address(wallet: &Wallet<SigningKey>) -> String {
-    format!("{:?}", wallet.address())
-}
+use subfile_exchange::errors::{Error, ServerError};
 
 #[derive(Serialize, Deserialize)]
 pub struct Health {
@@ -59,7 +46,7 @@ impl From<&BuildInfo> for PackageVersion {
 fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
     // Open certificate file.
     let certfile = fs::File::open(filename).map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+        Error::ServerError(ServerError::ContextError(format!(
             "failed to open {}: {}",
             filename, e
         )))
@@ -68,7 +55,7 @@ fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
 
     // Load and return certificate.
     let certs = rustls_pemfile::certs(&mut reader).map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+        Error::ServerError(ServerError::ContextError(format!(
             "failed to load certificate: {:#?}",
             e
         )))
@@ -81,7 +68,7 @@ fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
 fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
     // Open keyfile.
     let keyfile = fs::File::open(filename).map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+        Error::ServerError(ServerError::ContextError(format!(
             "failed to open {}: {}",
             filename, e
         )))
@@ -90,15 +77,15 @@ fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
 
     // Load and return a single private key.
     let keys = rustls_pemfile::rsa_private_keys(&mut reader).map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::ContextError(format!(
+        Error::ServerError(ServerError::ContextError(format!(
             "failed to load private key: {:#?}",
             e
         )))
     })?;
     if keys.len() != 1 {
-        return Err(Error::ServerError(
-            crate::errors::ServerError::ContextError("Expected a single private key".to_string()),
-        ));
+        return Err(Error::ServerError(ServerError::ContextError(
+            "Expected a single private key".to_string(),
+        )));
     }
 
     Ok(rustls::PrivateKey(keys[0].clone()))

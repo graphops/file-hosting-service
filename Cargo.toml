@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "subfile-exchange", 
+    "subfile-service", 
 ]
 resolver = "2"
 

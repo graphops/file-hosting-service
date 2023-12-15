@@ -4,7 +4,7 @@ mod tests {
 
     use subfile_exchange::{
         ipfs::IpfsClient,
-        subfile_finder::{unavailble_files, FileAvailbilityMap, IndexerEndpoint, SubfileFinder},
+        subfile_finder::{unavailable_files, FileAvailbilityMap, IndexerEndpoint, SubfileFinder},
         test_util::server_ready,
     };
 
@@ -188,12 +188,12 @@ mod tests {
             )
             .await
             .unwrap();
-        let unavailble_files = unavailble_files(&map).await;
-        assert!(unavailble_files.len() == 2);
-        assert!(unavailble_files.contains(&String::from(
+        let unavailable_files = unavailable_files(&map).await;
+        assert!(unavailable_files.len() == 2);
+        assert!(unavailable_files.contains(&String::from(
             "QmSydRNSzjozo5d7W4AyCK8BkgfpEU8KQp9kvSHzf2Ch4g"
         )));
-        assert!(unavailble_files.contains(&String::from(
+        assert!(unavailable_files.contains(&String::from(
             "QmSuyvzDpuDBoka2rCimRXPmX2icL7Vu6RUxoFWFQD7YBb"
         )));
 

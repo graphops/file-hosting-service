@@ -1,11 +1,10 @@
-use subfile_exchange::{subfile_client::SubfileDownloader, subfile_server::init_server};
-
 use dotenv::dotenv;
 
 use subfile_exchange::{
     config::{Cli, Role},
     ipfs::IpfsClient,
     publisher::SubfilePublisher,
+    subfile_client::SubfileDownloader,
 };
 
 #[tokio::main]
@@ -57,10 +56,8 @@ async fn main() {
         Role::Server(server_args) => {
             tracing::info!(
                 server = tracing::field::debug(&server_args),
-                "Tracker request"
+                "Use subfile-service crate"
             );
-
-            let _ = init_server(&client, server_args).await;
         }
     }
 }

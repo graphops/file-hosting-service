@@ -7,7 +7,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 use std::path::Path;
 
-use crate::errors::Error;
+use subfile_exchange::errors::{Error, ServerError};
 
 // Function to parse the Range header and return the start and end bytes
 pub fn parse_range_header(range_header: &hyper::header::HeaderValue) -> Result<(u64, u64), Error> {
@@ -121,11 +121,7 @@ pub async fn serve_file_range(
         )
         .header(CONTENT_LENGTH, length.to_string())
         .body(Body::from(buffer))
-        .map_err(|e| {
-            Error::ServerError(crate::errors::ServerError::BuildResponseError(
-                e.to_string(),
-            ))
-        })
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
 pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, Error> {
@@ -140,9 +136,7 @@ pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, Error> {
         }
     };
 
-    Response::builder().body(Body::from(file)).map_err(|e| {
-        Error::ServerError(crate::errors::ServerError::BuildResponseError(
-            e.to_string(),
-        ))
-    })
+    Response::builder()
+        .body(Body::from(file))
+        .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
