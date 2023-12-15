@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::{fs::File, path::PathBuf};
-use subfile_exchange::file_reader::read_chunk;
+use subfile_exchange::subfile::file_reader::read_chunk;
 
 fn read_chunk_benchmark(c: &mut Criterion) {
     let file_path = black_box(PathBuf::from("../example-file/0017234600.dbin.zst"));

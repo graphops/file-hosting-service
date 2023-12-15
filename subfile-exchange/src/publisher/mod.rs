@@ -2,8 +2,10 @@ use serde_yaml::to_string;
 
 use crate::config::PublisherArgs;
 use crate::errors::Error;
-use crate::ipfs::{AddResponse, IpfsClient};
-use crate::subfile::{BlockRange, ChunkFile, FileMetaInfo, SubfileManifest};
+use crate::subfile::{
+    ipfs::{AddResponse, IpfsClient},
+    BlockRange, ChunkFile, FileMetaInfo, SubfileManifest,
+};
 
 pub struct SubfilePublisher {
     ipfs_client: IpfsClient,
@@ -87,10 +89,6 @@ impl SubfilePublisher {
 
     pub async fn publish(&self) -> Result<String, Error> {
         let meta_info = self.hash_and_publish_files().await?;
-        //  {
-        //     Ok(added_hashes) => added_hashes,
-        //     Err(e) => return Err(e),
-        // };
 
         tracing::trace!(
             meta_info = tracing::field::debug(&meta_info),
@@ -105,11 +103,6 @@ impl SubfilePublisher {
                 );
                 Ok(ipfs_hash)
             }
-            //  {
-            //     Ok(ipfs_hash) => {
-            //     }
-            //     Err(e) => Err(e),
-            // },
             Err(e) => Err(e),
         }
     }

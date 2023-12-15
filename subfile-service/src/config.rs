@@ -14,7 +14,7 @@ use tracing_subscriber::FmtSubscriber;
     author = "hopeyen"
 )]
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
-pub struct Cli {
+pub struct Config {
     #[command(flatten)]
     pub server: ServerArgs,
     #[arg(
@@ -36,10 +36,10 @@ pub struct Cli {
     pub log_format: LogFormat,
 }
 
-impl Cli {
+impl Config {
     /// Parse config arguments
     pub fn args() -> Self {
-        let config = Cli::parse();
+        let config = Config::parse();
         // Enables tracing under RUST_LOG variable
         init_tracing(config.log_format.to_string()).expect("Could not set up global default subscriber for logger, check environmental variable `RUST_LOG` or the CLI input `log-level`");
         config

@@ -10,9 +10,10 @@ use tokio::sync::Mutex;
 
 use crate::errors::Error;
 
-use crate::ipfs::IpfsClient;
-
-use crate::subfile_reader::{fetch_subfile_from_ipfs, read_subfile};
+use crate::subfile::{
+    ipfs::IpfsClient,
+    subfile_reader::{fetch_subfile_from_ipfs, read_subfile},
+};
 
 // Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves

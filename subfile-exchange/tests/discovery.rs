@@ -3,7 +3,7 @@ mod tests {
     use std::{process::Command, time::Duration};
 
     use subfile_exchange::{
-        ipfs::IpfsClient,
+        subfile::ipfs::IpfsClient,
         subfile_finder::{unavailable_files, FileAvailbilityMap, IndexerEndpoint, SubfileFinder},
         test_util::server_ready,
     };

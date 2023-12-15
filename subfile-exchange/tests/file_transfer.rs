@@ -5,7 +5,7 @@ mod tests {
     use tokio::fs;
 
     use subfile_exchange::{
-        config::DownloaderArgs, ipfs::IpfsClient, subfile_client::SubfileDownloader,
+        config::DownloaderArgs, subfile::ipfs::IpfsClient, subfile_client::SubfileDownloader,
         test_util::server_ready,
     };
 
@@ -21,8 +21,8 @@ mod tests {
         let mut server_process = Command::new("cargo")
             .arg("run")
             .arg("-p")
-            .arg("subfile-exchange")
-            .arg("server")
+            .arg("subfile-service")
+            .arg("--")
             .arg("--mnemonic")
             .arg("sheriff obscure trick beauty army fat wink legal flee leader section suit")
             .arg("--subfiles")

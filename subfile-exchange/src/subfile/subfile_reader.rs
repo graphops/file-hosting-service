@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     errors::Error,
-    ipfs::IpfsClient,
+    subfile::ipfs::IpfsClient,
     subfile::{ChunkFile, ChunkFileMeta, Subfile, SubfileManifest},
 };
 

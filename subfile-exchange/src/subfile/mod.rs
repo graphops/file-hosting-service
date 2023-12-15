@@ -1,3 +1,8 @@
+pub mod file_hasher;
+pub mod file_reader;
+pub mod ipfs;
+pub mod subfile_reader;
+
 use std::{
     path::{Path, PathBuf},
     str::FromStr,
@@ -7,9 +12,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::Error,
-    file_hasher::{hash_chunk, verify_chunk},
-    file_reader::{chunk_file, format_path, read_chunk},
-    ipfs::is_valid_ipfs_hash,
+    subfile::{
+        file_hasher::{hash_chunk, verify_chunk},
+        file_reader::{chunk_file, format_path, read_chunk},
+        ipfs::is_valid_ipfs_hash,
+    },
 };
 
 /* Public Manifests */

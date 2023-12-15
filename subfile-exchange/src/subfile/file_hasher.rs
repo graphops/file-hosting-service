@@ -49,7 +49,7 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{file_reader::chunk_file, subfile::ChunkFile, test_util::*};
+    use crate::{subfile::file_reader::chunk_file, subfile::ChunkFile, test_util::*};
     use std::path::Path;
 
     #[test]

@@ -3,8 +3,8 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde_json::{json, Value};
 use subfile_exchange::errors::ServerError;
 use subfile_exchange::{
-    errors::Error, ipfs::is_valid_ipfs_hash, subfile::validate_subfile_entries,
-    subfile_reader::read_subfile,
+    errors::Error,
+    subfile::{ipfs::is_valid_ipfs_hash, subfile_reader::read_subfile, validate_subfile_entries},
 };
 
 use super::{create_error_response, ServerContext};

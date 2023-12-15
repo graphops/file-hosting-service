@@ -16,11 +16,11 @@ use tokio::sync::Mutex;
 
 use crate::config::DownloaderArgs;
 use crate::errors::Error;
-use crate::file_hasher::verify_chunk;
-use crate::ipfs::IpfsClient;
-use crate::subfile::{ChunkFileMeta, Subfile};
+use crate::subfile::{
+    file_hasher::verify_chunk, ipfs::IpfsClient, subfile_reader::read_subfile, ChunkFileMeta,
+    Subfile,
+};
 use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
-use crate::subfile_reader::read_subfile;
 use crate::util::build_wallet;
 
 use self::signer::ReceiptSigner;

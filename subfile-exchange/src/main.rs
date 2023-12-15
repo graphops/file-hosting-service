@@ -2,8 +2,8 @@ use dotenv::dotenv;
 
 use subfile_exchange::{
     config::{Cli, Role},
-    ipfs::IpfsClient,
     publisher::SubfilePublisher,
+    subfile::ipfs::IpfsClient,
     subfile_client::SubfileDownloader,
 };
 
