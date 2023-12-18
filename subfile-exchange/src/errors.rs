@@ -14,6 +14,7 @@ pub enum Error {
     JsonError(serde_json::Error),
     YamlError(serde_yaml::Error),
     InvalidPriceFormat(String),
+    ContractError(String),
 }
 
 impl fmt::Display for Error {
@@ -31,6 +32,7 @@ impl fmt::Display for Error {
             Error::JsonError(ref err) => write!(f, "JSON error: {}", err),
             Error::YamlError(ref err) => write!(f, "YAML error: {}", err),
             Error::InvalidPriceFormat(ref msg) => write!(f, "Price format error: {}", msg),
+            Error::ContractError(ref msg) => write!(f, "Price format error: {}", msg),
         }
     }
 }

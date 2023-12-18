@@ -21,9 +21,10 @@ use crate::subfile::{
     Subfile,
 };
 use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
+use crate::transaction_manager::TransactionManager;
 use crate::util::build_wallet;
 
-use self::signer::ReceiptSigner;
+use self::signer::{ReceiptSigner, TapReceipt};
 
 pub mod signer;
 
@@ -65,6 +66,14 @@ impl SubfileDownloader {
             Address::from_str(&args.verifier).expect("Parse verifier"),
         )
         .await;
+
+        let transaction_manager = TransactionManager::new(&args.provider, wallet.clone())
+            .await
+            .expect("Initiate Transaction manager");
+        tracing::info!(
+            transaction_manager = tracing::field::debug(&transaction_manager),
+            "transaction_manager"
+        );
 
         SubfileDownloader {
             http_client: reqwest::Client::new(),
@@ -264,6 +273,7 @@ impl SubfileDownloader {
             meta.chunk_file.total_bytes,
         ) - 1;
         let chunk_hash = meta.chunk_file.chunk_hashes[i as usize].clone();
+
         Ok(DownloadRangeRequest {
             query_endpoint,
             file_hash,
@@ -273,6 +283,7 @@ impl SubfileDownloader {
             file,
             max_retry: self.chunk_max_retry,
             auth_token: self.free_query_auth_token.clone(),
+            _receipt: None,
         })
     }
 
@@ -329,6 +340,7 @@ impl SubfileDownloader {
 pub struct DownloadRangeRequest {
     query_endpoint: String,
     auth_token: Option<String>,
+    _receipt: Option<TapReceipt>,
     file_hash: String,
     start: u64,
     end: u64,

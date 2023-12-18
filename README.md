@@ -51,6 +51,8 @@ You may learn background information on various components of the exchange
 
 #### [Packaging](docs/subfile_manifest.md)
 
+#### [Contracts](docs/contracts.md)
+
 ### Quickstarts and Configuring
 
 #### [Server Guide](docs/server_guide.md)

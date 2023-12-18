@@ -13,13 +13,13 @@ pub struct ReceiptSigner {
     domain: Eip712Domain,
 }
 
-pub type SignedReceipt = EIP712SignedMessage<Receipt>;
+pub type TapReceipt = EIP712SignedMessage<Receipt>;
 pub trait Access {
     fn allocation(&self) -> Address;
     fn serialize(&self) -> String;
 }
 
-impl Access for SignedReceipt {
+impl Access for TapReceipt {
     fn allocation(&self) -> Address {
         self.message.allocation_id
     }
@@ -44,7 +44,7 @@ impl ReceiptSigner {
         }
     }
 
-    pub async fn create_receipt(&self, allocation_id: Address, fee: u128) -> Option<SignedReceipt> {
+    pub async fn create_receipt(&self, allocation_id: Address, fee: u128) -> Option<TapReceipt> {
         //TODO: need to get GRT typing (fee: &GRT) and Indexing typing for allocation
         // let allocation = *self.allocations.read().await.get(indexing)?;
         let nonce = rand::thread_rng().next_u64();

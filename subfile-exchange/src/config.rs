@@ -140,6 +140,13 @@ pub struct DownloaderArgs {
     pub mnemonic: String,
     #[clap(
         long,
+        value_name = "provider_url",
+        env = "PROVIDER",
+        help = "Blockchain provider endpoint"
+    )]
+    pub provider: String,
+    #[clap(
+        long,
         value_name = "chain_id",
         env = "CHAIN_ID",
         help = "Protocol network's Chain ID"
