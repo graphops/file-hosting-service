@@ -923,6 +923,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "futures 0.3.29",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",

@@ -2,6 +2,7 @@ use serde_yaml::to_string;
 
 use crate::config::PublisherArgs;
 use crate::errors::Error;
+use crate::subfile::local_file_system::Store;
 use crate::subfile::{
     ipfs::{AddResponse, IpfsClient},
     BlockRange, ChunkFile, FileMetaInfo, SubfileManifest,
@@ -124,11 +125,44 @@ impl SubfilePublisher {
 
         Ok(yaml)
     }
+
+    pub async fn object_store_write_chunk_file(&self, file_name: &str) -> Result<String, Error> {
+        let store = Store::new(&self.config.read_dir)?;
+        let chunk_file = store
+            .chunk_file(file_name, Some(self.config.chunk_size as usize))
+            .await?;
+
+        tracing::trace!(
+            file = tracing::field::debug(&chunk_file),
+            "Created chunk file"
+        );
+
+        let yaml = to_string(&chunk_file).map_err(Error::YamlError)?;
+        Ok(yaml)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_write_chunk_file() {
+        let client = IpfsClient::localhost();
+        let args = PublisherArgs {
+            read_dir: String::from("../example-file"),
+            chunk_size: 1048576,
+            ..Default::default()
+        };
+        let publisher = SubfilePublisher::new(client, args);
+        let name = "example-create-17686085.dbin";
+
+        // Hash and publish a single file
+        let chunk_file_yaml = publisher.write_chunk_file(name).unwrap();
+        let chunk_file_yaml2 = publisher.object_store_write_chunk_file(name).await.unwrap();
+
+        assert_eq!(chunk_file_yaml, chunk_file_yaml2);
+    }
 
     #[tokio::test]
     #[ignore] // Run when there is a localhost IPFS node

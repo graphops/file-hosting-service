@@ -59,7 +59,7 @@ tracing-subscriber = { version = "0.3", features = [
 ] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = { version = "0.5", features = ["async_futures"] }
 
 [dev-dependencies.cargo-husky]
 version = "1"

@@ -14,6 +14,9 @@ use std::sync::Arc;
 
 use crate::subfile::Error;
 
+use super::file_hasher::hash_chunk;
+use super::ChunkFile;
+
 pub struct Store {
     local_file_system: Arc<LocalFileSystem>,
     read_concurrency: usize,
@@ -74,27 +77,34 @@ impl Store {
 
     pub async fn multipart_read(
         &self,
-        file_name: &str,
+        location: &str,
         chunk_size: Option<usize>,
     ) -> Result<Vec<Bytes>, Error> {
         let object_meta = self
-            .find_object(file_name, None)
+            .find_object(location, None)
             .await
             .ok_or(Error::DataUnavilable(format!(
                 "Did not find file {}",
-                file_name
+                location
             )))?;
-        let step = chunk_size.unwrap_or(object_meta.size / self.read_concurrency);
-        let ranges = (0..(object_meta.size / step))
+        let step = chunk_size.unwrap_or({
+            let s = object_meta.size / self.read_concurrency;
+            if s > 0 {
+                s
+            } else {
+                object_meta.size
+            }
+        });
+        let ranges = (0..(object_meta.size / step + 1))
             .map(|i| std::ops::Range::<usize> {
                 start: i * step,
-                end: (i + 1) * step,
+                end: ((i + 1) * step).min(object_meta.size),
             })
             .collect::<Vec<std::ops::Range<usize>>>();
 
         let result = self
             .local_file_system
-            .get_ranges(&Path::from(file_name), ranges.as_slice())
+            .get_ranges(&Path::from(location), ranges.as_slice())
             .await
             .unwrap();
 
@@ -114,10 +124,17 @@ impl Store {
             .await
             .unwrap();
         let size = bytes.len();
+        let step = chunk_size.unwrap_or({
+            let s = size / self.write_concurrency;
+            if s > 0 {
+                s
+            } else {
+                size
+            }
+        });
 
-        let step = chunk_size.unwrap_or(size / self.write_concurrency);
-        for i in 0..(size / step) {
-            let buf = &bytes[i * step..(i + 1) * step];
+        for i in 0..(size / step + 1) {
+            let buf = &bytes[i * step..((i + 1) * step).min(size)];
             write.write_all(buf).await.unwrap();
         }
         write.flush().await.unwrap();
@@ -140,6 +157,29 @@ impl Store {
             .delete(&Path::from(location))
             .await
             .map_err(Error::ObjectStoreError)
+    }
+
+    pub async fn chunk_file(
+        &self,
+        location: &str,
+        chunk_size: Option<usize>,
+    ) -> Result<ChunkFile, Error> {
+        let parts = self.multipart_read(location, chunk_size).await?;
+        let total_bytes = parts.iter().map(|b| b.len() as u64).sum();
+        let byte_size_used = parts
+            .first()
+            .ok_or(Error::ChunkInvalid(format!(
+                "No chunk produced from object store {}, with chunk size config of {:#?}",
+                location, chunk_size
+            )))?
+            .len();
+        let chunk_hashes = parts.iter().map(|c| hash_chunk(c)).collect();
+
+        Ok(ChunkFile {
+            total_bytes,
+            chunk_size: byte_size_used as u64,
+            chunk_hashes,
+        })
     }
 }
 
