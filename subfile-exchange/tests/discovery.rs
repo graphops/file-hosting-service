@@ -14,6 +14,9 @@ mod tests {
         std::env::set_var("RUST_LOG", "off,subfile_exchange=debug,file_transfer=trace");
         subfile_exchange::config::init_tracing(String::from("pretty")).unwrap();
 
+        let server_0 = "http://0.0.0.0:5677";
+        let server_1 = "http://0.0.0.0:5679";
+
         let chunk_file_hash_a = "QmeKabcCQBtgU6QjM3rp3w6pDHFW4r54ee89nGdhuyDuhi".to_string();
         let chunk_file_hash_b = "QmeE38uPSqT5XuHfM8X2JZAYgDCEwmDyMYULmZaRnNqPCj".to_string();
         let chunk_file_hash_c = "QmWs8dkshZ7abxFYQ3h9ie1Em7SqzAkwtVJXaBapwEWqR9".to_string();
@@ -25,7 +28,7 @@ mod tests {
 
         let indexer_0: IndexerEndpoint = (
             "0xead22a75679608952db6e85537fbfdca02dae9cb".to_string(),
-            "http://0.0.0.0:5678".to_string(),
+            server_0.to_string(),
         );
         let indexer_1: IndexerEndpoint = (
             "0x19804e50af1b72db4ce22a3c028e80c78d75af62".to_string(),
@@ -36,8 +39,10 @@ mod tests {
         let mut server_process_0 = Command::new("cargo")
             .arg("run")
             .arg("-p")
-            .arg("subfile-exchange")
-            .arg("server")
+            .arg("subfile-service")
+            .arg("--")
+            .arg("--port")
+            .arg("5677")
             .arg("--mnemonic")
             .arg("sheriff obscure trick beauty army fat wink legal flee leader section suit")
             .arg("--subfiles")
@@ -48,8 +53,8 @@ mod tests {
         let mut server_process_1 = Command::new("cargo")
             .arg("run")
             .arg("-p")
-            .arg("subfile-exchange")
-            .arg("server")
+            .arg("subfile-service")
+            .arg("--")
             .arg("--mnemonic")
             .arg("ice palace drill gadget biology glow tray equip heavy wolf toddler menu")
             .arg("--host")
@@ -66,8 +71,6 @@ mod tests {
 
         tracing::debug!("Server initializing, wait 10 seconds...");
         tokio::time::sleep(Duration::from_secs(10)).await;
-        let server_0 = "http://0.0.0.0:5678";
-        let server_1 = "http://0.0.0.0:5679";
         let _ = server_ready(server_0).await;
         let _ = server_ready(server_1).await;
 
@@ -86,7 +89,7 @@ mod tests {
             .await;
         assert!(endpoints.len() == 1);
         assert!(endpoints.first().unwrap().0 == "0xead22a75679608952db6e85537fbfdca02dae9cb");
-        assert!(endpoints.first().unwrap().1 == "http://0.0.0.0:5678");
+        assert!(endpoints.first().unwrap().1 == server_0);
 
         // 3.2 find subfile_1 with server 0 and 1, get server 1
         let endpoints = finder
@@ -97,7 +100,7 @@ mod tests {
             .await;
         assert!(endpoints.len() == 1);
         assert!(endpoints.first().unwrap().0 == "0x19804e50af1b72db4ce22a3c028e80c78d75af62");
-        assert!(endpoints.first().unwrap().1 == "http://0.0.0.0:5679");
+        assert!(endpoints.first().unwrap().1 == server_1);
 
         // 3.3 find subfile_0 with sieved availability
         let map = finder

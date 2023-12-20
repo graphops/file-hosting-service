@@ -51,6 +51,7 @@ mod tests {
                 "sheriff obscure trick beauty army fat wink legal flee leader section suit",
             ),
             free_query_auth_token: Some("Bearer free-token".to_string()),
+            provider: String::from("https://arbitrum-sepolia.infura.io/v3/aaaaaaaaaaaaaaaaaaaa"),
             ..Default::default()
         };
 

@@ -67,9 +67,8 @@ impl SubfileDownloader {
         )
         .await;
 
-        let transaction_manager = TransactionManager::new(&args.provider, wallet.clone())
-            .await
-            .expect("Initiate Transaction manager");
+        //TODO: Factor away from client, Transactions could be a separate entity
+        let transaction_manager = TransactionManager::new(&args.provider, wallet.clone()).await;
         tracing::info!(
             transaction_manager = tracing::field::debug(&transaction_manager),
             "transaction_manager"
