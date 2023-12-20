@@ -15,7 +15,7 @@ pub enum Error {
     YamlError(serde_yaml::Error),
     InvalidPriceFormat(String),
     ContractError(String),
-    ObjectStoreError(String),
+    ObjectStoreError(object_store::Error),
 }
 
 impl fmt::Display for Error {
@@ -34,7 +34,7 @@ impl fmt::Display for Error {
             Error::YamlError(ref err) => write!(f, "YAML error: {}", err),
             Error::InvalidPriceFormat(ref msg) => write!(f, "Price format error: {}", msg),
             Error::ContractError(ref msg) => write!(f, "Contract call error: {}", msg),
-            Error::ObjectStoreError(ref msg) => write!(f, "Object store error: {}", msg),
+            Error::ObjectStoreError(ref err) => write!(f, "Object store error: {}", err),
         }
     }
 }
