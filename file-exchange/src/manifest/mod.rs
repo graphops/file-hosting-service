@@ -5,6 +5,8 @@ pub mod file_reader;
 pub mod ipfs;
 pub mod local_file_system;
 pub mod manifest_fetcher;
+pub mod remote_object_store;
+// pub mod subfile_reader;
 
 use std::{
     path::{Path, PathBuf},
@@ -144,7 +146,7 @@ impl Bundle {
             "Verify file"
         );
 
-        // loop through file manifest  byte range
+        // loop through file manifest byte range
         for i in 0..(file_manifest.total_bytes / file_manifest.chunk_size + 1) {
             // read range
             let start = i * file_manifest.chunk_size;

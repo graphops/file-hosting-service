@@ -12,13 +12,18 @@ use crate::manifest::{
 
 pub const CHUNK_SIZE: u64 = 1024 * 1024; // Define the chunk size, e.g., 1 MB
 
+// Helper function to create a random bytes of a specified size
+pub fn random_bytes(size: usize) -> Vec<u8> {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(size)
+        .collect()
+}
+
 // Helper function to create a temporary file with random content of a specified size
 pub fn create_random_temp_file(size: usize) -> std::io::Result<(NamedTempFile, String)> {
     let mut temp_file = NamedTempFile::new()?;
-    let content: Vec<u8> = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(size)
-        .collect();
+    let content: Vec<u8> = random_bytes(size);
     temp_file.write_all(&content)?;
     let temp_path = temp_file.path().to_str().unwrap().to_string();
     Ok((temp_file, temp_path))

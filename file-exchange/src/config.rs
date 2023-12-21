@@ -79,6 +79,75 @@ pub enum OnchainAction {
     Approve(ApproveArgs),
 }
 
+// /// Client storage can be either local files or object storage services
+// #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
+// #[group(required = true, multiple = false)]
+// pub enum StorageMethod {
+//     // Local files just require a String for path
+//     LocalFiles(LocalDirectory),
+//     ObjectStorage(ObjectStore),
+// }
+
+// impl Default for StorageMethod {
+//     fn default() -> Self { StorageMethod::LocalFiles(LocalDirectory::default()) }
+// }
+
+// #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+// #[group(required = false, multiple = true)]
+// pub struct LocalDirectory {
+//     #[clap(
+//         long,
+//         value_name = "output_dir",
+//         env = "OUTPUT_DIR",
+//         default_value = "./example-download",
+//         help = "Output directory for the downloaded files"
+//     )]
+//     pub endpoint: String,
+
+// }
+
+// #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+// #[group(required = false, multiple = true)]
+// pub struct ObjectStore {
+//     #[clap(
+//         long,
+//         value_name = "region",
+//         env = "REGION",
+//         help = "Bucket region (ex. ams3)",
+//     )]
+//     pub region: String,
+//     #[clap(
+//         long,
+//         value_name = "bucket",
+//         env = "BUCKET",
+//         help = "Object store bucket name"
+//     )]
+//     pub bucket: String,
+//     #[clap(
+//         long,
+//         value_name = "access_key_id",
+//         env = "ACCESS_KEY_ID",
+//         help = "access key id to the bucket"
+//     )]
+//     pub access_key_id: String,
+//     #[clap(
+//         long,
+//         value_name = "secret_key",
+//         env = "SECRET_KEY",
+//         help = "Secret key to the bucket"
+//     )]
+//     pub secret_key: String,
+
+//     #[clap(
+//         long,
+//         value_name = "endpoint",
+//         env = "STORAGE_ENDPOINT",
+//         help = "Endpoint to the bucket (ex. https://ams3.digitaloceanspaces.com"
+//     )]
+//     pub endpoint: String,
+
+// }
+
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct OnChainArgs {
@@ -178,6 +247,8 @@ pub struct DownloaderArgs {
         help = "Output directory for target files"
     )]
     pub output_dir: String,
+    // #[clap(subcommand)]
+    // pub storage_method: StorageMethod,
     #[clap(
         long,
         value_name = "free-query-auth-token",
