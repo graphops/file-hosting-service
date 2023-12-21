@@ -13,7 +13,7 @@ fi
 git-cliff -o CHANGELOG.md
 
 (
-  git add CHANGELOG.md Cargo.lock Cargo.toml scripts/release.sh \
+  git add CHANGELOG.md Cargo.lock Cargo.toml scripts/exchange-release.sh \
     && git commit -m "chore: release $VERSION"
 ) || true
 

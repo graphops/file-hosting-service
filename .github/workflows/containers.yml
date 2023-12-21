@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [subfile-exchange]
+        target: [subfile-exchange, subfile-service]
 
     permissions:
       packages: write
