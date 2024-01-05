@@ -73,7 +73,6 @@ impl SubfileDownloader {
         )
         .await;
 
-
         SubfileDownloader {
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,

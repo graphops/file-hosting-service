@@ -1,4 +1,3 @@
-use ethers::contract::Contract;
 use ethers::prelude::*;
 use ethers_core::k256::ecdsa::SigningKey;
 
@@ -11,8 +10,7 @@ use std::sync::Arc;
 pub mod staking;
 
 /// Contracts: (contract name, contract object)
-pub type NetworkContracts =
-    HashMap<String, ContractClient>;
+pub type NetworkContracts = HashMap<String, ContractClient>;
 /// Contracts: (contract name, contract address)
 pub type ContractAddresses = HashMap<String, H160>;
 /// Client with provider endpoint and a wallet
@@ -33,6 +31,7 @@ impl TransactionManager {
     ) -> Result<Self, anyhow::Error> {
         let provider = Provider::<Http>::try_from(provider_url)?;
         let chain_id = provider.get_chainid().await?;
+        let wallet = wallet.with_chain_id(provider.get_chainid().await.unwrap().as_u64());
         let client = Arc::new(SignerMiddleware::new(provider, wallet));
 
         // Access contracts for the specified chain_id
@@ -42,10 +41,9 @@ impl TransactionManager {
         // Initiate contract instances
         let contracts = NetworkContracts::new();
         // Test reading the function
-        let value = staking::controller(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
-        println!("controller value: {:#?}", value);
-        let value = staking::allocate(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
-        println!("allocate value: {:#?}", value);
+        let value =
+            staking::controller(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
+        tracing::debug!("test read - controller value: {:#?}", value);
         Ok(TransactionManager { client, contracts })
     }
 }
