@@ -64,27 +64,29 @@ async fn main() {
                 .await
                 .expect("Cannot initate transaction manager");
 
-            match transaction_manager.args.action.clone() {
+            let result = match transaction_manager.args.action.clone() {
                 Some(OnchainAction::Allocate(allocate_args)) => {
-                    let (allocation_id, tx_receipt) = transaction_manager
+                    transaction_manager
                         .allocate(
                             &allocate_args.deployment_ipfs,
                             allocate_args.tokens,
                             allocate_args.epoch,
                         )
                         .await
-                        .unwrap();
-                    tracing::info!(
-                        allocation_id = tracing::field::debug(&allocation_id),
-                        tx_receipt = tracing::field::debug(&tx_receipt),
-                        "Allocation transaction finished"
-                    );
                 }
-                Some(OnchainAction::Unallocate(_unallocate_args)) => {
-                    todo!()
+                Some(OnchainAction::Unallocate(unallocate_args)) => {
+                    transaction_manager
+                        .unallocate(&unallocate_args.allocation_id)
+                        .await
                 }
-                None => {}
-            }
+                None => {
+                    panic!("No onchain command provided (later add general status return)")
+                }
+            };
+            tracing::info!(
+                result = tracing::field::debug(&result),
+                "Transaction result"
+            );
         }
     }
 }

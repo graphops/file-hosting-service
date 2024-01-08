@@ -313,7 +313,8 @@ pub struct AllocateArgs {
         long,
         value_name = "tokens",
         env = "TOKENS",
-        help = "Token amount to allocate"
+        help = "Token amount to allocate (in units of GRT)",
+        value_parser = U256::from_dec_str,
     )]
     pub tokens: U256,
     #[clap(
@@ -335,13 +336,6 @@ pub struct AllocateArgs {
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct UnallocateArgs {
-    #[clap(
-        long,
-        value_name = "deployment_ipfs",
-        env = "DEPLOYMENT_IPFS",
-        help = "Deployment IPFS hash to unallocate"
-    )]
-    pub deployment_ipfs: String,
     #[clap(
         long,
         value_name = "allocation_id",

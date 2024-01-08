@@ -131,6 +131,62 @@ impl TransactionManager {
 
         Ok(value)
     }
+
+    /// call staking contract unallocate function
+    pub async fn unallocate(
+        &self,
+        allocation_id: &str,
+    ) -> Result<(H160, Option<TransactionReceipt>), Error> {
+        let zero_poi: [u8; 32] = [0; 32];
+        let allocation_id =
+            H160::from_str(allocation_id).map_err(|e| Error::InvalidConfig(e.to_string()))?;
+        tracing::info!(
+            allocation_id = tracing::field::debug(&allocation_id),
+            "unallocate params",
+        );
+
+        let populated_tx = self
+            .staking_contract
+            .close_allocation(allocation_id, zero_poi);
+        let estimated_gas = populated_tx
+            .estimate_gas()
+            .await
+            .map_err(|e| Error::ContractError(e.to_string()))?;
+        tracing::debug!(
+            estimated_gas = tracing::field::debug(&estimated_gas),
+            "estimate gas"
+        );
+
+        // Attempt to send the populated tx with estimated gas, can later add a slippage
+        let tx_result = populated_tx
+            .gas(estimated_gas)
+            .send()
+            .await
+            .map_err(|e| {
+                let encoded_error = &e.to_string()[2..];
+                let error_message_hex = &encoded_error[8 + 64..];
+                let bytes = hex::decode(error_message_hex).unwrap();
+                let message = String::from_utf8(bytes).unwrap();
+                tracing::error!(message);
+
+                Error::ContractError(e.to_string())
+            })?
+            .await
+            .map_err(|e| {
+                let encoded_error = &e.to_string()[2..];
+                let error_message_hex = &encoded_error[8 + 64..];
+                let bytes = hex::decode(error_message_hex).unwrap();
+                let message = String::from_utf8(bytes).unwrap();
+                tracing::error!(message);
+
+                Error::ContractError(e.to_string())
+            })?;
+        tracing::debug!(
+            value = tracing::field::debug(&tx_result),
+            "allocate call result"
+        );
+        Ok((allocation_id, tx_result))
+    }
 }
 
 /// create packed keccak hash for allocation id as proof
