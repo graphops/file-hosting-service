@@ -21,7 +21,7 @@ use crate::subfile::{
     Subfile,
 };
 use crate::subfile_finder::{IndexerEndpoint, SubfileFinder};
-use crate::transaction_manager::TransactionManager;
+
 use crate::util::build_wallet;
 
 use self::signer::{ReceiptSigner, TapReceipt};
@@ -58,11 +58,6 @@ impl SubfileDownloader {
 
         let wallet = build_wallet(&args.mnemonic).expect("Mnemonic build wallet");
         //TODO: Factor away from client, Transactions could be a separate entity
-        let transaction_manager = TransactionManager::new(&args.provider, wallet.clone()).await;
-        tracing::info!(
-            transaction_manager = tracing::field::debug(&transaction_manager),
-            "transaction_manager"
-        );
         let signing_key = wallet.signer().to_bytes();
         let secp256k1_private_key =
             SecretKey::from_slice(&signing_key).expect("Private key from wallet");

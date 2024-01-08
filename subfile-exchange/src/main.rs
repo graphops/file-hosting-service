@@ -1,10 +1,11 @@
 use dotenv::dotenv;
 
 use subfile_exchange::{
-    config::{Cli, Role},
+    config::{Cli, OnchainAction, Role},
     publisher::SubfilePublisher,
     subfile::ipfs::IpfsClient,
     subfile_client::SubfileDownloader,
+    transaction_manager::TransactionManager,
 };
 
 #[tokio::main]
@@ -59,17 +60,31 @@ async fn main() {
                 "Use the provided wallet to send transactions"
             );
 
-            // Server enable payments through the staking contract,
-            // assume indexer is already registered on the staking registry contract
-            //1. `allocate` - indexer address, Qm hash in bytes32, token amount, allocation_id, metadata: utils.hexlify(Array(32).fill(0)), allocation_id_proof
-            //2. `close_allocate` -allocationID: String, poi: BytesLike (0x0 32bytes)
-            //3. `close_allocate` and then `allocate`
-            // receipt validation and storage is handled by the indexer-service framework
-            // receipt redemption is handled by indexer-agent
+            let transaction_manager = TransactionManager::new(wallet_args)
+                .await
+                .expect("Cannot initate transaction manager");
 
-            // Client payments - assume client signer is valid (should work without gateways)
-            //1. `deposit` - to a sender address and an amount
-            //2. `depositMany` - to Vec<sender address, an amount>
+            match transaction_manager.args.action.clone() {
+                Some(OnchainAction::Allocate(allocate_args)) => {
+                    let (allocation_id, tx_receipt) = transaction_manager
+                        .allocate(
+                            &allocate_args.deployment_ipfs,
+                            allocate_args.tokens,
+                            allocate_args.epoch,
+                        )
+                        .await
+                        .unwrap();
+                    tracing::info!(
+                        allocation_id = tracing::field::debug(&allocation_id),
+                        tx_receipt = tracing::field::debug(&tx_receipt),
+                        "Allocation transaction finished"
+                    );
+                }
+                Some(OnchainAction::Unallocate(_unallocate_args)) => {
+                    todo!()
+                }
+                None => {}
+            }
         }
     }
 }

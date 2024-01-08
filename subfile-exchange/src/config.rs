@@ -1,5 +1,6 @@
 use clap::{arg, ValueEnum};
 use clap::{command, Args, Parser, Subcommand};
+use ethers_core::types::U256;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -56,43 +57,38 @@ pub enum Role {
     Wallet(WalletArgs),
 }
 
+/// Server enable payments through the staking contract,
+/// assume indexer is already registered on the staking registry contract
+///1. `allocate` - indexer address, Qm hash in bytes32, token amount, allocation_id, metadata: utils.hexlify(Array(32).fill(0)), allocation_id_proof
+///2. `close_allocate` -allocationID: String, poi: BytesLike (0x0 32bytes)
+///3. `close_allocate` and then `allocate`
+/// receipt validation and storage is handled by the indexer-service framework
+/// receipt redemption is handled by indexer-agent
+///
+/// Client payments - assume client signer is valid (should work without gateways)
+///1. `deposit` - to a sender address and an amount
+///2. `depositMany` - to Vec<sender address, an amount>
+#[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
+#[group(required = false, multiple = true)]
+pub enum OnchainAction {
+    Allocate(AllocateArgs),
+    Unallocate(UnallocateArgs),
+}
+
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct WalletArgs {
-    #[arg(
-        long,
-        value_name = "HOST",
-        default_value = "127.0.0.1",
-        env = "HOST",
-        help = "Subfile server host"
-    )]
-    pub host: Option<String>,
-    #[arg(
-        long,
-        value_name = "PORT",
-        default_value = "5678",
-        env = "PORT",
-        help = "Subfile server port"
-    )]
-    pub port: Option<usize>,
-    #[clap(
-        long,
-        value_name = "KEY",
-        value_parser = parse_key,
-        env = "PRIVATE_KEY",
-        hide_env_values = true,
-        help = "Private key to the Graphcast ID wallet (Precendence over mnemonics)",
-    )]
-    pub private_key: Option<String>,
+    #[clap(subcommand)]
+    pub action: Option<OnchainAction>,
     #[clap(
         long,
         value_name = "KEY",
         value_parser = parse_key,
         env = "MNEMONIC",
         hide_env_values = true,
-        help = "Mnemonic to the Graphcast ID wallet (first address of the wallet is used; Only one of private key or mnemonic is needed)",
+        help = "Mnemonic to the Indexer operator wallet (first address of the wallet is used",
     )]
-    pub mnemonic: Option<String>,
+    pub mnemonic: String,
     #[clap(
         long,
         value_name = "provider_url",
@@ -100,14 +96,6 @@ pub struct WalletArgs {
         help = "Blockchain provider endpoint"
     )]
     pub provider: String,
-    //TODO: chain id should be resolvable through provider
-    // #[clap(
-    //     long,
-    //     value_name = "chain_id",
-    //     env = "CHAIN_ID",
-    //     help = "Protocol network's Chain ID"
-    // )]
-    // pub chain_id: u64,
     #[clap(
         long,
         value_name = "verifier",
@@ -316,6 +304,51 @@ pub struct PublisherArgs {
         help = "Network represented in CCIP ID (Ethereum mainnet: 1, goerli: 5, arbitrum-one: 42161, sepolia: 58008"
     )]
     pub chain_id: String,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct AllocateArgs {
+    #[clap(
+        long,
+        value_name = "tokens",
+        env = "TOKENS",
+        help = "Token amount to allocate"
+    )]
+    pub tokens: U256,
+    #[clap(
+        long,
+        value_name = "deployment_ipfs",
+        env = "DEPLOYMENT_IPFS",
+        help = "Deployment IPFS hash to allocate"
+    )]
+    pub deployment_ipfs: String,
+    #[clap(
+        long,
+        value_name = "epoch",
+        env = "EPOCH",
+        help = "Epoch field to generate unique allocation id (Should be auto-resolve through network query)"
+    )]
+    pub epoch: u64,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct UnallocateArgs {
+    #[clap(
+        long,
+        value_name = "deployment_ipfs",
+        env = "DEPLOYMENT_IPFS",
+        help = "Deployment IPFS hash to unallocate"
+    )]
+    pub deployment_ipfs: String,
+    #[clap(
+        long,
+        value_name = "allocation_id",
+        env = "ALLOCATION_ID",
+        help = "Deployment IPFS hash to unallocate"
+    )]
+    pub allocation_id: String,
 }
 
 #[allow(unused)]

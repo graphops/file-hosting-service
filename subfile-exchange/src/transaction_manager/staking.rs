@@ -4,17 +4,18 @@ use ethers::providers::{Http, Provider};
 use ethers::signers::coins_bip39::English;
 use ethers::signers::{Signer, Wallet};
 use ethers_core::k256::ecdsa::SigningKey;
-use ethers_core::types::{Bytes, H160, U256};
+use ethers_core::types::{Bytes, TransactionReceipt, H160, U256};
 use ethers_core::utils::keccak256;
 use hdwallet::{DefaultKeyChain, ExtendedPrivKey};
 
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use crate::errors::Error;
 use crate::transaction_manager::coins_bip39::Mnemonic;
 use crate::util::{build_wallet, derive_key_pair};
+
+use super::TransactionManager;
 
 pub type NetworkContracts =
     HashMap<String, Contract<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>;
@@ -24,111 +25,112 @@ pub type ContractClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 abigen!(
     L2Staking,
     "abis/L2Staking.json",
-    // "npm:@graphprotocol/contracts@latest/dist/abis/L2Staking.json",
+    // "npm:@graphprotocol/contracts@latest/abis/L2Staking.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-/// Test function to simply call a read fn of a contract
-pub async fn controller(client: &ContractClient, contract_addr: H160) -> Result<H160, Error> {
-    let contract = L2Staking::new(contract_addr, Arc::new(client.clone()));
+impl TransactionManager {
+    /// Test function to simply call a read fn of a contract
+    pub async fn controller(&self) -> Result<H160, Error> {
+        let value = self
+            .staking_contract
+            .controller()
+            .call()
+            .await
+            .map_err(|e| Error::ContractError(e.to_string()))?;
 
-    let value = contract
-        .controller()
-        .call()
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
+        Ok(value)
+    }
 
-    Ok(value)
-}
+    /// call staking contract allocate function
+    pub async fn allocate(
+        &self,
+        deployment: &str,
+        tokens: U256,
+        epoch: u64,
+    ) -> Result<(H160, Option<TransactionReceipt>), Error> {
+        //TODO: Start with hardcoding, later add field indexer address to TX manager, tokens to fn params
+        let existing_ids: Vec<H160> = vec![];
+        let metadata: [u8; 32] = [0; 32];
 
-/// call staking contract allocate function
-pub async fn allocate(
-    client: &ContractClient,
-    contract_addr: H160,
-    deployment: &str,
-) -> Result<Allocation, Error> {
-    //TODO: Start with hardcoding, later add field indexer address to TX manager, tokens to fn params
-    let contract = L2Staking::new(contract_addr, Arc::new(client.clone()));
-    let mnemonic =
-        "culture alcohol unfair success pupil economy stomach dignity beyond absurd client latin";
-    let epoch: u64 = 1030;
-    let existing_ids: Vec<H160> = vec![];
-    let tokens = U256::from(100000);
-    let metadata: [u8; 32] = [0; 32];
+        let (allocation_signer, allocation_id) = unique_allocation_id(
+            &self.args.mnemonic.clone(),
+            epoch,
+            deployment,
+            &existing_ids,
+        )?;
+        let deployment_byte32 = ipfs_hash_to_bytes(deployment)?;
+        let indexer_address = build_wallet(&self.args.mnemonic.clone())?.address();
+        let proof = allocation_id_proof(&allocation_signer, indexer_address, allocation_id).await?;
 
-    let (allocation_signer, allocation_id) =
-        unique_allocation_id(mnemonic, epoch, deployment, &existing_ids)?;
-    let deployment_byte32 = ipfs_hash_to_bytes(deployment)?;
-    let indexer_address = build_wallet(mnemonic)?.address();
-    let proof = allocation_id_proof(&allocation_signer, indexer_address, allocation_id).await?;
+        tracing::info!(
+            dep_bytes = tracing::field::debug(&deployment_byte32),
+            tokens = tracing::field::debug(&self.args.action),
+            allocation_id = tracing::field::debug(&allocation_id),
+            metadata = tracing::field::debug(&metadata),
+            proof = tracing::field::debug(&proof),
+            "allocate params",
+        );
 
-    tracing::info!(
-        dep_bytes = tracing::field::debug(&deployment_byte32),
-        tokens = tracing::field::debug(&tokens),
-        allocation_id = tracing::field::debug(&allocation_id),
-        metadata = tracing::field::debug(&metadata),
-        proof = tracing::field::debug(&proof),
-        "allocate params",
-    );
+        let populated_tx = self.staking_contract.allocate(
+            deployment_byte32,
+            tokens,
+            allocation_id,
+            metadata,
+            proof,
+        );
+        let estimated_gas = populated_tx
+            .estimate_gas()
+            .await
+            .map_err(|e| Error::ContractError(e.to_string()))?;
+        tracing::debug!(
+            estimated_gas = tracing::field::debug(&estimated_gas),
+            "estimate gas"
+        );
 
-    let populated_tx = contract.allocate(deployment_byte32, tokens, allocation_id, metadata, proof);
-    let estimated_gas = populated_tx
-        .estimate_gas()
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    tracing::debug!(
-        estimated_gas = tracing::field::debug(&estimated_gas),
-        "estimate gas"
-    );
+        // Attempt to send the populated tx with estimated gas, can later add a slippage
+        let tx_result = populated_tx
+            .gas(estimated_gas)
+            .send()
+            .await
+            .map_err(|e| {
+                let encoded_error = &e.to_string()[2..];
+                let error_message_hex = &encoded_error[8 + 64..];
+                let bytes = hex::decode(error_message_hex).unwrap();
+                let message = String::from_utf8(bytes).unwrap();
+                tracing::error!(message);
 
-    // Attempt to send the populated tx with estimated gas, can later add a slippage
-    let tx_result = populated_tx
-        .gas(estimated_gas)
-        .send()
-        .await
-        .map_err(|e| {
-            // let encoded_error = &e.to_string()[2..];
-            // let error_message_hex = &encoded_error[8 + 64..];
-            // let bytes = hex::decode(error_message_hex).unwrap();
-            // let message = String::from_utf8(bytes).unwrap();
+                Error::ContractError(e.to_string())
+            })?
+            .await
+            .map_err(|e| {
+                let encoded_error = &e.to_string()[2..];
+                let error_message_hex = &encoded_error[8 + 64..];
+                let bytes = hex::decode(error_message_hex).unwrap();
+                let message = String::from_utf8(bytes).unwrap();
+                tracing::error!(message);
 
-            Error::ContractError(e.to_string())
-        })?
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    // .map_err(|e| Error::ContractError(e.to_string()))?;
-    tracing::debug!(
-        value = tracing::field::debug(&tx_result),
-        "allocate call result"
-    );
+                Error::ContractError(e.to_string())
+            })?;
+        tracing::debug!(
+            value = tracing::field::debug(&tx_result),
+            "allocate call result"
+        );
+        Ok((allocation_id, tx_result))
+    }
 
-    // Can call to double check but probably not necessary
-    let value = get_allocation(client, contract_addr, allocation_id)
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    tracing::trace!(
-        value = tracing::field::debug(&value),
-        "get_allocation call result"
-    );
+    /// call staking contract allocate function
+    pub async fn get_allocation(&self, allocation_id: H160) -> Result<Allocation, Error> {
+        let value = self
+            .staking_contract
+            .get_allocation(allocation_id)
+            .call()
+            .await
+            .map_err(|e| Error::ContractError(e.to_string()))?;
+        tracing::info!(value = tracing::field::debug(&value), "allocate call value");
 
-    Ok(value)
-}
-
-/// call staking contract allocate function
-pub async fn get_allocation(
-    client: &ContractClient,
-    contract_addr: H160,
-    allocation_id: H160,
-) -> Result<Allocation, Error> {
-    let contract = L2Staking::new(contract_addr, Arc::new(client.clone()));
-    let value = contract
-        .get_allocation(allocation_id)
-        .call()
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    tracing::info!(value = tracing::field::debug(&value), "allocate call value");
-
-    Ok(value)
+        Ok(value)
+    }
 }
 
 /// create packed keccak hash for allocation id as proof
@@ -211,8 +213,6 @@ fn unique_allocation_id(
 
 #[cfg(test)]
 mod tests {
-    use crate::transaction_manager::network_contract_addresses;
-
     use super::*;
 
     #[test]
@@ -263,36 +263,5 @@ mod tests {
         //With a secret mnemonic
         // assert_eq!(id, "0x6a39615c9f35ef68b4a99584c0566a1fcdd67d0a");
         // assert!(proof.to_string() == "0x7f47ee3a4e614c43352f8920e81371b0aa2298bb99ed6fc8eb4ed54f0bb1954c1463abd7a86a21185671f9a827c5ecaa1f509320cf9ee53f77338475018d1d931c")
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_allocate() {
-        let indexer_mnemonic =
-            "sheriff obscure trick beauty army fat wink legal flee leader section suit";
-        let _deployment = "QmWAsLViTdCbs9zbejzmRndpZpNXU97CzeLJwdZKuvCUdF";
-        println!("start");
-        let provider = Provider::<Http>::try_from(
-            "https://arbitrum-goerli.infura.io/v3/dc1a550f824a4c6aa428a3376f983145",
-        )
-        .unwrap();
-        println!("start provider");
-        let wallet = build_wallet(indexer_mnemonic).expect("Mnemonic build wallet");
-        println!("start wallet");
-        let client = SignerMiddleware::new(provider, wallet);
-        println!("start client");
-
-        // Access contracts for the specified chain_id
-        let contract_addresses = network_contract_addresses("../addresses.json", "421614").unwrap();
-        println!("start contract address");
-
-        let deployment = "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v";
-        let staking_addr = contract_addresses.get("L2Staking").unwrap();
-        println!("start l2 sataking address");
-
-        let res = allocate(&client, *staking_addr, deployment).await;
-        println!("finish: {:#?}", res);
-
-        assert!(res.is_ok())
     }
 }

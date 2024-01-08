@@ -7,10 +7,12 @@ use std::fs;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::config::WalletArgs;
+use crate::transaction_manager::staking::L2Staking;
+use crate::util::build_wallet;
+
 pub mod staking;
 
-/// Contracts: (contract name, contract object)
-pub type NetworkContracts = HashMap<String, ContractClient>;
 /// Contracts: (contract name, contract address)
 pub type ContractAddresses = HashMap<String, H160>;
 /// Client with provider endpoint and a wallet
@@ -20,36 +22,46 @@ pub type ContractClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 #[allow(dead_code)]
 pub struct TransactionManager {
     client: Arc<ContractClient>,
-    contracts: NetworkContracts,
+    staking_contract: L2Staking<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
+    pub args: WalletArgs,
 }
 
 impl TransactionManager {
     // Constructor to create a new instance
-    pub async fn new(
-        provider_url: &str,
-        wallet: Wallet<SigningKey>,
-    ) -> Result<Self, anyhow::Error> {
-        let provider = Provider::<Http>::try_from(provider_url)?;
+    pub async fn new(args: WalletArgs) -> Result<Self, anyhow::Error> {
+        tracing::info!("Initialize transaction manager");
+        let provider = Provider::<Http>::try_from(&args.provider)?;
         let chain_id = provider.get_chainid().await?;
-        let wallet = wallet.with_chain_id(provider.get_chainid().await.unwrap().as_u64());
-        let client = Arc::new(SignerMiddleware::new(provider, wallet));
+        let wallet = build_wallet(&args.mnemonic)
+            .expect("Mnemonic build wallet")
+            .with_chain_id(provider.get_chainid().await.unwrap().as_u64());
+        let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
 
         // Access contracts for the specified chain_id
         let contract_addresses =
             network_contract_addresses("addresses.json", &chain_id.to_string())?;
 
-        // Initiate contract instances
-        let contracts = NetworkContracts::new();
-        // Test reading the function
-        let value =
-            staking::controller(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
-        tracing::debug!("test read - controller value: {:#?}", value);
-        Ok(TransactionManager { client, contracts })
+        // // Test reading the function
+        // let tokens = U256::from(100000);
+        // let _value = staking::allocate(&client, *contract_addresses.get("L2Staking").unwrap(), "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v", token).await?;
+
+        // let value =
+        //     staking::controller(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
+        // tracing::debug!("test read - controller value: {:#?}", value);
+
+        let staking_addr = contract_addresses.get("L2Staking").unwrap();
+        let staking_contract = L2Staking::new(*staking_addr, Arc::new(client.clone()));
+
+        Ok(TransactionManager {
+            client,
+            staking_contract,
+            args,
+        })
     }
 }
 
 /// Track network contract addresses given an address book in json
-fn network_contract_addresses(
+pub fn network_contract_addresses(
     file_path: &str,
     chain_id: &str,
 ) -> Result<ContractAddresses, anyhow::Error> {
