@@ -10,9 +10,8 @@
   - [x] construct and write a chunk_file.yaml (root, nodes)
   - [x] Unit tests: same file same hash, different file different hash, big temp file same/modified
   - [x] last chunk lengths, 
-  - [ ] Analyze merkle tree vs hash list
-  - [ ] memory usage for hashing (profiling to O(n) where n is the size of the file)
-- [ ] Subfile builder / publisher - CLI
+- [ ] Analyze merkle tree vs hash list for memory usage and verification runtime
+- [x] Subfile builder / publisher - CLI
   - [x] Take a file, use File hasher to get the chunk_file, publish chunk_file to IPFS
     - [x] later, take a list of files, use File hasher to hash all files and get root hashes 
   - [x] Construct a subfile manifest with metainfo using YAML builder
@@ -54,7 +53,7 @@
     - [x] Construct response and respond
       - [ ] determine if streaming is necessary
   - [x] Start with free service and requiring a free query auth token
-    - [ ] then add default cost model, allow updates for pricing per byte
+    - [x] default pricing, allow updates for pricing per byte
   - [ ] Runs TAP agent for receipt management
 - [ ] Subfile Client 
   - [ ] Take private key/mneomic for wallet connections
@@ -70,11 +69,11 @@
       - [x] Parallel requests
       - [x] Use random endpoints
     - [x] Construct and send requests to indexer endpoints 
-      - [ ] Parallelize requests
+      - [x] Parallelize requests
       - [ ] Multiple connections (HTTPS over HTTP2)
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
     - [x] Keeps track of the downloaded and missing pieces, 
-    - [ ] continually requesting missing pieces until the complete file is obtained
+    - [x] continually requesting missing pieces until the complete file is obtained
     - [x] Upon receiving a response, verify the chunk data in the chunk_file
       - [x] if failed, blacklist the indexer
   - [x] Once all file has been received and verified, terminate

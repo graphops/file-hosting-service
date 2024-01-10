@@ -10,9 +10,6 @@ Jump to [Quick Start](###getting-started)
 
 The server utilizes HTTP2 over HTTPS for secure and efficient file transfer. This ensures data integrity and confidentiality while leveraging the performance benefits of HTTP2.
 
-## Server Discovery (TODO)
-
-The server registers its endpoint on a designated smart contract (can be indexed by a subgraph). This allows clients to discover the server and initiate file transfers.
 
 ## Access Control
 
@@ -36,7 +33,7 @@ The server utilizes a combination of open-source technologies for optimal perfor
 - Backend: Rust for robust and efficient server-side processing.
 - Database: (Current: In-memory for server management, file paths for local access). 
 - Database: (TODO: PostgreSQL for persisted server management, generic storage paths to allow cloud/object storage). 
-- Smart Contract: (TODO) Solidity for secure and transparent server registration and discovery.
+- Smart Contract: Solidity for secure and transparent server registration and discovery.
 - User Interface: CLI to start up the server, HTTP requests for managing files and accessing receipts (TODO: Terminal UI).
 
 ## System Requirements
@@ -59,14 +56,14 @@ CLI example
 ✗ cargo run -p subfile-exchange server \
   --host 0.0.0.0 \
   --port 5678 \
-  --mnemonic "abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon abondon" \
+  --mnemonic "seed phrase" \
   --admin-auth-token "imadmin" \
   --free-query-auth-token "imafriend" \
-  --subfiles "QmY9aHuMqSPoLixVRdcYQei2cAtChBQNbjdtL5VzaQdFzw:./example-file/,IPFS_HASH:SUBFILE_PATH"
+  --subfiles "QmHash00:./example-file/,QmHash01:SUBFILE_PATH"
 ```
 Run `cargo run -p subfile-exchange --help` for more configurations and the corresponding ENV variable names.
 
-3. Access the server via the admin endpoint.
+3. Access the server via the **admin** endpoint.
 
 HTTP request example to get, add, and remove subfile services
 ```
@@ -91,7 +88,9 @@ Subfile(s) added successfully%
 Subfile(s) removed successfully
 ```
 
-4. (TODO) Register the server endpoint on the smart contract.
+4. (TODO) Register the server endpoint on the smart contract. Currently we assume the service endpoint has been registered with indexer-agent (for subgraphs). 
+
+5. To be compatible with V1 and Scalar TAP, an indexer must maintain an allocation. This means the indexer should use the `wallet` subcommand to create allocations. Refer to [Onchain Guide](onchain_guide.md).
 
 You are open for business!
 

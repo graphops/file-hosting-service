@@ -26,13 +26,13 @@ After determining the subfile CID, client should supply a local path for writing
 ### CLI example
 ```
 ➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange downloader \
-   --ipfs-hash QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v \
+   --ipfs-hash QmHash \
    --indexer-endpoints http://localhost:5678,http://localhost:5677 \
-   --free-query-auth-token 'Bearer imfreeee' \
-   --mnemonic "sheriff obscure trick beauty army fat wink legal flee leader section suit" \
+   --free-query-auth-token 'Bearer auth_token' \
+   --mnemonic "seed phrase" \
    --chain-id 421614 \
    --verifier 0xfC24cE7a4428A6B89B52645243662A02BA734ECF \
-   --provider [arbitrum-sepolia-rpc-endpoint]
+   --provider "arbitrum-sepolia-rpc-endpoint"
 ```
 
 
