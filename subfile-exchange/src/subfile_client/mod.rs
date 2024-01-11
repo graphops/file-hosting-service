@@ -1,6 +1,7 @@
 use alloy_primitives::{Address, U256};
 use bytes::Bytes;
 
+use ethers::providers::{Http, Middleware, Provider};
 use http::header::{AUTHORIZATION, CONTENT_RANGE};
 use rand::seq::SliceRandom;
 use reqwest::Client;
@@ -57,13 +58,21 @@ impl SubfileDownloader {
         .expect("Read subfile");
 
         let wallet = build_wallet(&args.mnemonic).expect("Mnemonic build wallet");
-        //TODO: Factor away from client, Transactions could be a separate entity
         let signing_key = wallet.signer().to_bytes();
         let secp256k1_private_key =
             SecretKey::from_slice(&signing_key).expect("Private key from wallet");
+        let provider = Provider::<Http>::try_from(&args.provider).expect("Connect to the provider");
+        //TODO: migrate ethers type to alloy
+        let chain_id = U256::from(
+            provider
+                .get_chainid()
+                .await
+                .expect("Get chain id from provider")
+                .as_u128(),
+        );
         let receipt_signer = ReceiptSigner::new(
             secp256k1_private_key,
-            U256::from(args.chain_id),
+            chain_id,
             Address::from_str(&args.verifier).expect("Parse verifier"),
         )
         .await;

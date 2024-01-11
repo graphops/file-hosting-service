@@ -138,13 +138,6 @@ pub struct DownloaderArgs {
     pub provider: String,
     #[clap(
         long,
-        value_name = "chain_id",
-        env = "CHAIN_ID",
-        help = "Protocol network's Chain ID"
-    )]
-    pub chain_id: u64,
-    #[clap(
-        long,
         value_name = "verifier",
         env = "VERIFIER",
         help = "TAP verifier contract address"

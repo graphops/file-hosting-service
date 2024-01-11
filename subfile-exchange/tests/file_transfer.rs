@@ -10,6 +10,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore = "Require working provider url"]
     async fn test_file_transfer() {
         std::env::set_var("RUST_LOG", "off,subfile_exchange=debug,file_transfer=trace");
         subfile_exchange::config::init_tracing(String::from("pretty")).unwrap();
@@ -45,7 +46,6 @@ mod tests {
                 "http://localhost:5677".to_string(),
             ]
             .to_vec(),
-            chain_id: 421614,
             verifier: String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF"),
             mnemonic: String::from(
                 "sheriff obscure trick beauty army fat wink legal flee leader section suit",
