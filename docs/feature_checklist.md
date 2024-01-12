@@ -4,49 +4,49 @@
 - [x] File hasher
   - [x] use sha2-256 as it is more commonly used, faster than sha3-256, both no known hacks (should be easy to switch)
   - [x] Takes a file path and read
-  - [x] Chunk file to a certain size - currently using a constant of 1MB
+  - [x] File manifest to a certain size - currently using a constant of 1MB
   - [X] Hash each chunk as leaves (nodes)
   - [x] Produce a merkle tree
-  - [x] construct and write a chunk_file.yaml (root, nodes)
+  - [x] construct and write a file_manifest.yaml (root, nodes)
   - [x] Unit tests: same file same hash, different file different hash, big temp file same/modified
   - [x] last chunk lengths, 
 - [ ] Analyze merkle tree vs hash list for memory usage and verification runtime
-- [x] Subfile builder / publisher - CLI
-  - [x] Take a file, use File hasher to get the chunk_file, publish chunk_file to IPFS
+- [x] Manifest builder / publisher - CLI
+  - [x] Take a file, use File hasher to get the file_manifest, publish file_manifest to IPFS
     - [x] later, take a list of files, use File hasher to hash all files and get root hashes 
-  - [x] Construct a subfile manifest with metainfo using YAML builder
+  - [x] Construct a manifest with metainfo using YAML builder
     - [x] vectorize
   - [x] May include a status endpoint for the "canonical" publisher, but recognize the endpoint may change later on
-  - [x] Publish subfile to IPFS, receive a IPFS hash for the subfile
+  - [x] Publish manifest to IPFS, receive a IPFS hash for the manifest
 - [x] IPFS client
   - [x] Connect to an IPFS gateway
   - [x] Post files
   - [x] Cat files
 - [x] YAML parser and builder
   - [x] Deserialize and serialize yaml files
-- [ ] Subfile server 
+- [ ] Manifest server 
   - [x] require operator mnemonic
   - [ ] Use a generic path
-  - [x] Initialize service; for one subfile, take (ipfs_hash, local_path)
-    - [x] Take a subfile IPFS hash and get the file using IPFS client
-    - [x] Parse yaml file for all the chunk_file hashes using Yaml parser, construct the subfile object 
-      - [x] Take metainfo of chunk_file and search for access by the local_path
+  - [x] Initialize service; for one Bundle, take (ipfs_hash, local_path)
+    - [x] Take a Bundle IPFS hash and get the file using IPFS client
+    - [x] Parse yaml file for all the file_manifest hashes using Yaml parser, construct the Bundle object 
+      - [x] Take metainfo of file_manifest and search for access by the local_path
       - [x] Verify local file against the chunk hashes
-    - [x] vectorize service for multiple subfiles
+    - [x] vectorize service for multiple bundles
     - [x] Once verified, add to file to the service availability endpoint
   - [x] Route `/` for "Ready to roll!"
   - [x] Route `/operator` for operator info
   - [x] Route `/status` for availability
     - [x] verification for availability
-  - [x] Route `/subfiles/id/:id` for a subfile using IPFS hash with range requests
+  - [x] Route `/bundles/id/:id` for a Bundle using IPFS hash with range requests
   - [x] Route `/health` for general health
-  - [x] Route `/version` for subfile server version
+  - [x] Route `/version` for Bundle server version
   - [x] Configure and check free query auth token
   - [ ] (?) Server Certificate
   - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
     - [x] start off with request as (ipfs_hash, range)
     - [x] Check if ipfs_hash is available
-    - [x] Check if range is valid against the subfile and the specific chunk_file
+    - [x] Check if range is valid against the Bundle and the specific file_manifest
     - [ ] TAP: Valid and store receipt
     - [x] Read in the requested chunk
       - [x] Add tests
@@ -55,15 +55,15 @@
   - [x] Start with free service and requiring a free query auth token
     - [x] default pricing, allow updates for pricing per byte
   - [ ] Runs TAP agent for receipt management
-- [ ] Subfile Client 
+- [ ] File Download Client 
   - [ ] Take private key/mneomic for wallet connections
   - [x] Request using ipfs_hash
-    - [ ] take budget for the overall subfile
+    - [ ] take budget for the overall bundle/file
       - [ ] construct receipts using budget and chunk sizes
       - [ ] add receipt to request
     - [x] add free_token to request
     - [ ] File discovery and matching (Gateway?)
-      - [x] Read subfile manifest
+      - [x] Read bundle manifest
       - [x] Ping indexer endpoints data availability
       - [ ] Pricing and performances, run indexer selection
       - [x] Parallel requests
@@ -74,7 +74,7 @@
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
     - [x] Keeps track of the downloaded and missing pieces, 
     - [x] continually requesting missing pieces until the complete file is obtained
-    - [x] Upon receiving a response, verify the chunk data in the chunk_file
+    - [x] Upon receiving a response, verify the chunk data in the file_manifest
       - [x] if failed, blacklist the indexer
   - [x] Once all file has been received and verified, terminate
 

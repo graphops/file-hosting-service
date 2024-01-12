@@ -23,8 +23,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./target/release/subfile-exchange
-          asset_name: subfile-exchange-${{ github.event.release.tag_name }}-ubuntu
+          asset_path: ./target/release/file-exchange
+          asset_name: file-exchange-${{ github.event.release.tag_name }}-ubuntu
           asset_content_type: binary/octet-stream
   build-macos:
     runs-on: macos-latest
@@ -43,6 +43,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./target/release/subfile-exchange
-          asset_name: subfile-exchange-${{ github.event.release.tag_name }}-macos
+          asset_path: ./target/release/file-exchange
+          asset_name: file-exchange-${{ github.event.release.tag_name }}-macos
           asset_content_type: binary/octet-stream

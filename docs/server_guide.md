@@ -53,39 +53,39 @@ The server utilizes a combination of open-source technologies for optimal perfor
 
 CLI example
 ```
-✗ cargo run -p subfile-exchange server \
+✗ cargo run -p file-exchange server \
   --host 0.0.0.0 \
   --port 5678 \
   --mnemonic "seed phrase" \
   --admin-auth-token "imadmin" \
   --free-query-auth-token "imafriend" \
-  --subfiles "QmHash00:./example-file/,QmHash01:SUBFILE_PATH"
+  --bundles "QmHash00:./example-file/,QmHash01:BUNDLE_PATH"
 ```
-Run `cargo run -p subfile-exchange --help` for more configurations and the corresponding ENV variable names.
+Run `cargo run -p file-exchange --help` for more configurations and the corresponding ENV variable names.
 
 3. Access the server via the **admin** endpoint.
 
-HTTP request example to get, add, and remove subfile services
+HTTP request example to get, add, and remove file services
 ```
 ✗ curl http://localhost:5678/admin -X POST \
   -H "Content-Type: application/json" \
   -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"add_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./example-file"],"id":1,"jsonrpc":"2.0"}' 
-Subfile(s) added successfully%      
+ --data '{"method":"add_bundle","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./example-file"],"id":1,"jsonrpc":"2.0"}' 
+Manifest(s) added successfully%      
 
 ✗ curl http://localhost:5678/admin -X POST \
   -H "Content-Type: application/json" \
   -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"get_subfiles","id":1,"jsonrpc":"2.0"}'
+ --data '{"method":"get_bundles","id":1,"jsonrpc":"2.0"}'
 [{
-  "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","subfile":{"chunk_files":[{"chunk_hashes":["uKD2xdfp1WszuvIP1nFNNTYoZ7zvm2KX6KFElwwBfdI=","TrusR0Z+EYg33o4KRXGvSN910yavCkjD7K3pYImGZaQ="],"chunk_size":1048576,"file_name":"example-create-17686085.dbin","total_bytes":1052737},{"chunk_hashes":["/5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=",...],"chunk_size":1048576,"file_name":"0017234500.dbin.zst","total_bytes":24817953},...],
+  "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","bundle":{"file_manifests":[{"chunk_hashes":["uKD2xdfp1WszuvIP1nFNNTYoZ7zvm2KX6KFElwwBfdI=","TrusR0Z+EYg33o4KRXGvSN910yavCkjD7K3pYImGZaQ="],"chunk_size":1048576,"file_name":"example-create-17686085.dbin","total_bytes":1052737},{"chunk_hashes":["/5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=",...],"chunk_size":1048576,"file_name":"0017234500.dbin.zst","total_bytes":24817953},...],
 "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","local_path":"./example-file","manifest":{"block_range":{"end_block":null,"start_block":null},"chain_id":"0","description":"random flatfiles","file_type":"flatfiles","files":[{"hash":"QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv","name":"example-create-17686085.dbin"}, ...],"spec_version":"0.0.0"}}}, ...]%                            
 
 ✗ curl http://localhost:5678/admin -X POST \
   -H "Content-Type: application/json" \
   -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"remove_subfile","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
-Subfile(s) removed successfully
+ --data '{"method":"remove_bundle","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
+Manifest(s) removed successfully
 ```
 
 4. (TODO) Register the server endpoint on the smart contract. Currently we assume the service endpoint has been registered with indexer-agent (for subgraphs). 

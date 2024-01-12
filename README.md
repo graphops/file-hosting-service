@@ -1,17 +1,17 @@
-# Subfile-exchange
+# File Exchange
 
 ## Introduction 
 Enable file sharing as a exchange, aim for a decentralized, efficient, and verifiable market, with scalable, performant, and secure software.
 
-Subfile-exchange is a decentralized, peer-to-peer data sharing platform designed for efficient and verifiable file sharing. It leverages a combination of technologies including Hash commitments on IPFS for file discovery and verification, chunk data transfer and micropayments reducing trust requirements between clients and servers, and HTTPS over HTTP2 for secure and efficient data transfer. The system is built with scalability, performance, integrity, and security in mind, aiming to create a robust market for file sharing.
+File Exchange is a decentralized, peer-to-peer data sharing platform designed for efficient and verifiable file sharing. It leverages a combination of technologies including Hash commitments on IPFS for file discovery and verification, chunk data transfer and micropayments reducing trust requirements between clients and servers, and HTTPS over HTTP2 for secure and efficient data transfer. The system is built with scalability, performance, integrity, and security in mind, aiming to create a robust market for file sharing.
 
 
-Subfile-exchange leverages IPFS for file discovery and verification, ensuring that each piece of data shared is authentic and unaltered. The use of SHA2-256 for hashing provides a balance of speed and security, making the system both fast and impenetrable to known cryptographic attacks. Furthermore, the adoption of HTTPS over HTTP2 with range requests ensures that all data transfers are not only swift but also secure, safeguarding against common internet vulnerabilities and minimizing risks per transaction.
+File Exchange leverages IPFS for file discovery and verification, ensuring that each piece of data shared is authentic and unaltered. The use of SHA2-256 for hashing provides a balance of speed and security, making the system both fast and impenetrable to known cryptographic attacks. Furthermore, the adoption of HTTPS over HTTP2 with range requests ensures that all data transfers are not only swift but also secure, safeguarding against common internet vulnerabilities and minimizing risks per transaction.
 
 
 ## Target Audience
 
-This documentation is tailored for individuals who have a basic understanding of decentralized technologies, peer-to-peer networks, and cryptographic principles. Whether you are an indexer running various blockchain nodes looking for sharing and verifying your data, an indexer looking to launch service for a new chain, or simply a user interested in the world of decentralized file sharing, this guide aims to provide you with a clear and comprehensive understanding of how Subfile-service operates.
+This documentation is tailored for individuals who have a basic understanding of decentralized technologies, peer-to-peer networks, and cryptographic principles. Whether you are an indexer running various blockchain nodes looking for sharing and verifying your data, an indexer looking to launch service for a new chain, or simply a user interested in the world of decentralized file sharing, this guide aims to provide you with a clear and comprehensive understanding of how File Service operates.
 
 ## Features
 
@@ -49,7 +49,7 @@ You may learn background information on various components of the exchange
 
 #### [Design Principle](docs/architecture.md)
 
-#### [Packaging](docs/subfile_manifest.md)
+#### [Entity Definition](docs/manifest.md)
 
 #### [Contracts](docs/contracts.md)
 

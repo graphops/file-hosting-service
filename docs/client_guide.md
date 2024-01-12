@@ -19,13 +19,13 @@ To minimize trust requirements, the client employs a chunk-based payment system.
 
 ## CLI Usage
 
-The client operates through a command-line interface (CLI) for simplicity and ease of use. Client would need to determine the subfile that contains the dataset they desire. This may mean looking at subfile manifests or in the future a tool that matches subfiles by the provided critieria. 
+The client operates through a command-line interface (CLI) for simplicity and ease of use. Client would need to determine the Bundle that contains the dataset they desire. This may mean looking at Bundle manifests or in the future a tool that matches manifests by the provided critieria. 
 
-After determining the subfile CID, client should supply a local path for writing the subfile corresponding files, a wallet for payments or a free query auth token, and a list of indexer endpoints (this should be handled by gateway or a scraping client).
+After determining the Bundle CID, client should supply a local path for writing the Bundle corresponding files, a wallet for payments or a free query auth token, and a list of indexer endpoints (this should be handled by gateway or a scraping client).
 
 ### CLI example
 ```
-➜  subfile-exchange git:(main) ✗ cargo run -p subfile-exchange downloader \
+➜  file-exchange git:(main) ✗ cargo run -p file-exchange downloader \
    --ipfs-hash QmHash \
    --indexer-endpoints http://localhost:5678,http://localhost:5677 \
    --free-query-auth-token 'Bearer auth_token' \
@@ -49,7 +49,7 @@ To use the client effectively, you will need:
 ### Getting Started
 
 1. Download and install the source code.
-2. Gather configurations: Identify the CID of the desired subfile, registered indexer endpoints, a local path for storing the downloaded files, private key (or mnemonics) of a wallet valid for Escrow payments, (optional) Obtain a free query auth token for limited access.
+2. Gather configurations: Identify the CID of the desired Bundle, registered indexer endpoints, a local path for storing the downloaded files, private key (or mnemonics) of a wallet valid for Escrow payments, (optional) Obtain a free query auth token for limited access.
 3. Use the CLI commands to download files.
 
 Enjoy seamless access to a vast world of data!
@@ -58,9 +58,9 @@ Enjoy seamless access to a vast world of data!
 
 The client prioritizes user safety and security. It employs secure communication protocols and wallet management practices. However, users should always be mindful of potential risks:
 
-- Choosing subfiles: Verify correctness of the subfile before initiating file requests.
+- Choosing manifests: Verify correctness of the Bundle before initiating file requests.
 - Securing wallet: Implement strong key protection and other security measures for the wallet.
-- Staying informed: Updated on the latest security threats, invalid subfiles, and updates for the client software.
+- Staying informed: Updated on the latest security threats, invalid manifests, and updates for the client software.
 
 ### Join the Community
 

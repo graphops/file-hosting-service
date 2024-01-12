@@ -5,7 +5,7 @@ COPY . .
 
 RUN ls -a
 
-RUN cargo build --release --bin subfile-exchange
+RUN cargo build --release --bin file-exchange
 
 ########################################################################################
 
@@ -14,6 +14,6 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=build /root/target/release/subfile-exchange /usr/local/bin/subfile-exchange
+COPY --from=build /root/target/release/file-exchange /usr/local/bin/file-exchange
 
-ENTRYPOINT [ "/usr/local/bin/subfile-exchange" ]
+ENTRYPOINT [ "/usr/local/bin/file-exchange" ]
