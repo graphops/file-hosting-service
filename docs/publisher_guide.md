@@ -8,16 +8,16 @@ To start, you would need to provide several configurations
 
 ### Requirements
 
-Publisher must have read access to all files contained in the package. The publisher publish 1 Bundle at a time and is not responsible for hosting the file after publishing. The publisher should chunk all the files in the package and generate a hash for all the chunks. Then the publisher will build a hierarchy with the hashes. Currently, publisher simply put chunk hashes in a list for each individual files, publish individual file manifests, then they build a Bundle that contains a list of the file manifest addresses. 
+Publisher must have read access to all files contained in the Bundle. The publisher publish 1 Bundle at a time and is not responsible for hosting the file after publishing. The publisher should chunk all the files in the package and generate a hash for all the chunks. Then the publisher will build a hierarchy with the hashes. Currently, the Publisher simply put chunk hashes in a list for each individual file, publish individual file manifests, then they build a Bundle that contains a list of the file manifest addresses. 
 
 > More exploration for hashing/packaging architecture
 
 
 ### CLI example
 ```
-➜  file-exchange git:(main) ✗ cargo run -p file-exchange publisher \
+$ file-exchange publisher \
   --read-dir ./example-file/ \
-  --Bundle-name "blah" \
+  --bundle-name "blah" \
   --file-names example0017686312.dbin,example-create-17686085.dbin \
   --file-type flatfiles \
   --file-version 0.0.0 \
@@ -27,5 +27,5 @@ Publisher must have read access to all files contained in the package. The publi
 
 For more information 
 ```
-➜  file-exchange git:(main) ✗ cargo run -p file-exchange --help
+$ file-exchange --help
 ```

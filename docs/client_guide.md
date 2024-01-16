@@ -1,12 +1,12 @@
 # File Sharing Client
 
-Tired of data drudgery? Imagine a world where you skip the tedious task of indexing data and start serving queries in a flash! That's the magic of our P2P file sharing network. Instead of spending hours to months catching up to the head of a chain, you can tap into a vast pool of indexed information, ready and waiting for your queries. 
+Tired of data drudgery? Imagine a world where you skip the tedious task of indexing data and start serving queries in a flash! That's the magic of our file sharing network. Instead of spending hours to months catching up to the head of a chain, you can tap into a vast pool of indexed information, ready and waiting for your queries. 
 
 This document provides an overview of the file sharing client.
 
 ## Functionality
 
-The client facilitates data retrieval from the P2P file sharing network. Users can specify desired files by their content addressable IDs (CIDs) and utilize various features:
+The client facilitates data retrieval from FHS. The client implements:
 
 - File retrieval: Download entire files or specific chunks at a time.
 - Payment: Pay for file access using tokens deposited in an Escrow account on-chain.
@@ -25,7 +25,7 @@ After determining the Bundle CID, client should supply a local path for writing 
 
 ### CLI example
 ```
-➜  file-exchange git:(main) ✗ cargo run -p file-exchange downloader \
+$ file-exchange downloader \
    --ipfs-hash QmHash \
    --indexer-endpoints http://localhost:5678,http://localhost:5677 \
    --free-query-auth-token 'Bearer auth_token' \
@@ -35,12 +35,11 @@ After determining the Bundle CID, client should supply a local path for writing 
    --provider "arbitrum-sepolia-rpc-endpoint"
 ```
 
-
 ### Requirements
 
 To use the client effectively, you will need:
 
-- Content Address: The CID of the desired file.
+- Bundle Manifest CID: The CID of the Bundle Manifest you want to download.
 - Local Path: A directory where the downloaded file will be stored. (Later will be a generic storage path, enabling cloud storage access)
 - Wallet: A blockchain wallet containing tokens for escrow payments.
 - Indexer Endpoints: A list of available server addresses.
