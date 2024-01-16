@@ -1,16 +1,8 @@
 ## Architecture and Components
 
-### Decentralized Architecture
-
-Unlike traditional centralized systems where data is stored and managed through a single entity, File Service distributes data across a network of nodes. This decentralization ensures resilience against failures and attacks as there is no single point of failure; it also enhances privacy and control as users are not reliant on a central authority for data management.
-
-The architecture is underpinned by a peer-to-peer (P2P) network framework, where each node in the network can act as a client and/or a server. This setup facilitates direct file sharing among users without the need for intermediaries, and as more users join and contribute to the network, the system becomes more robust and capable of handling larger volumes of data.
-
-
 ### Generic Diagram
 
-![Diagram](./file-exchange.png)
-
+![Diagram](./fhs.png)
 
 ### Key Components
 

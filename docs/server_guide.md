@@ -2,13 +2,13 @@
 
 You hold the key to unlocking the network's true potential. By sharing your meticulously indexed data, you become the architect of information accessibility. Imagine, your contribution fueling a vibrant ecosystem of knowledge, where fellow indexers can build upon your work, unleashing a torrent of information to the world. In return, your generosity is rewarded with precious tokens, a testament to the invaluable role you play in this decentralized revolution. Become the data hero we need, and together, let us build a brighter future fueled by open access and boundless knowledge!
 
-This document provides an overview of the P2P file sharing server, intended for those familiar with blockchain nodes and large datasets.
+This document provides an overview of the file sharing server, intended for those familiar with blockchain nodes and large datasets.
 
 Jump to [Quick Start](###getting-started)
 
 ## File Transfer Protocol
 
-The server utilizes HTTP2 over HTTPS for secure and efficient file transfer. This ensures data integrity and confidentiality while leveraging the performance benefits of HTTP2.
+The server utilizes HTTP2 with TLS for secure and efficient file transfer. This ensures data integrity and confidentiality while leveraging the performance benefits of HTTP2.
 
 
 ## Access Control
@@ -53,7 +53,7 @@ The server utilizes a combination of open-source technologies for optimal perfor
 
 CLI example
 ```
-✗ cargo run -p file-exchange server \
+$ file-exchange server \
   --host 0.0.0.0 \
   --port 5678 \
   --mnemonic "seed phrase" \
@@ -61,7 +61,7 @@ CLI example
   --free-query-auth-token "imafriend" \
   --bundles "QmHash00:./example-file/,QmHash01:BUNDLE_PATH"
 ```
-Run `cargo run -p file-exchange --help` for more configurations and the corresponding ENV variable names.
+Run `file-exchange --help` for more configurations and the corresponding ENV variable names.
 
 3. Access the server via the **admin** endpoint.
 
