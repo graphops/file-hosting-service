@@ -774,6 +774,15 @@
     }
   },
   "42161": {
+    "TAPVerifier": {
+      "address": "0x33f9E93266ce0E108fc85DdE2f71dab555A0F05a"
+    },
+    "AllocationIDTracker": { 
+      "address": "0x5B2F33d7Ca6Ec88f5586f2528f58c20843D9FE7c"
+    },
+    "Escrow": { 
+      "address": "0x8f477709eF277d4A880801D01A140a9CF88bA0d3"
+    },
     "GraphProxyAdmin": {
       "address": "0x2983936aC20202a6555993448E0d5654AC8Ca5fd",
       "creationCodeHash": "0x68b304ac6bce7380d5e0f6b14a122f628bffebcc75f8205cb60f0baf578b79c3",
@@ -1218,6 +1227,15 @@
     }
   },
   "421614": {
+    "TAPVerifier": {
+      "address": "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"
+    },
+    "AllocationIDTracker": { 
+      "address": "0xAaC28a10d707bbc6e02029f1bfDAEB5084b2aD11"
+    },
+    "Escrow": { 
+      "address": "0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02"
+    },
     "GraphProxyAdmin": {
       "address": "0x7474a6cc5fAeDEc620Db0fa8E4da6eD58477042C",
       "creationCodeHash": "0x68b304ac6bce7380d5e0f6b14a122f628bffebcc75f8205cb60f0baf578b79c3",
