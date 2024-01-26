@@ -1,6 +1,5 @@
-use http::StatusCode;
-use rand::seq::IteratorRandom;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distributions::Alphanumeric, seq::IteratorRandom, Rng};
+use reqwest::StatusCode;
 use std::env;
 use std::io::Write;
 use std::time::Duration;

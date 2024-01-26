@@ -1,8 +1,7 @@
 use bytes::Bytes;
 use futures::Stream;
-use http::header::CONTENT_LENGTH;
 use http::Uri;
-use reqwest::multipart;
+use reqwest::{header::CONTENT_LENGTH, multipart};
 use serde::Deserialize;
 
 use std::time::Duration;

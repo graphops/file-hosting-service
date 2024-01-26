@@ -2,9 +2,11 @@ use alloy_primitives::{Address, U256};
 use bytes::Bytes;
 
 use ethers::providers::{Http, Middleware, Provider};
-use http::header::{AUTHORIZATION, CONTENT_RANGE};
 use rand::seq::SliceRandom;
-use reqwest::Client;
+use reqwest::{
+    header::{AUTHORIZATION, CONTENT_RANGE},
+    Client,
+};
 use secp256k1::SecretKey;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
