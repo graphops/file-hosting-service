@@ -8,9 +8,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::config::WalletArgs;
-use crate::transaction_manager::staking::L2Staking;
+use crate::errors::Error;
+use crate::transaction_manager::{escrow::Escrow, staking::L2Staking};
 use crate::util::build_wallet;
 
+pub mod escrow;
 pub mod staking;
 
 /// Contracts: (contract name, contract address)
@@ -23,6 +25,7 @@ pub type ContractClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 pub struct TransactionManager {
     client: Arc<ContractClient>,
     staking_contract: L2Staking<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
+    escrow_contract: Escrow<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
     pub args: WalletArgs,
 }
 
@@ -41,20 +44,16 @@ impl TransactionManager {
         let contract_addresses =
             network_contract_addresses("addresses.json", &chain_id.to_string())?;
 
-        // // Test reading the function
-        // let tokens = U256::from(100000);
-        // let _value = staking::allocate(&client, *contract_addresses.get("L2Staking").unwrap(), "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v", token).await?;
-
-        // let value =
-        //     staking::controller(&client, *contract_addresses.get("L2Staking").unwrap()).await?;
-        // tracing::debug!("test read - controller value: {:#?}", value);
-
         let staking_addr = contract_addresses.get("L2Staking").unwrap();
         let staking_contract = L2Staking::new(*staking_addr, Arc::new(client.clone()));
+
+        let escrow_addr = contract_addresses.get("Escrow").unwrap();
+        let escrow_contract = Escrow::new(*escrow_addr, Arc::new(client.clone()));
 
         Ok(TransactionManager {
             client,
             staking_contract,
+            escrow_contract,
             args,
         })
     }
@@ -64,9 +63,10 @@ impl TransactionManager {
 pub fn network_contract_addresses(
     file_path: &str,
     chain_id: &str,
-) -> Result<ContractAddresses, anyhow::Error> {
-    let data = fs::read_to_string(file_path)?;
-    let json_value: Value = serde_json::from_str(&data)?;
+) -> Result<ContractAddresses, Error> {
+    let data = fs::read_to_string(file_path).map_err(|e| Error::ContractError(e.to_string()))?;
+    let json_value: Value =
+        serde_json::from_str(&data).map_err(|e| Error::ContractError(e.to_string()))?;
     let mut network_contracts = ContractAddresses::new();
 
     if let Value::Object(chains) = json_value {
@@ -74,7 +74,12 @@ pub fn network_contract_addresses(
             for (contract_name, info) in contracts {
                 if let Value::Object(info_map) = info {
                     if let Some(Value::String(address)) = info_map.get("address") {
-                        network_contracts.insert(contract_name.clone(), H160::from_str(address)?);
+                        let addr = H160::from_str(address);
+                        tracing::debug!("Read contract address {:#?} -> addr {:#?}", address, addr);
+                        network_contracts.insert(
+                            contract_name.clone(),
+                            addr.map_err(|e| Error::ContractError(e.to_string()))?,
+                        );
                     }
                 }
             }
@@ -86,4 +91,13 @@ pub fn network_contract_addresses(
         "network"
     );
     Ok(network_contracts)
+}
+
+pub fn contract_error_decode(e: String) -> String {
+    let encoded_error = &e.to_string()[2..];
+    let error_message_hex = &encoded_error[8 + 64..];
+    let bytes = hex::decode(error_message_hex).unwrap();
+    let message = String::from_utf8(bytes).unwrap();
+    tracing::error!(message);
+    message
 }
