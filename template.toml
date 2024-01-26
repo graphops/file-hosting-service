@@ -1,0 +1,46 @@
+[common]
+[common.indexer]
+indexer_address = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+operator_mnemonic = "foo bar baz ruux zorp quux quuz corge grault garply waldo fred"
+
+[common.graph_node]
+status_url = "http://localhost:8030/graphql"
+query_base_url = "http://localhost:8000"
+
+[common.database]
+postgres_url = "postgresql://indexer@localhost:5432/indexer"
+
+[common.network_subgraph]
+query_url = "https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+serve_auth_token = "it-is-serving-network-subgraph-data"
+
+[common.escrow_subgraph]
+query_url = "https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+
+[common.graph_network]
+id = 1
+chain_id = 411614
+
+[common.server]
+url_prefix = "/"
+host_and_port = "0.0.0.0:7600"
+metrics_host_and_port = "0.0.0.0:7601"
+# optional:
+free_query_auth_token = "free-lunch-best-lunch"
+
+[common.scalar]
+chain_id = 421614
+receipts_verifier_address = "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"
+
+[server]
+bundles = ["QmHash00:./example-file/","QmHash01:BUNDLE_PATH"]
+admin_auth_token = "kueen"
+price_per_byte = 1
+ipfs_gateway = "https://ipfs.network.thegraph.com"
+log_format = "Pretty"

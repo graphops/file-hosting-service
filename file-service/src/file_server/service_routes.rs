@@ -1,12 +1,13 @@
 // #![cfg(feature = "acceptor")]
-use http::header::CONTENT_RANGE;
 
-use file_exchange::errors::{Error, ServerError};
+use indexer_common::indexer_service::http::IndexerServiceImpl;
+use thegraph::types::DeploymentId;
 
 use crate::file_server::util::{Health, Operator};
+use file_exchange::errors::{Error, ServerError};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Body, Response, StatusCode};
 
 use super::{
     range::{parse_range_header, serve_file, serve_file_range},
@@ -25,7 +26,7 @@ pub async fn health() -> Result<Response<Body>, Error> {
 
 /// Endpoint for package version
 pub async fn version(context: &ServerContext) -> Result<Response<Body>, Error> {
-    let version = context.lock().await.release.version.clone();
+    let version = context.state.lock().await.release.version.clone();
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(version))
@@ -34,7 +35,7 @@ pub async fn version(context: &ServerContext) -> Result<Response<Body>, Error> {
 
 /// Endpoint for cost to download per byte
 pub async fn cost(context: &ServerContext) -> Result<Response<Body>, Error> {
-    let price = context.lock().await.price_per_byte.to_string();
+    let price = context.state.lock().await.price_per_byte.to_string();
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::from(price))
@@ -43,7 +44,7 @@ pub async fn cost(context: &ServerContext) -> Result<Response<Body>, Error> {
 
 /// Endpoint for status availability
 pub async fn status(context: &ServerContext) -> Result<Response<Body>, Error> {
-    let bundle_mapping = context.lock().await.bundles.clone();
+    let bundle_mapping = context.state.lock().await.bundles.clone();
     let bundle_ipfses: Vec<String> = bundle_mapping
         .keys()
         .map(|i| i.to_owned())
@@ -59,7 +60,7 @@ pub async fn status(context: &ServerContext) -> Result<Response<Body>, Error> {
 
 // Define a handler function for the `/info` route
 pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, Error> {
-    let public_key = context.lock().await.operator_public_key.clone();
+    let public_key = context.state.lock().await.operator_public_key.clone();
     let operator = Operator { public_key };
     let json = serde_json::to_string(&operator).map_err(Error::JsonError)?;
     tracing::debug!(json, "Operator info response");
@@ -71,45 +72,43 @@ pub async fn operator_info(context: &ServerContext) -> Result<Response<Body>, Er
 
 // Serve file requests
 pub async fn file_service(
-    path: &str,
-    req: &Request<Body>,
+    id: DeploymentId,
+    req: &<ServerContext as IndexerServiceImpl>::Request,
     context: &ServerContext,
 ) -> Result<Response<Body>, Error> {
     tracing::debug!("Received file range request");
-    let id = path.trim_start_matches("/bundles/id/");
-
-    let context_ref = context.lock().await;
+    let context_ref = context.state.lock().await;
     tracing::debug!(
         bundles = tracing::field::debug(&context_ref),
-        id,
+        id = tracing::field::debug(&id.to_string()),
         "Received file range request"
     );
 
-    // Validate the auth token
-    let auth_token = req
-        .headers()
-        .get(http::header::AUTHORIZATION)
-        .and_then(|t| t.to_str().ok());
+    // // Validate the auth token
+    // let auth_token = req
+    //     .headers()
+    //     .get(http::header::AUTHORIZATION)
+    //     .and_then(|t| t.to_str().ok());
 
-    let free = context_ref.free_query_auth_token.is_none()
-        || (auth_token.is_some()
-            && context_ref.free_query_auth_token.is_some()
-            && auth_token.unwrap() == context_ref.free_query_auth_token.as_deref().unwrap());
+    // let free = context_ref.free_query_auth_token.is_none()
+    //     || (auth_token.is_some()
+    //         && context_ref.free_query_auth_token.is_some()
+    //         && auth_token.unwrap() == context_ref.free_query_auth_token.as_deref().unwrap());
 
-    if !free {
-        tracing::warn!("Respond with unauthorized query");
-        return Ok(Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body("Paid service is not implemented, need free query authentication".into())
-            .unwrap());
-    }
+    // if !free {
+    //     tracing::warn!("Respond with unauthorized query");
+    //     return Ok(Response::builder()
+    //         .status(StatusCode::UNAUTHORIZED)
+    //         .body("Paid service is not implemented, need free query authentication".into())
+    //         .unwrap());
+    // }
 
-    let requested_bundle = match context_ref.bundles.get(id) {
+    let requested_bundle = match context_ref.bundles.get(&id.to_string()) {
         Some(s) => s.clone(),
         None => {
             tracing::debug!(
                 server_context = tracing::field::debug(&context_ref),
-                id,
+                id = tracing::field::debug(&id.to_string()),
                 "Requested bundle is not served locally"
             );
             return Ok(Response::builder()
@@ -119,13 +118,13 @@ pub async fn file_service(
         }
     };
 
-    match req.headers().get("file_hash") {
-        Some(hash) if hash.to_str().is_ok() => {
+    match req.get("file-hash") {
+        Some(hash) if hash.as_str().is_some() => {
             let mut file_path = requested_bundle.local_path.clone();
             let file_manifest = match requested_bundle
                 .file_manifests
                 .iter()
-                .find(|file| file.meta_info.hash == hash.to_str().unwrap())
+                .find(|file| file.meta_info.hash == hash.as_str().unwrap())
             {
                 Some(c) => c,
                 None => {
@@ -137,7 +136,7 @@ pub async fn file_service(
             };
             file_path.push(file_manifest.meta_info.name.clone());
             // Parse the range header to get the start and end bytes
-            match req.headers().get(CONTENT_RANGE) {
+            match req.get("content-range") {
                 Some(r) => {
                     tracing::debug!("Parse content range header");
                     let range = parse_range_header(r)?;

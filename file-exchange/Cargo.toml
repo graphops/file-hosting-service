@@ -15,8 +15,9 @@ name = "file-exchange"
 path = "src/main.rs"
 
 [dependencies]
-alloy-sol-types = { version = "0.5.0", features = ["eip712-serde"] }
-alloy-primitives = { version = "0.5.0", features = ["serde"] }
+alloy-sol-types = { version = "0.6.0", features = ["eip712-serde"] }
+alloy-primitives = { version = "0.6.0", features = ["serde"] }
+tap_core = { git = "https://github.com/semiotic-ai/timeline-aggregation-protocol" }
 anyhow = "1.0"
 bs58 = "0.5.0"
 base64 = "0.21"
@@ -48,7 +49,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 sha2 = "0.10"
-tap_core = { version = "0.7.0", git = "https://github.com/semiotic-ai/timeline-aggregation-protocol" }
 tempfile = "3.2.0"
 tokio = { version = "1.28", features = ["time", "sync", "macros", "test-util", "rt-multi-thread"] }
 tokio-retry = "0.3"
@@ -64,6 +64,13 @@ tracing-subscriber = { version = "0.3", features = [
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_futures"] }
+wiremock = "0.5.19"
+lazy_static = "1.4.0"
+indexer-common = { package = "indexer-common", git = "https://github.com/graphprotocol/indexer-rs", branch = "hope/operator-info-endpoint" }
+thegraph = { git = "https://github.com/edgeandnode/toolshed", rev = "796c23da750d48ccf4b6d8841ac164cb5c42655d" }
+graphql-http = { git = "https://github.com/edgeandnode/toolshed", rev = "796c23da750d48ccf4b6d8841ac164cb5c42655d", features = [
+  "http-reqwest",
+] }
 
 [dev-dependencies.cargo-husky]
 version = "1"

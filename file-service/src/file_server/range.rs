@@ -5,15 +5,16 @@ use hyper::{Body, Response, StatusCode};
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 
+use serde_json::Value;
 use std::path::Path;
 
 use file_exchange::errors::{Error, ServerError};
 
 // Function to parse the Range header and return the start and end bytes
-pub fn parse_range_header(range_header: &hyper::header::HeaderValue) -> Result<(u64, u64), Error> {
+pub fn parse_range_header(range_header: &Value) -> Result<(u64, u64), Error> {
     let range_str = range_header
-        .to_str()
-        .map_err(|e| Error::InvalidRange(format!("Invalid Range header: {}", e)))?;
+        .as_str()
+        .ok_or(Error::InvalidRange("Range header Not found".to_string()))?;
 
     if !range_str.starts_with("bytes=") {
         return Err(Error::InvalidRange(
@@ -69,7 +70,7 @@ pub async fn serve_file_range(
         }
     };
 
-    tracing::debug!(start, end, file_size, "Range validity check");
+    tracing::trace!(start, end, file_size, "Range validity check");
     if start >= file_size || end >= file_size {
         return Ok(Response::builder()
             .status(StatusCode::RANGE_NOT_SATISFIABLE)

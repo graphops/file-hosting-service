@@ -13,7 +13,7 @@ mod tests {
     #[ignore = "Require working provider url"]
     async fn test_file_transfer() {
         std::env::set_var("RUST_LOG", "off,file_exchange=debug,file_transfer=trace");
-        file_exchange::config::init_tracing(String::from("pretty")).unwrap();
+        file_exchange::config::init_tracing("pretty").unwrap();
 
         let client = IpfsClient::new("https://ipfs.network.thegraph.com")
             .expect("Could not create client to thegraph IPFS gateway");

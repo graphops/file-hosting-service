@@ -14,9 +14,13 @@ path = "src/main.rs"
 
 [dependencies]
 file-exchange = { path = "../file-exchange" }
-alloy-sol-types = { version = "0.5.0", features = ["eip712-serde"] }
-alloy-primitives = { version = "0.5.0", features = ["serde"] }
+indexer-common = { package = "indexer-common", git = "https://github.com/graphprotocol/indexer-rs", branch = "hope/operator-info-endpoint" }
+thegraph = { git = "https://github.com/edgeandnode/toolshed", tag = "thegraph-v0.5.0" }
 anyhow = "1.0"
+async-graphql = "6.0.11"
+async-graphql-axum = "6.0.11"
+axum = "0.6.20"
+sha3 = "0.10.6"
 base64 = "0.21"
 build-info = "0.0.34"
 bytes = "1.0"
@@ -27,6 +31,7 @@ derive-getters = "0.3.0"
 dotenv = "0.15"
 ethers = "2.0.10"
 ethers-core = "2.0.10"
+figment = { version = "0.10", features = ["toml", "env"] }
 futures = { version = "0.3", features = ["compat"] }
 hex = "0.4.3"
 http = "0.2"
@@ -34,6 +39,7 @@ hyper = { version = "0.14.27", features = [ "server" ]}
 ipfs-api-backend-hyper = "0.6"
 ipfs-api-prelude = "0.6"
 merkle-cbt = "0.3.2"
+prometheus = "0.13.3"
 rand = "0.8.4"
 reqwest = { version = "0.11", features = ["json", "stream", "multipart"] }
 rustls = "0.21.8"
@@ -43,8 +49,15 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 sha2 = "0.10.8"
-tap_core = { version = "0.7.0", git = "https://github.com/semiotic-ai/timeline-aggregation-protocol" }
+sqlx = { version = "0.7.1", features = [
+    "postgres",
+    "runtime-tokio",
+    "bigdecimal",
+    "rust_decimal",
+    "time",
+] }
 tempfile = "3.2.0"
+thiserror = "1.0.49"
 tokio = { version = "1.28", features = ["time", "sync", "macros", "test-util", "rt-multi-thread"] }
 tokio-retry = "0.3"
 toml = "0.7.4"

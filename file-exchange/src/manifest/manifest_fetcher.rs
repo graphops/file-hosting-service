@@ -36,14 +36,14 @@ pub async fn fetch_bundle_from_ipfs(
     )
     .map_err(Error::YamlError)?;
 
-    tracing::debug!(
+    tracing::trace!(
         content = tracing::field::debug(&content),
         "Read file content"
     );
 
     let bundle = parse_bundle_manifest(content)?;
 
-    tracing::debug!(bundle = tracing::field::debug(&bundle), "bundle manifest");
+    tracing::trace!(bundle = tracing::field::debug(&bundle), "bundle manifest");
 
     Ok(bundle)
 }
@@ -58,7 +58,7 @@ pub async fn fetch_file_manifest_from_ipfs(
     client: &IpfsClient,
     ipfs_hash: &str,
 ) -> Result<FileManifest, Error> {
-    tracing::debug!(ipfs_hash, "Fetch file manifest from IPFS");
+    tracing::trace!(ipfs_hash, "Fetch file manifest from IPFS");
     // Fetch the content from IPFS
     let timeout = Duration::from_secs(10);
 
@@ -72,7 +72,7 @@ pub async fn fetch_file_manifest_from_ipfs(
     )
     .map_err(Error::YamlError)?;
 
-    tracing::debug!(
+    tracing::trace!(
         content = tracing::field::debug(&content),
         "Read file content"
     );

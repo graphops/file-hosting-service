@@ -195,13 +195,13 @@ mod tests {
         let file_size = CHUNK_SIZE;
         let (temp_file, temp_path) = create_random_temp_file(file_size as usize).unwrap();
 
-                let path = std::path::Path::new(&temp_path);
+        let path = std::path::Path::new(&temp_path);
         let readdir = path.parent().unwrap().to_str().unwrap();
         let file_name = path.file_name().unwrap().to_str().unwrap();
 
-                let object_store = Store::new(readdir).unwrap();
+        let object_store = Store::new(readdir).unwrap();
         let res = object_store.list(None).await.unwrap();
-                let found_obj = res
+        let found_obj = res
             .iter()
             .find(|obj| obj.location.to_string() == file_name)
             .unwrap();

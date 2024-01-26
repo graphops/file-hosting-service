@@ -44,7 +44,7 @@ impl Cli {
     pub fn args() -> Self {
         let config = Cli::parse();
         // Enables tracing under RUST_LOG variable
-        init_tracing(config.log_format.to_string()).expect("Could not set up global default subscriber for logger, check environmental variable `RUST_LOG` or the CLI input `log-level`");
+        init_tracing(&config.log_format.to_string()).expect("Could not set up global default subscriber for logger, check environmental variable `RUST_LOG` or the CLI input `log-level`");
         config
     }
 }
@@ -432,7 +432,7 @@ pub enum FileType {
 // }
 
 /// Sets up tracing, allows log level to be set from the environment variables
-pub fn init_tracing(format: String) -> Result<(), SetGlobalDefaultError> {
+pub fn init_tracing(format: &str) -> Result<(), SetGlobalDefaultError> {
     let filter = EnvFilter::from_default_env();
 
     let subscriber_builder: tracing_subscriber::fmt::SubscriberBuilder<
@@ -441,7 +441,7 @@ pub fn init_tracing(format: String) -> Result<(), SetGlobalDefaultError> {
         EnvFilter,
     > = FmtSubscriber::builder().with_env_filter(filter);
 
-    match format.as_str() {
+    match format {
         "json" => tracing::subscriber::set_global_default(subscriber_builder.json().finish()),
         "full" => tracing::subscriber::set_global_default(subscriber_builder.finish()),
         "compact" => tracing::subscriber::set_global_default(subscriber_builder.compact().finish()),

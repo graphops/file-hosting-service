@@ -113,11 +113,12 @@ pub fn simple_bundle() -> Bundle {
 
 pub fn init_logger() {
     env::set_var("RUST_LOG", "warn,file_exchange=trace");
-    init_tracing(String::from("pretty")).unwrap();
+    init_tracing("pretty").unwrap();
 }
 
 pub async fn server_ready(url: &str) -> Result<(), anyhow::Error> {
     loop {
+        tracing::debug!("ping server: {}", url);
         match reqwest::get(url).await {
             Ok(response) => {
                 if response.status() == StatusCode::OK {

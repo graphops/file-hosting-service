@@ -4,3 +4,6 @@
 .vscode/
 /example-download
 .envrc
+local.toml
+test.toml
+test2.toml

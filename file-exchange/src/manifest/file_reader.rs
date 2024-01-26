@@ -15,7 +15,7 @@ pub fn read_chunk(file_path: &Path, (start, end): (u64, u64)) -> Result<Bytes, E
         .map(|d| d.len())
         .map_err(Error::FileIOError)?;
 
-    tracing::debug!(start, end, file_size, "Range validity check");
+    tracing::trace!(start, end, file_size, "Range validity check");
     if start >= file_size || end >= file_size {
         return Err(Error::InvalidRange(format!(
             "Range ({:#?}, {:#?}) out of bound for file size {:#?}",

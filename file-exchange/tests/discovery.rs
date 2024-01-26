@@ -8,11 +8,13 @@ mod tests {
         test_util::server_ready,
     };
 
+    // TODO: set up test environment
     #[tokio::test]
+    // #[ignore]
     async fn test_discovery() {
         // 0. Basic setup; const
         std::env::set_var("RUST_LOG", "off,file_exchange=debug,file_transfer=trace");
-        file_exchange::config::init_tracing(String::from("pretty")).unwrap();
+        file_exchange::config::init_tracing("pretty").unwrap();
 
         let server_0 = "http://0.0.0.0:5677";
         let server_1 = "http://0.0.0.0:5679";
@@ -41,12 +43,8 @@ mod tests {
             .arg("-p")
             .arg("file-service")
             .arg("--")
-            .arg("--port")
-            .arg("5677")
-            .arg("--mnemonic")
-            .arg("sheriff obscure trick beauty army fat wink legal flee leader section suit")
-            .arg("--bundles")
-            .arg(format!("{}:./../example-file/", bundle_hash_0))
+            .arg("--config")
+            .arg("./../test.toml")
             .spawn()
             .expect("Failed to start server");
 
@@ -55,17 +53,8 @@ mod tests {
             .arg("-p")
             .arg("file-service")
             .arg("--")
-            .arg("--mnemonic")
-            .arg("ice palace drill gadget biology glow tray equip heavy wolf toddler menu")
-            .arg("--host")
-            .arg("0.0.0.0")
-            .arg("--port")
-            .arg("5679")
-            .arg("--bundles")
-            .arg(format!(
-                "{}:./../example-file/,{}:./../example-file/,{}:./../example-file/",
-                bundle_hash_1, bundle_hash_2, bundle_hash_3
-            ))
+            .arg("--config")
+            .arg("./../test2.toml")
             .spawn()
             .expect("Failed to start server");
 
@@ -87,6 +76,7 @@ mod tests {
                 &[server_0.to_string(), server_1.to_string()],
             )
             .await;
+        println!("endpoiunt: {:#?}", endpoints);
         assert!(endpoints.len() == 1);
         assert!(endpoints.first().unwrap().0 == "0xead22a75679608952db6e85537fbfdca02dae9cb");
         assert!(endpoints.first().unwrap().1 == server_0);

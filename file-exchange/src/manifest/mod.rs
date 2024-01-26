@@ -113,7 +113,7 @@ pub struct BlockRange {
 impl Bundle {
     /// Validate the local files against a given bundle specification
     pub fn validate_local_bundle(&self) -> Result<&Self, Error> {
-        tracing::debug!(
+        tracing::trace!(
             bundle = tracing::field::debug(self),
             "Read and verify bundle"
         );
@@ -123,7 +123,7 @@ impl Bundle {
             self.read_and_validate_file(file_meta)?;
         }
 
-        tracing::debug!("Successfully verified the local serving files");
+        tracing::trace!("Successfully verified the local serving files");
         Ok(self)
     }
 

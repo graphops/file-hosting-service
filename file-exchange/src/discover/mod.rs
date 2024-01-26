@@ -43,8 +43,19 @@ impl Finder {
         bundle_hash: &str,
         url: &str,
     ) -> Result<IndexerEndpoint, Error> {
+        tracing::debug!("hello?");
+
         let files = self.indexer_status(url).await?;
+        tracing::debug!(files = tracing::field::debug(&files), "files");
         let operator: String = self.indexer_operator(url).await?;
+        tracing::debug!(operator = tracing::field::debug(&operator), "operator");
+
+        tracing::debug!(
+            url,
+            operator = tracing::field::debug(&operator),
+            files = tracing::field::debug(&files),
+            "Indexer endpoint"
+        );
 
         if !files.contains(&bundle_hash.to_string()) {
             tracing::trace!(
@@ -68,7 +79,12 @@ impl Finder {
         bundle_hash: &str,
         endpoint_checklist: &[String],
     ) -> Vec<IndexerEndpoint> {
-        tracing::debug!(bundle_hash, "Checking availability");
+        tracing::debug!(
+            bundle_hash,
+            "{:#?} {:#?}",
+            tracing::field::debug(endpoint_checklist),
+            "Checking availability"
+        );
 
         // Use a stream to process the endpoints in parallel
         let results = stream::iter(endpoint_checklist)
@@ -166,7 +182,11 @@ impl Finder {
     }
 
     async fn indexer_operator(&self, url: &str) -> Result<String, Error> {
-        let operator_url = format!("{}/operator", url);
+        let operator_url = format!("{}/info", url);
+        tracing::debug!(
+            operator = tracing::field::debug(&operator_url),
+            "Operator query"
+        );
         let operator_response = match self.http_client.get(&operator_url).send().await {
             Ok(response) => response,
             Err(e) => {
@@ -175,6 +195,10 @@ impl Finder {
             }
         };
 
+        tracing::debug!(
+            response = tracing::field::debug(&operator_response),
+            "Status query"
+        );
         if !operator_response.status().is_success() {
             tracing::error!("Operator response error for {}", operator_url);
             return Err(Error::DataUnavilable(
@@ -182,8 +206,11 @@ impl Finder {
             ));
         }
 
-        match operator_response.json::<Operator>().await {
-            Ok(operator) => Ok(operator.public_key),
+        match operator_response.text().await {
+            Ok(operator) => {
+                tracing::debug!(operator, "operator");
+                Ok(operator)
+            }
             Err(e) => {
                 tracing::error!("Operator response parse error for {}", operator_url);
                 Err(Error::Request(e))
@@ -192,29 +219,57 @@ impl Finder {
     }
 
     async fn indexer_status(&self, url: &str) -> Result<Vec<String>, Error> {
-        let status_url = format!("{}/status", url);
-        let status_response = match self.http_client.get(&status_url).send().await {
+        let status_url = format!("{}/files-status", url);
+        tracing::debug!(status = tracing::field::debug(&status_url), "Status query");
+        let status_response = match self.http_client.post(&status_url).send().await {
             Ok(response) => response,
             Err(e) => {
                 tracing::error!("Status request failed for {}", status_url);
                 return Err(Error::Request(e));
             }
         };
-
+        tracing::debug!(
+            status = tracing::field::debug(&status_response),
+            "sent status response"
+        );
         if !status_response.status().is_success() {
             let err_msg = format!("Status response errored: {}", status_url);
             return Err(Error::DataUnavilable(err_msg));
         }
 
-        let files = match status_response.json::<Vec<String>>().await {
-            Ok(files) => files,
-            Err(e) => {
-                tracing::error!("Status response parse error for {}", status_url);
-                return Err(Error::Request(e));
-            }
-        };
+        let res_json = &status_response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| Error::DataUnavilable(e.to_string()))?;
+        // let data = if let Some(data) = res["data"].as_str() {
+        //     let array = serde_json::from_str::<Vec<String>>(data)
+        //         .expect("Failed to parse data field as an array");
+        //     array
+        // } else {
+        //     eprintln!("The 'data' field is not a string");
+        //     return Err(Error::DataUnavilable("data field is not a vec of strings".to_string()))
+        // };
+        let data = res_json["data"]
+            .as_str()
+            .ok_or(Error::DataUnavilable(
+                "Status did not provide data".to_string(),
+            ))
+            .and_then(|s| {
+                serde_json::from_str::<Vec<String>>(s)
+                    .map_err(|e| Error::DataUnavilable(e.to_string()))
+            });
 
-        Ok(files)
+        tracing::debug!(status = tracing::field::debug(&data), "Status reponse");
+
+        // let files = match data {
+        //     Ok(files) => files,
+        //     Err(e) => {
+        //         tracing::error!("Status response parse error for {}", status_url);
+        //         return Err(Error::Request(e));
+        //     }
+        // };
+
+        data
     }
 
     /// Should ping indexer cost endpoint for delicate cost model processing

@@ -51,6 +51,11 @@ The server utilizes a combination of open-source technologies for optimal perfor
 1. Download the source code from the repository.
 2. Build and run the server.
 
+CLI with configuration file
+```
+cargo run -p file-service -- --config ./file-server/template.toml
+```
+
 CLI example
 ```
 $ file-exchange server \

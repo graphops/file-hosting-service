@@ -16,7 +16,7 @@ pub async fn handle_admin_request(
 ) -> Result<hyper::Response<hyper::Body>, Error> {
     // Validate the auth token
     tracing::debug!("Received admin request");
-    let server_auth_token = context.lock().await.admin_auth_token.clone();
+    let server_auth_token = context.state.lock().await.admin_auth_token.clone();
     let auth_token = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -82,7 +82,7 @@ async fn parse_admin_request(req: Request<hyper::Body>) -> Result<(String, Optio
 //TODO: rich the details
 /// Function to retrieve all bundles and their details
 async fn get_bundles(context: &ServerContext) -> Result<Response<Body>, Error> {
-    let server_state = context.lock().await;
+    let server_state = context.state.lock().await;
     // Create a JSON object or array containing the bundles' details
     let bundles_info = server_state
         .bundles
@@ -135,7 +135,7 @@ async fn add_bundle(
             ))
         }
     };
-    let mut server_state = context.lock().await;
+    let mut server_state = context.state.lock().await;
     for (ipfs_hash, local_path) in bundle_entries {
         let bundle = match read_bundle(&server_state.client, &ipfs_hash, local_path).await {
             Ok(s) => s,
@@ -201,7 +201,7 @@ async fn remove_bundle(
     }
 
     // Access the server state
-    let mut server_state = context.lock().await;
+    let mut server_state = context.state.lock().await;
 
     // Remove the valid IPFS hashes from the server state's bundles
     for ipfs_hash in ipfs_hashes {
@@ -240,7 +240,7 @@ async fn update_price_per_byte(
     };
 
     // Access the server state
-    let mut server_state = context.lock().await;
+    let mut server_state = context.state.lock().await;
 
     // Remove the valid IPFS hashes from the server state's bundles
     server_state.price_per_byte = new_price;

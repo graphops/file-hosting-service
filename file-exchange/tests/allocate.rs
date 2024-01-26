@@ -13,7 +13,7 @@ mod tests {
     async fn test_allocate() {
         // 1. Basic setup; const
         std::env::set_var("RUST_LOG", "off,file_exchange=debug,allocate=trace");
-        file_exchange::config::init_tracing(String::from("pretty")).unwrap();
+        file_exchange::config::init_tracing("pretty").unwrap();
         let wallet_args = WalletArgs {
             mnemonic: String::from(
                 "sheriff obscure trick beauty army fat wink legal flee leader section suit",

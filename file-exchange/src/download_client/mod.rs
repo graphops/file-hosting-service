@@ -67,7 +67,9 @@ impl Downloader {
         .await
         .expect("Read bundle");
 
-        let payment = if let Some(mnemonic) = &args.mnemonic {
+        let payment = if let Some(token) = &args.free_query_auth_token {
+            PaymentMethod::FreeQuery(token.clone())
+        } else if let Some(mnemonic) = &args.mnemonic {
             let wallet = build_wallet(mnemonic).expect("Mnemonic build wallet");
             let signing_key = wallet.signer().to_bytes();
             let secp256k1_private_key =
@@ -91,8 +93,6 @@ impl Downloader {
                 )
                 .await,
             )
-        } else if let Some(token) = &args.free_query_auth_token {
-            PaymentMethod::FreeQuery(token.clone())
         } else {
             panic!("No payment wallet nor free query token provided");
         };
@@ -144,7 +144,7 @@ impl Downloader {
     //TODO: update once there is payment
     pub async fn download_bundle(&self) -> Result<(), Error> {
         self.target_chunks(&self.bundle);
-        tracing::info!(
+        tracing::trace!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
             "File manifests download starting"
         );
@@ -304,8 +304,8 @@ impl Downloader {
                 tracing::warn!(err_msg);
                 return Err(Error::DataUnavilable(err_msg.to_string()));
             };
-        //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'bundles/id/:id'
-        let query_endpoint = url + "/bundles/id/" + &self.ipfs_hash;
+        //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
+        let query_endpoint = url + "/files/id/" + &self.ipfs_hash;
         let file_hash = meta.meta_info.hash.clone();
         let start = i * meta.file_manifest.chunk_size;
         let end = u64::min(
@@ -456,12 +456,20 @@ async fn request_chunk(
 ) -> Result<Bytes, Error> {
     let range = format!("bytes={}-{}", start, end);
 
+    // indexer framework enforced that only authorization header is effective.
+    // we move file_hash and content-range to body, but consider requesting indexer-framework to be more flexible
+
+    let req_body = serde_json::json!({
+        "file-hash": file_hash,
+        "content-range": range,
+    }
+    );
+
     tracing::debug!(query_endpoint, range, "Make range request");
     let response = http_client
-        .get(query_endpoint)
-        .header("file_hash", file_hash)
-        .header(CONTENT_RANGE, range)
+        .post(query_endpoint)
         .header(auth_header.0, auth_header.1)
+        .json(&req_body)
         .send()
         .await
         .map_err(Error::Request)?;
@@ -486,7 +494,7 @@ async fn request_chunk(
 
 /// extract base indexer_url from `indexer_url/bundles/id/bundle_id`
 fn extract_base_url(query_endpoint: &str) -> Option<&str> {
-    if let Some(index) = query_endpoint.find("/bundles/id/") {
+    if let Some(index) = query_endpoint.find("files/id/") {
         Some(&query_endpoint[..index])
     } else {
         None
