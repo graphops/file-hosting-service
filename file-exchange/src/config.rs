@@ -1,8 +1,8 @@
 use clap::{arg, ValueEnum};
 use clap::{command, Args, Parser, Subcommand};
-use ethers_core::types::U256;
+use ethers_core::types::{H160, U256};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use tracing::subscriber::SetGlobalDefaultError;
 use tracing_subscriber::EnvFilter;
@@ -73,6 +73,9 @@ pub enum Role {
 pub enum OnchainAction {
     Allocate(AllocateArgs),
     Unallocate(UnallocateArgs),
+    Deposit(DepositArgs),
+    DepositMany(DepositManyArgs),
+    Withdraw(WithdrawArgs),
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
@@ -335,6 +338,63 @@ pub struct UnallocateArgs {
         help = "Deployment IPFS hash to unallocate"
     )]
     pub allocation_id: String,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct DepositArgs {
+    #[clap(
+        long,
+        value_name = "receiver",
+        env = "RECEIVER",
+        help = "The receivier address for the Escrow deposit",
+        value_parser = H160::from_str,
+    )]
+    pub receiver: H160,
+    #[clap(
+        long,
+        value_name = "tokens",
+        env = "TOKENS",
+        help = "Token amount to allocate (in units of GRT)",
+        value_parser = U256::from_dec_str,
+    )]
+    pub tokens: U256,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct DepositManyArgs {
+    #[clap(
+        long,
+        value_name = "receivers",
+        env = "RECEIVERS",
+        value_delimiter = ',',
+        value_parser = H160::from_str,
+        help = "The receivier addresses to make the deposit"
+    )]
+    pub receivers: Vec<H160>,
+    #[clap(
+        long,
+        value_name = "tokens",
+        env = "TOKENS",
+        help = "Token amount mapped to each receiver (in units of GRT)",
+        value_parser = U256::from_dec_str,
+        value_delimiter = ',',
+    )]
+    pub tokens: Vec<U256>,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct WithdrawArgs {
+    #[clap(
+        long,
+        value_name = "receiver",
+        env = "RECEIVER",
+        help = "Withdraw deposit from the receiver",
+        value_parser = H160::from_str,
+    )]
+    pub receiver: H160,
 }
 
 #[allow(unused)]

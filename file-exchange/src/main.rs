@@ -79,6 +79,19 @@ async fn main() {
                         .unallocate(&unallocate_args.allocation_id)
                         .await
                 }
+                Some(OnchainAction::Deposit(deposit_args)) => {
+                    transaction_manager
+                        .deposit(&deposit_args.receiver, &deposit_args.tokens)
+                        .await
+                }
+                Some(OnchainAction::DepositMany(deposit_many_args)) => {
+                    transaction_manager
+                        .deposit_many(deposit_many_args.receivers, deposit_many_args.tokens)
+                        .await
+                }
+                Some(OnchainAction::Withdraw(withdraw_args)) => {
+                    transaction_manager.withdraw(&withdraw_args.receiver).await
+                }
                 None => {
                     panic!("No onchain command provided (later add general status return)")
                 }
