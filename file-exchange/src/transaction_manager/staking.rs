@@ -13,6 +13,7 @@ use std::str::FromStr;
 
 use crate::errors::Error;
 use crate::transaction_manager::coins_bip39::Mnemonic;
+use crate::transaction_manager::contract_error_decode;
 use crate::util::{build_wallet, derive_key_pair};
 
 use super::TransactionManager;
@@ -82,7 +83,7 @@ impl TransactionManager {
         let estimated_gas = populated_tx
             .estimate_gas()
             .await
-            .map_err(|e| Error::ContractError(e.to_string()))?;
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?;
         tracing::debug!(
             estimated_gas = tracing::field::debug(&estimated_gas),
             "estimate gas"
@@ -93,25 +94,9 @@ impl TransactionManager {
             .gas(estimated_gas)
             .send()
             .await
-            .map_err(|e| {
-                let encoded_error = &e.to_string()[2..];
-                let error_message_hex = &encoded_error[8 + 64..];
-                let bytes = hex::decode(error_message_hex).unwrap();
-                let message = String::from_utf8(bytes).unwrap();
-                tracing::error!(message);
-
-                Error::ContractError(e.to_string())
-            })?
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?
             .await
-            .map_err(|e| {
-                let encoded_error = &e.to_string()[2..];
-                let error_message_hex = &encoded_error[8 + 64..];
-                let bytes = hex::decode(error_message_hex).unwrap();
-                let message = String::from_utf8(bytes).unwrap();
-                tracing::error!(message);
-
-                Error::ContractError(e.to_string())
-            })?;
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?;
         tracing::debug!(
             value = tracing::field::debug(&tx_result),
             "allocate call result"
@@ -126,7 +111,7 @@ impl TransactionManager {
             .get_allocation(allocation_id)
             .call()
             .await
-            .map_err(|e| Error::ContractError(e.to_string()))?;
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?;
         tracing::info!(value = tracing::field::debug(&value), "allocate call value");
 
         Ok(value)
@@ -151,7 +136,7 @@ impl TransactionManager {
         let estimated_gas = populated_tx
             .estimate_gas()
             .await
-            .map_err(|e| Error::ContractError(e.to_string()))?;
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?;
         tracing::debug!(
             estimated_gas = tracing::field::debug(&estimated_gas),
             "estimate gas"
@@ -162,25 +147,9 @@ impl TransactionManager {
             .gas(estimated_gas)
             .send()
             .await
-            .map_err(|e| {
-                let encoded_error = &e.to_string()[2..];
-                let error_message_hex = &encoded_error[8 + 64..];
-                let bytes = hex::decode(error_message_hex).unwrap();
-                let message = String::from_utf8(bytes).unwrap();
-                tracing::error!(message);
-
-                Error::ContractError(e.to_string())
-            })?
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?
             .await
-            .map_err(|e| {
-                let encoded_error = &e.to_string()[2..];
-                let error_message_hex = &encoded_error[8 + 64..];
-                let bytes = hex::decode(error_message_hex).unwrap();
-                let message = String::from_utf8(bytes).unwrap();
-                tracing::error!(message);
-
-                Error::ContractError(e.to_string())
-            })?;
+            .map_err(|e| Error::ContractError(contract_error_decode(e.to_string())))?;
         tracing::debug!(
             value = tracing::field::debug(&tx_result),
             "allocate call result"
