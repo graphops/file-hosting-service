@@ -14,6 +14,7 @@ use crate::manifest::{
     ipfs::IpfsClient,
     manifest_fetcher::{fetch_bundle_from_ipfs, read_bundle},
 };
+use crate::util::{UDecimal18, GRT};
 
 // Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves
@@ -214,6 +215,11 @@ impl Finder {
         };
 
         Ok(files)
+    }
+
+    /// Should ping indexer cost endpoint for delicate cost model processing
+    pub fn fees() -> GRT {
+        GRT(UDecimal18::from(1))
     }
 }
 

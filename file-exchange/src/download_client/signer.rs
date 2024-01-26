@@ -8,6 +8,8 @@ use secp256k1::SecretKey;
 use tap_core::eip_712_signed_message::EIP712SignedMessage;
 use tap_core::tap_receipt::Receipt;
 
+use crate::util::GRT;
+
 pub struct ReceiptSigner {
     signer: SecretKey,
     domain: Eip712Domain,
@@ -44,9 +46,7 @@ impl ReceiptSigner {
         }
     }
 
-    pub async fn create_receipt(&self, allocation_id: Address, fee: u128) -> Option<TapReceipt> {
-        //TODO: need to get GRT typing (fee: &GRT) and Indexing typing for allocation
-        // let allocation = *self.allocations.read().await.get(indexing)?;
+    pub async fn create_receipt(&self, allocation_id: Address, fee: &GRT) -> Option<TapReceipt> {
         let nonce = rand::thread_rng().next_u64();
         let timestamp_ns = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -58,8 +58,7 @@ impl ReceiptSigner {
             allocation_id,
             timestamp_ns,
             nonce,
-            // value: fee.0.as_u128().unwrap_or(0),
-            value: fee,
+            value: fee.0.as_u128().unwrap_or(0),
         };
         let wallet =
             Wallet::from_bytes(self.signer.as_ref()).expect("failed to prepare receipt wallet");

@@ -2,6 +2,7 @@ pub mod config;
 pub mod discover;
 pub mod download_client;
 pub mod errors;
+pub mod graphql;
 pub mod manifest;
 pub mod publisher;
 pub mod test_util;
