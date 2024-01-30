@@ -20,8 +20,16 @@ To use the Wallet CLI, the following subcommands and options are available:
 
 ### Subcommands
 
-- `allocate`: Allocate funds for a specific purpose.
-- `unallocate`: Revoke previously allocated funds.
+Data producer
+
+- `allocate`: Allocate stake for a particular file/bundle/deployment.
+- `unallocate`: Close an allocation to stop service and collect rewards (0x0 POI is used since FHS doesn't plan on supporting indexing rewards).
+
+Data consumer
+- `approve`: **First time** Escrow user may need to first approve Escrow contract as spender for their GRT; specify an amount.
+- `deposit`: Deposit tokens to a specific data producer; specify an amount less than the approved amount.
+- `deposit_many`: Deposit tokens to a vector of data producers; specify a vector of amounts in order of the producers.
+- `withdraw`: Withdraw tokens from Escrow deposit; specify the address of the producer.
 
 #### Allocate
 
@@ -39,7 +47,54 @@ To open allocation towards a deployment, provide the deployment IPFS hash, the t
 
 #### Unallocate
 
+To close allocation with 0x0 PoI.
 
+```shell
+✗ file-exchange wallet \
+    --mnemonic <mnemonic> \
+    --provider <provider_url> \
+    allocate \
+        --allocation-id <id>
+```
+
+#### Approve
+
+First time Escrow contract depositer would need to first approve Escrow contract as a spender from the GraphToken contract. This command allows a convinent CLI for the downloaders to set an allowance; this is not a deposit, but merely an allowance for the future, I suggest setting a high amount. 
+
+```shell
+✗ file-exchange wallet \
+    --mnemonic <mnemonic> \
+    --provider <provider_url> \
+    approve \
+        --tokens <tokens>
+```
+
+#### Deposit
+
+To deposit tokens in the Escrow contract, provide a receiver of the tokens and the amount to store in escrow.
+
+```shell
+✗ file-exchange wallet \
+    --mnemonic <mnemonic> \
+    --provider <provider_url> \
+    deposit \
+        --receiver <receiver_address> \
+        --tokens <tokens>
+```
+
+**DepositMany** is similar, but taking vectors as an input with comma separation.  
+
+#### Withdraw
+
+Withdraw deposit from a particular receiver.
+
+```shell
+✗ file-exchange wallet \
+    --mnemonic <mnemonic> \
+    --provider <provider_url> \
+    withdraw \
+        --receiver <receiver>
+```
 
 ### Examples
 
