@@ -76,6 +76,7 @@ pub enum OnchainAction {
     Deposit(DepositArgs),
     DepositMany(DepositManyArgs),
     Withdraw(WithdrawArgs),
+    Approve(ApproveArgs),
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
@@ -395,6 +396,19 @@ pub struct WithdrawArgs {
         value_parser = H160::from_str,
     )]
     pub receiver: H160,
+}
+
+#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[group(required = false, multiple = true)]
+pub struct ApproveArgs {
+    #[clap(
+        long,
+        value_name = "tokens",
+        env = "TOKENS",
+        help = "Token amount to approve Escrow contract as a spender (in units of GRT)",
+        value_parser = U256::from_dec_str,
+    )]
+    pub tokens: U256,
 }
 
 #[allow(unused)]

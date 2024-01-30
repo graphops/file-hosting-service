@@ -92,6 +92,11 @@ async fn main() {
                 Some(OnchainAction::Withdraw(withdraw_args)) => {
                     transaction_manager.withdraw(&withdraw_args.receiver).await
                 }
+                Some(OnchainAction::Approve(approve_args)) => {
+                    transaction_manager
+                        .approve_escrow(&approve_args.tokens)
+                        .await
+                }
                 None => {
                     panic!("No onchain command provided (later add general status return)")
                 }
