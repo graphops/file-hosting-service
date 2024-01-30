@@ -9,10 +9,11 @@ use std::sync::Arc;
 
 use crate::config::WalletArgs;
 use crate::errors::Error;
-use crate::transaction_manager::{escrow::Escrow, staking::L2Staking};
+use crate::transaction_manager::{escrow::Escrow, graph_token::L2GraphToken, staking::L2Staking};
 use crate::util::build_wallet;
 
 pub mod escrow;
+pub mod graph_token;
 pub mod staking;
 
 /// Contracts: (contract name, contract address)
@@ -24,8 +25,11 @@ pub type ContractClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 #[allow(dead_code)]
 pub struct TransactionManager {
     client: Arc<ContractClient>,
+    contract_addresses: ContractAddresses,
+    // TODO: refactor these; only initiate if called by the tx manager
     staking_contract: L2Staking<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
     escrow_contract: Escrow<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
+    token_contract: L2GraphToken<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
     pub args: WalletArgs,
 }
 
@@ -50,10 +54,15 @@ impl TransactionManager {
         let escrow_addr = contract_addresses.get("Escrow").unwrap();
         let escrow_contract = Escrow::new(*escrow_addr, Arc::new(client.clone()));
 
+        let token_addr = contract_addresses.get("L2GraphToken").unwrap();
+        let token_contract = L2GraphToken::new(*token_addr, Arc::new(client.clone()));
+
         Ok(TransactionManager {
             client,
+            contract_addresses,
             staking_contract,
             escrow_contract,
+            token_contract,
             args,
         })
     }
