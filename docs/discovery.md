@@ -133,3 +133,22 @@ graph TD
 ```
 
 As we keep the diagram simple, it is possible to have indexer serve/host schema files as part of indexer service and become independent of IPFS gateway
+
+
+## Trade-off
+
+First assume that on-chain allocation does not bring significant economic guarantee to FHS (no rational slashing).
+
+If there are $m$ data producers, $n$ data consumers, and $p$ datasets to discover, then 
+
+**Offchain** 
+
+The only on-chain cost occurred are indexer registration and/or server url allocation: $O(1)$.
+
+Data consumers looking for 1 file will run a program with runtime complexity of $O(mp)$. Data producers will serve $O(n)$ queries for each consumers looking for a file. The discovery process mostly falls on data consumers.
+
+**Onchain**
+
+Data producers spend on indexer registration and per file allocation: $O(p)$. We expect the network subgraph to index the data and make available for queries (graphcast can acheive similar "oracle" functionality; particularly with challengers).
+
+Data consumers looking for 1 file will run a program with runtime complexity of $O(1)$. Data producers will not need to serve status queries for p2p discovery.
