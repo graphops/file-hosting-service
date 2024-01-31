@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use futures::StreamExt;
 use object_store::{path::Path, ObjectStore};
 use object_store::{ObjectMeta, PutResult};
 
@@ -17,6 +16,7 @@ use crate::manifest::Error;
 use super::file_hasher::hash_chunk;
 use super::FileManifest;
 
+#[derive(Debug)]
 pub struct Store {
     local_file_system: Arc<LocalFileSystem>,
     read_concurrency: usize,
@@ -48,14 +48,12 @@ impl Store {
 
     /// List out all files in the path, optionally filtered by a prefix to the filesystem
     pub async fn list(&self, prefix: Option<&Path>) -> Result<Vec<ObjectMeta>, Error> {
-        let mut list_stream = self.local_file_system.list(prefix);
-
-        let mut objects = vec![];
-        while let Ok(Some(meta)) = list_stream.next().await.transpose() {
-            tracing::trace!("File name: {}, size: {}", meta.location, meta.size);
-            objects.push(meta.clone());
-        }
-        Ok(objects)
+        Ok(self
+            .local_file_system
+            .list_with_delimiter(prefix)
+            .await
+            .map_err(Error::ObjectStoreError)?
+            .objects)
     }
 
     /// Find a specific object by file name with optional prefix
