@@ -8,6 +8,7 @@ use secp256k1::SecretKey;
 use tap_core::eip_712_signed_message::EIP712SignedMessage;
 use tap_core::tap_receipt::Receipt;
 
+use crate::errors::Error;
 use crate::util::GRT;
 
 pub struct ReceiptSigner {
@@ -46,7 +47,11 @@ impl ReceiptSigner {
         }
     }
 
-    pub async fn create_receipt(&self, allocation_id: Address, fee: &GRT) -> Option<TapReceipt> {
+    pub async fn create_receipt(
+        &self,
+        allocation_id: Address,
+        fee: &GRT,
+    ) -> Result<TapReceipt, Error> {
         let nonce = rand::thread_rng().next_u64();
         let timestamp_ns = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -60,11 +65,9 @@ impl ReceiptSigner {
             nonce,
             value: fee.0.as_u128().unwrap_or(0),
         };
-        let wallet =
-            Wallet::from_bytes(self.signer.as_ref()).expect("failed to prepare receipt wallet");
-        let signed = EIP712SignedMessage::new(&self.domain, receipt, &wallet)
+        let wallet = Wallet::from_bytes(self.signer.as_ref()).map_err(Error::WalletError)?;
+        EIP712SignedMessage::new(&self.domain, receipt, &wallet)
             .await
-            .expect("failed to sign receipt");
-        Some(signed)
+            .map_err(|e| Error::ContractError(e.to_string()))
     }
 }
