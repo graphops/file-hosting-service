@@ -47,11 +47,13 @@ mod tests {
             ]
             .to_vec(),
             verifier: String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF"),
-            mnemonic: String::from(
+            mnemonic: Some(String::from(
                 "sheriff obscure trick beauty army fat wink legal flee leader section suit",
-            ),
+            )),
             free_query_auth_token: Some("Bearer free-token".to_string()),
-            provider: String::from("https://arbitrum-sepolia.infura.io/v3/aaaaaaaaaaaaaaaaaaaa"),
+            provider: Some(String::from(
+                "https://arbitrum-sepolia.infura.io/v3/aaaaaaaaaaaaaaaaaaaa",
+            )),
             ..Default::default()
         };
 

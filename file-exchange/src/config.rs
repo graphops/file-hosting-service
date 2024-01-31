@@ -132,14 +132,14 @@ pub struct DownloaderArgs {
         env = "MNEMONIC",
         help = "Mnemonic for payment wallet"
     )]
-    pub mnemonic: String,
+    pub mnemonic: Option<String>,
     #[clap(
         long,
         value_name = "provider_url",
         env = "PROVIDER",
         help = "Blockchain provider endpoint"
     )]
-    pub provider: String,
+    pub provider: Option<String>,
     #[clap(
         long,
         value_name = "verifier",
