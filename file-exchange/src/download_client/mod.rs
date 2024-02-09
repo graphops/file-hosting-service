@@ -196,7 +196,12 @@ impl Downloader {
         let file = File::create(Path::new(
             &(self.output_dir.clone() + "/" + &meta.meta_info.name),
         ))
-        .unwrap();
+        .unwrap_or_else(|_| {
+            panic!(
+                "Cannot create file for writing the output at directory {}",
+                &self.output_dir
+            )
+        });
         let file = Arc::new(Mutex::new(file));
 
         while !self.remaining_chunks(&meta.meta_info.hash).is_empty() {

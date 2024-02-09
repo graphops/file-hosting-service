@@ -784,6 +784,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-macros"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00c055ee2d014ae5981ce1016374e8213682aa14d9bf40e48ab48b5f3ef20eaa"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.48",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2406,6 +2418,7 @@ dependencies = [
  "async-graphql 6.0.11",
  "async-graphql-axum",
  "axum",
+ "axum-macros",
  "base64 0.21.7",
  "build-info",
  "build-info-build",

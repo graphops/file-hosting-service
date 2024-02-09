@@ -13,7 +13,7 @@ mod tests {
     // #[ignore]
     async fn test_discovery() {
         // 0. Basic setup; const
-        std::env::set_var("RUST_LOG", "off,file_exchange=debug,file_transfer=trace");
+        std::env::set_var("RUST_LOG", "off,file_exchange=warn,file_transfer=trace,file_service=info,indexer_service=warn,indexer_common=warn");
         file_exchange::config::init_tracing("pretty").unwrap();
 
         let server_0 = "http://0.0.0.0:5677";
@@ -44,7 +44,7 @@ mod tests {
             .arg("file-service")
             .arg("--")
             .arg("--config")
-            .arg("./../test.toml")
+            .arg("./tests/test0.toml")
             .spawn()
             .expect("Failed to start server");
 
@@ -54,12 +54,12 @@ mod tests {
             .arg("file-service")
             .arg("--")
             .arg("--config")
-            .arg("./../test2.toml")
+            .arg("./tests/test1.toml")
             .spawn()
             .expect("Failed to start server");
 
         tracing::debug!("Server initializing, wait 10 seconds...");
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
         let _ = server_ready(server_0).await;
         let _ = server_ready(server_1).await;
 

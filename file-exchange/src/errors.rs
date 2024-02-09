@@ -60,6 +60,9 @@ impl fmt::Display for ServerError {
         match *self {
             ServerError::ContextError(ref msg) => write!(f, "Context error: {}", msg),
             ServerError::RequestBodyError(ref msg) => write!(f, "Request body error: {}", msg),
+            ServerError::InvalidAuthentication(ref msg) => {
+                write!(f, "Invalid authentication: {}", msg)
+            }
             ServerError::HeaderParseError(ref msg) => write!(f, "Header parse error: {}", msg),
             ServerError::MethodParseError(ref msg) => write!(f, "Method parse error: {}", msg),
             ServerError::ParamsParseError(ref msg) => write!(f, "Params parse error: {}", msg),
@@ -74,6 +77,7 @@ impl StdError for ServerError {}
 pub enum ServerError {
     ContextError(String),
     RequestBodyError(String),
+    InvalidAuthentication(String),
     HeaderParseError(String),
     MethodParseError(String),
     ParamsParseError(String),

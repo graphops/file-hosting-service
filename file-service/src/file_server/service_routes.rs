@@ -84,25 +84,6 @@ pub async fn file_service(
         "Received file range request"
     );
 
-    // // Validate the auth token
-    // let auth_token = req
-    //     .headers()
-    //     .get(http::header::AUTHORIZATION)
-    //     .and_then(|t| t.to_str().ok());
-
-    // let free = context_ref.free_query_auth_token.is_none()
-    //     || (auth_token.is_some()
-    //         && context_ref.free_query_auth_token.is_some()
-    //         && auth_token.unwrap() == context_ref.free_query_auth_token.as_deref().unwrap());
-
-    // if !free {
-    //     tracing::warn!("Respond with unauthorized query");
-    //     return Ok(Response::builder()
-    //         .status(StatusCode::UNAUTHORIZED)
-    //         .body("Paid service is not implemented, need free query authentication".into())
-    //         .unwrap());
-    // }
-
     let requested_bundle = match context_ref.bundles.get(&id.to_string()) {
         Some(s) => s.clone(),
         None => {

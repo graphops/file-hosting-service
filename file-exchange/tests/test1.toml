@@ -1,0 +1,50 @@
+[server]
+bundles = [
+    "QmVPPWWaraEvoc4LCrYXtMbL13WPNbnuXV2yo7W8zexFGq:./../example-file/",
+    "QmeD3dRVV6Gs84TRwiNj3tLt9mBEMVqy3GoWm7WN8oDzGz:./../example-file/",
+    "QmTSwj1BGkkmVSnhw6uEGkcxGZvP5nq4pDhzHjwJvsQC2Z:./../example-file/"
+]
+admin_auth_token = "kueen"
+price_per_byte = 1
+ipfs_gateway = "https://ipfs.network.thegraph.com"
+log_format = "Pretty"
+
+[common.server]
+url_prefix = "/"
+host_and_port = "0.0.0.0:5679"
+metrics_host_and_port = "0.0.0.0:5680"
+# optional:
+free_query_auth_token = "free-token"
+
+[common]
+[common.indexer]
+indexer_address = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+operator_mnemonic = "ice palace drill gadget biology glow tray equip heavy wolf toddler menu"
+
+[common.graph_node]
+status_url = "http://localhost:8030/graphql"
+query_base_url = "http://localhost:8000"
+
+[common.database]
+postgres_url = "postgres://graphuser:idiot@localhost/graph"
+
+[common.network_subgraph]
+query_url = "https://localhost:8080/network"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+serve_auth_token = "it-is-serving-network-subgraph-data"
+
+[common.escrow_subgraph]
+query_url = "https://localhost:8080/escrow"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+
+[common.graph_network]
+id = 1
+chain_id = 411614
+
+[common.scalar]
+chain_id = 421614
+receipts_verifier_address = "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"

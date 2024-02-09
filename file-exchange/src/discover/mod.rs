@@ -43,12 +43,8 @@ impl Finder {
         bundle_hash: &str,
         url: &str,
     ) -> Result<IndexerEndpoint, Error> {
-        tracing::debug!("hello?");
-
         let files = self.indexer_status(url).await?;
-        tracing::debug!(files = tracing::field::debug(&files), "files");
         let operator: String = self.indexer_operator(url).await?;
-        tracing::debug!(operator = tracing::field::debug(&operator), "operator");
 
         tracing::debug!(
             url,

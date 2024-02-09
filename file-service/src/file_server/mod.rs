@@ -1,11 +1,9 @@
 // #![cfg(feature = "acceptor")]
-
 use axum::{
     async_trait,
     response::{IntoResponse, Response},
 };
 
-use serde_json::json;
 use std::sync::Arc;
 use std::{collections::HashMap, string::FromUtf8Error};
 use thegraph::types::{Attestation, DeploymentId};
@@ -14,7 +12,7 @@ use indexer_common::indexer_service::http::{IndexerServiceImpl, IndexerServiceRe
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use file_exchange::errors::Error;
+use file_exchange::errors::{Error, ServerError};
 use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
 };
@@ -24,7 +22,7 @@ use crate::config::Config;
 use crate::file_server::util::public_key;
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
-use hyper::{Body, StatusCode};
+use hyper::StatusCode;
 
 pub mod admin;
 pub mod cost;
@@ -82,79 +80,6 @@ impl IndexerServiceImpl for ServerContext {
         Ok((request, response))
     }
 }
-
-// pub async fn handle_request(
-//     req: Request<Body>,
-//     context: ServerContext,
-// ) -> Result<Response<Body>, Error> {
-//     tracing::trace!("Received request");
-//     match req.uri().path() {
-//         "/" => Ok(Response::builder()
-//             .status(StatusCode::OK)
-//             .body("Ready to roll!".into())
-//             .unwrap()),
-//         "/operator" => deprecated_routes::operator_info(&context).await,
-//         "/status" => deprecated_routes::status(&context).await,
-//         "/health" => deprecated_routes::health().await,
-//         "/version" => deprecated_routes::version(&context).await,
-//         "/cost" => deprecated_routes::cost(&context).await,
-//         "/admin" => handle_admin_request(req, &context).await,
-//         //TODO: consider routing through file level IPFS
-//         path if path.starts_with("/bundles/id/") => {
-//             deprecated_routes::file_service(path, &req, &context).await
-//         }
-//         _ => Ok(Response::builder()
-//             .status(StatusCode::NOT_FOUND)
-//             .body("Route not found".into())
-//             .unwrap()),
-//     }
-// }
-
-// pub async fn init_server(config: Config) {
-//     // let client = if let Ok(client) = IpfsClient::new(&config.ipfs_gateway) {
-//     //     client
-//     // } else {
-//     //     IpfsClient::localhost()
-//     // };
-
-//     // let config = config.server;
-
-//     // let port = config.port;
-//     // let addr = format!("{}:{}", config.host, port)
-//     //     .parse()
-//     //     .expect("Invalid address");
-
-//     let state = initialize_server_context(config)
-//         .await
-//         .expect("Failed to initiate bundle server");
-
-//     // Create hyper server routes
-//     let make_svc = make_service_fn(|_| {
-//         let state = state.clone();
-//         async { Ok::<_, hyper::Error>(service_fn(move |req| handle_request(req, state.clone()))) }
-//     });
-
-//     // TODO: add these to configs
-//     // let certs = load_certs("path/to/cert.pem").expect("Failed to load certs");
-//     // let key = load_private_key("path/to/key.pem").expect("Failed to load private key");
-
-//     // let tls_cfg = {
-//     //     let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
-//     //     cfg.set_single_cert(certs, key).expect("Invalid key or certificate");
-//     //     Arc::new(cfg)
-//     // };
-
-//     // let acceptor = TlsAcceptor::from(tls_cfg);
-//     // let server = Server::builder(hyper::server::accept::from_stream(acceptor.accept_stream()))
-//     //     .serve(make_svc);
-//     // let server = hyper::server::Server::bind(&addr).serve(make_svc);
-
-//     // tracing::info!("Server listening on https://{}", addr);
-
-//     // if let Err(e) = server.await {
-//     //     tracing::error!("server error: {}", e);
-//     // }
-// }
 
 /// Function to initialize the file hosting server
 pub async fn initialize_server_context(config: Config) -> Result<ServerContext, Error> {
@@ -215,41 +140,11 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
     Ok(ServerContext::new(Arc::new(Mutex::new(server_state))))
 }
 
-/// Handle incoming requests by
-// pub async fn handle_request(
-//     req: Request<Body>,
-//     context: ServerContext,
-// ) -> Result<Response<Body>, Error> {
-//     tracing::trace!("Received request");
-//     match req.uri().path() {
-//         "/" => Ok(Response::builder()
-//             .status(StatusCode::OK)
-//             .body("Ready to roll!".into())
-//             .unwrap()),
-//         "/operator" => deprecated_routes::operator_info(&context).await,
-//         "/status" => deprecated_routes::status(&context).await,
-//         "/health" => deprecated_routes::health().await,
-//         "/version" => deprecated_routes::version(&context).await,
-//         "/cost" => deprecated_routes::cost(&context).await,
-//         "/admin" => handle_admin_request(req, &context).await,
-//         //TODO: consider routing through file level IPFS
-//         path if path.starts_with("/bundles/id/") => {
-//             deprecated_routes::file_service(path, &req, &context).await
-//         }
-//         _ => Ok(Response::builder()
-//             .status(StatusCode::NOT_FOUND)
-//             .body("Route not found".into())
-//             .unwrap()),
-//     }
-// }
-
-/// Create an error response
-pub fn create_error_response(msg: &str, status_code: StatusCode) -> Response<Body> {
-    let body = json!({ "error": msg }).to_string();
-    Response::builder()
-        .status(status_code)
-        .body(body.into())
-        .unwrap()
+/// Create an admin error response
+pub fn admin_error_response(msg: &str) -> FileServiceError {
+    FileServiceError::AdminError(Error::ServerError(ServerError::InvalidAuthentication(
+        msg.to_string(),
+    )))
 }
 
 #[derive(Debug, Error)]

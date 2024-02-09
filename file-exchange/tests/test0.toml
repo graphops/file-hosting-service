@@ -1,0 +1,47 @@
+[server]
+bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:./../example-file/"]
+admin_auth_token = "slayyy"
+price_per_byte = 1
+ipfs_gateway = "https://ipfs.network.thegraph.com"
+log_format = "Full"
+
+[common]
+[common.indexer]
+indexer_address = "0xe9a1cabd57700b17945fd81feefba82340d9568f"
+operator_mnemonic = "sheriff obscure trick beauty army fat wink legal flee leader section suit"
+
+[common.server]
+url_prefix = "/"
+host_and_port = "0.0.0.0:5677"
+metrics_host_and_port = "0.0.0.0:7601"
+# optional:
+free_query_auth_token = "free-token"
+
+[common.graph_node]
+status_url = "http://localhost:8030/graphql"
+query_base_url = "http://localhost:8000"
+
+[common.database]
+postgres_url = "postgres://graphuser:idiot@localhost/graph"
+
+[common.network_subgraph]
+query_url = "https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+serve_auth_token = "it-is-serving-network-subgraph-data"
+
+[common.escrow_subgraph]
+query_url = "https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia"
+syncing_interval = 60
+# optional, default = false:
+serve_subgraph = false
+
+[common.graph_network]
+id = 1
+chain_id = 411614
+
+[common.scalar]
+chain_id = 421614
+receipts_verifier_address = "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"
+
