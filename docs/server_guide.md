@@ -56,17 +56,9 @@ CLI with configuration file
 cargo run -p file-service -- --config ./file-server/template.toml
 ```
 
-CLI example
-```
-$ file-exchange server \
-  --host 0.0.0.0 \
-  --port 5678 \
-  --mnemonic "seed phrase" \
-  --admin-auth-token "imadmin" \
-  --free-query-auth-token "imafriend" \
-  --bundles "QmHash00:./example-file/,QmHash01:BUNDLE_PATH"
-```
-Run `file-exchange --help` for more configurations and the corresponding ENV variable names.
+Check out the template toml configuration file for an example.
+
+> **admin** is currently unavailable as we just moved to indexer-rs framework, will be available soon as a graphql endpoint.  
 
 3. Access the server via the **admin** endpoint.
 
