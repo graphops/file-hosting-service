@@ -21,8 +21,7 @@ pub async fn file_service(
 ) -> Result<Response<Body>, Error> {
     tracing::debug!("Received file range request");
     let context_ref = context.state.lock().await;
-    tracing::trace!(
-        bundles = tracing::field::debug(&context_ref),
+    tracing::debug!(
         id = tracing::field::debug(&id.to_string()),
         "Received file range request"
     );
@@ -30,15 +29,10 @@ pub async fn file_service(
     let requested_bundle = match context_ref.bundles.get(&id.to_string()) {
         Some(s) => s.clone(),
         None => {
-            tracing::debug!(
-                server_context = tracing::field::debug(&context_ref),
-                id = tracing::field::debug(&id.to_string()),
-                "Requested bundle is not served locally"
-            );
             return Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body("Bundle not found".into())
-                .unwrap());
+            .unwrap());
         }
     };
 

@@ -3,7 +3,7 @@ use axum::{
     async_trait,
     response::{IntoResponse, Response},
 };
-
+use sqlx::PgPool;
 use std::sync::Arc;
 use std::{collections::HashMap, string::FromUtf8Error};
 use thegraph::types::{Attestation, DeploymentId};
@@ -17,9 +17,7 @@ use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
 };
 
-use crate::config::Config;
-// use crate::config::{Config, ServerArgs};
-use crate::file_server::util::public_key;
+use crate::{ config::Config, database, file_server::util::public_key };
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;
@@ -31,7 +29,7 @@ pub mod service_routes;
 pub mod status;
 pub mod util;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
@@ -40,11 +38,11 @@ pub struct ServerState {
     pub price_per_byte: f32,
 
     pub config: Config,
-    // pub database: PgPool,
-    // pub cost_schema: crate::file_server::cost::CostSchema,
+    pub database: PgPool,
+    pub cost_schema: crate::file_server::cost::CostSchema,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServerContext {
     state: Arc<Mutex<ServerState>>,
 }
@@ -114,6 +112,8 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         operator_public_key: public_key(&config.common.indexer.operator_mnemonic)
             .expect("Failed to initiate with operator wallet"),
         price_per_byte: config.server.price_per_byte,
+        database: database::connect(&config.common.database.postgres_url).await,
+        cost_schema: cost::build_schema().await,
     };
 
     // Fetch the file using IPFS client
