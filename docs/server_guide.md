@@ -85,6 +85,26 @@ Manifest(s) added successfully%
 Manifest(s) removed successfully
 ```
 
+**Cost and Status API**
+
+Schema is provided at the `server-[]-schema.json`.
+
+Example cost query
+```
+curl -X POST \ 
+        -H 'Content-Type: application/json' \
+        --data '{"query": "{costModels(deployments: []){deployment}}"}' \
+        http://localhost:5677/files-cost
+```
+
+Example status query
+```
+curl -X POST \        -H 'Content-Type: application/json' \
+        --data '{"query": "{bundles{ipfsHash}}"}' \
+        http://localhost:5677/files-status
+```
+
+
 4. (TODO) Register the server endpoint on the smart contract. Currently we assume the service endpoint has been registered with indexer-agent (for subgraphs). 
 
 5. To be compatible with V1 and Scalar TAP, an indexer must maintain an allocation. This means the indexer should use the `wallet` subcommand to create allocations. Refer to [Onchain Guide](onchain_guide.md).

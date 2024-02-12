@@ -32,7 +32,7 @@ pub async fn file_service(
             return Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body("Bundle not found".into())
-            .unwrap());
+                .unwrap());
         }
     };
 

@@ -1,3 +1,5 @@
+use async_graphql::SimpleObject;
+
 pub mod file_hasher;
 pub mod file_reader;
 pub mod ipfs;
@@ -23,7 +25,7 @@ use crate::{
 /* Public Manifests */
 
 /// Better mapping of files and file manifests
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, SimpleObject)]
 pub struct BundleManifest {
     pub files: Vec<FileMetaInfo>,
     pub file_type: String,
@@ -35,7 +37,8 @@ pub struct BundleManifest {
     // pub publisher_url: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, SimpleObject)]
+// #[graphql(input_name = "MyObjInput")] // Note: You must use the input_name attribute to define a new name for the input type, otherwise a runtime error will occur.
 pub struct FileMetaInfo {
     pub name: String,
     pub hash: String,
@@ -44,7 +47,7 @@ pub struct FileMetaInfo {
 }
 
 /* File manifest */
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, SimpleObject)]
 pub struct FileManifest {
     pub total_bytes: u64,
     pub chunk_size: u64,
@@ -68,7 +71,7 @@ impl FileManifest {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, SimpleObject)]
 pub struct FileManifestMeta {
     pub meta_info: FileMetaInfo,
     pub file_manifest: FileManifest,
@@ -76,16 +79,17 @@ pub struct FileManifestMeta {
 
 /* Bundle - packaging of file manifests mapped into local files */
 //TODO: Add GraphQL derivation
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct Bundle {
     pub ipfs_hash: String,
+    #[graphql(skip)] // require admin for this field
     pub local_path: PathBuf,
     pub manifest: BundleManifest,
     /// IPFS hash, File manifest spec
     pub file_manifests: Vec<FileManifestMeta>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct BlockRange {
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,

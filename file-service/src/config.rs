@@ -1,15 +1,18 @@
-use clap::arg;
-use clap::Args;
+use clap::{arg, Args, Parser};
 use serde::{Deserialize, Serialize};
-use std::fmt;
-
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
 use indexer_common::indexer_service::http::IndexerServiceConfig;
+
+#[derive(Parser)]
+pub struct Cli {
+    #[arg(long, value_name = "FILE")]
+    pub config: PathBuf,
+}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {

@@ -13,15 +13,15 @@ mod config;
 pub mod database;
 pub mod file_server;
 
-use cli::Cli;
-
 /// Run the subgraph indexer service
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    file_exchange::config::init_tracing("pretty").expect("Initialize logger");
+    console_subscriber::init();
+
+    // file_exchange::config::init_tracing("pretty").expect("Initialize logger");
 
     // Parse command line and environment arguments
-    let cli = Cli::parse();
+    let cli = config::Cli::parse();
     let config = match file_service::config::Config::load(&cli.config) {
         Ok(config) => config,
         Err(e) => {

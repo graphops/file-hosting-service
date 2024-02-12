@@ -17,7 +17,7 @@ use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
 };
 
-use crate::{ config::Config, database, file_server::util::public_key };
+use crate::{config::Config, database, file_server::util::public_key};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;
@@ -25,7 +25,7 @@ use hyper::StatusCode;
 pub mod admin;
 pub mod cost;
 pub mod range;
-pub mod service_routes;
+pub mod service;
 pub mod status;
 pub mod util;
 
@@ -36,10 +36,10 @@ pub struct ServerState {
     pub bundles: HashMap<String, Bundle>, // Keyed by IPFS hash
     pub admin_auth_token: Option<String>, // Add bearer prefix
     pub price_per_byte: f32,
-
     pub config: Config,
     pub database: PgPool,
     pub cost_schema: crate::file_server::cost::CostSchema,
+    pub status_schema: crate::file_server::status::StatusSchema,
 }
 
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl IndexerServiceImpl for ServerContext {
         // path if path.starts_with("/bundles/id/") => {
         // }
         tracing::trace!("do file service");
-        let body = service_routes::file_service(deployment, &request, self)
+        let body = service::file_service(deployment, &request, self)
             .await
             .map_err(FileServiceError::QueryForwardingError)?;
         let response = FileServiceResponse { inner: body };
@@ -114,6 +114,7 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         price_per_byte: config.server.price_per_byte,
         database: database::connect(&config.common.database.postgres_url).await,
         cost_schema: cost::build_schema().await,
+        status_schema: status::build_schema().await,
     };
 
     // Fetch the file using IPFS client

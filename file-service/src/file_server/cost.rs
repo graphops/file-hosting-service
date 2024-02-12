@@ -1,6 +1,4 @@
-
 use std::str::FromStr;
-use std::sync::Arc;
 
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, SimpleObject};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
@@ -9,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thegraph::types::DeploymentId;
 
-use super::{FileServiceError, ServerContext};
+use super::ServerContext;
 use crate::database::{self, CostModel};
 
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
@@ -43,7 +41,12 @@ impl Query {
             .into_iter()
             .map(|s| DeploymentId::from_str(&s))
             .collect::<Result<Vec<DeploymentId>, _>>()?;
-        let pool = &ctx.data_unchecked::<ServerContext>().state.lock().await.database;
+        let pool = &ctx
+            .data_unchecked::<ServerContext>()
+            .state
+            .lock()
+            .await
+            .database;
         let cost_models = database::cost_models(pool, &deployment_ids).await?;
         Ok(cost_models.into_iter().map(|m| m.into()).collect())
     }
@@ -54,7 +57,12 @@ impl Query {
         deployment: String,
     ) -> Result<Option<GraphQlCostModel>, anyhow::Error> {
         let deployment_id = DeploymentId::from_str(&deployment)?;
-        let pool = &ctx.data_unchecked::<ServerContext>().state.lock().await.database;
+        let pool = &ctx
+            .data_unchecked::<ServerContext>()
+            .state
+            .lock()
+            .await
+            .database;
         database::cost_model(pool, &deployment_id)
             .await
             .map(|model_opt| model_opt.map(GraphQlCostModel::from))
@@ -65,13 +73,13 @@ pub type CostSchema = Schema<Query, EmptyMutation, EmptySubscription>;
 
 pub async fn build_schema() -> CostSchema {
     Schema::build(Query, EmptyMutation, EmptySubscription).finish()
-}   
+}
 
-pub async fn cost(
-    State(context): State<ServerContext>,
-    req: GraphQLRequest,
-) -> GraphQLResponse {
-    context.state.lock().await
+pub async fn cost(State(context): State<ServerContext>, req: GraphQLRequest) -> GraphQLResponse {
+    context
+        .state
+        .lock()
+        .await
         .cost_schema
         .execute(req.into_inner().data(context.clone()))
         .await
