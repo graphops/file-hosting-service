@@ -36,9 +36,7 @@ pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
     pub bundles: HashMap<String, Bundle>, // Keyed by IPFS hash
-    pub release: util::PackageVersion,
-    pub free_query_auth_token: Option<String>, // Add bearer prefix
-    pub admin_auth_token: Option<String>,      // Add bearer prefix
+    pub admin_auth_token: Option<String>, // Add bearer prefix
     pub price_per_byte: f32,
 
     pub config: Config,
@@ -99,12 +97,6 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         "Validated bundle entries"
     );
 
-    let free_query_auth_token = config
-        .common
-        .server
-        .free_query_auth_token
-        .clone()
-        .map(|token| format!("Bearer {}", token));
     let admin_auth_token = config
         .server
         .admin_auth_token
@@ -118,8 +110,6 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         config: config.clone(),
         client: client.clone(),
         bundles: HashMap::new(),
-        release: util::PackageVersion::from(build_info()),
-        free_query_auth_token,
         admin_auth_token,
         operator_public_key: public_key(&config.common.indexer.operator_mnemonic)
             .expect("Failed to initiate with operator wallet"),

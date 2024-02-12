@@ -202,13 +202,10 @@ impl Finder {
             ));
         }
 
-        match operator_response.text().await {
-            Ok(operator) => {
-                tracing::debug!(operator, "operator");
-                Ok(operator)
-            }
+        match operator_response.json::<Operator>().await {
+            Ok(operator) => Ok(operator.public_key),
             Err(e) => {
-                tracing::error!("Operator response parse error for {}", operator_url);
+                tracing::error!("Operator response parse error {e} for {}", operator_url);
                 Err(Error::Request(e))
             }
         }
@@ -237,14 +234,6 @@ impl Finder {
             .json::<serde_json::Value>()
             .await
             .map_err(|e| Error::DataUnavilable(e.to_string()))?;
-        // let data = if let Some(data) = res["data"].as_str() {
-        //     let array = serde_json::from_str::<Vec<String>>(data)
-        //         .expect("Failed to parse data field as an array");
-        //     array
-        // } else {
-        //     eprintln!("The 'data' field is not a string");
-        //     return Err(Error::DataUnavilable("data field is not a vec of strings".to_string()))
-        // };
         let data = res_json["data"]
             .as_str()
             .ok_or(Error::DataUnavilable(
@@ -256,14 +245,6 @@ impl Finder {
             });
 
         tracing::debug!(status = tracing::field::debug(&data), "Status reponse");
-
-        // let files = match data {
-        //     Ok(files) => files,
-        //     Err(e) => {
-        //         tracing::error!("Status response parse error for {}", status_url);
-        //         return Err(Error::Request(e));
-        //     }
-        // };
 
         data
     }
@@ -288,7 +269,7 @@ pub async fn unavailable_files(file_map: &FileAvailbilityMap) -> Vec<String> {
 }
 
 //TODO: directly access the field instead
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Operator {
     #[serde(alias = "publicKey")]
     pub public_key: String,

@@ -66,9 +66,8 @@ tracing-subscriber = { version = "0.3", features = [
 criterion = { version = "0.5", features = ["async_futures"] }
 wiremock = "0.5.19"
 lazy_static = "1.4.0"
-indexer-common = { package = "indexer-common", git = "https://github.com/graphprotocol/indexer-rs", branch = "hope/operator-info-endpoint" }
-thegraph = { git = "https://github.com/edgeandnode/toolshed", rev = "796c23da750d48ccf4b6d8841ac164cb5c42655d" }
-graphql-http = { git = "https://github.com/edgeandnode/toolshed", rev = "796c23da750d48ccf4b6d8841ac164cb5c42655d", features = [
+thegraph = { git = "https://github.com/edgeandnode/toolshed", tag = "thegraph-v0.5.0" }
+graphql-http = { git = "https://github.com/edgeandnode/toolshed", tag = "graphql-http-v0.2.1", features = [
   "http-reqwest",
 ] }
 

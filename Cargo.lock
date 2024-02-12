@@ -79,27 +79,6 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "alloy-primitives"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c234f92024707f224510ff82419b2be0e1d8e1fd911defcac5a085cd7f83898"
-dependencies = [
- "alloy-rlp",
- "bytes",
- "cfg-if",
- "const-hex",
- "derive_more",
- "hex-literal",
- "itoa",
- "keccak-asm",
- "proptest",
- "rand 0.8.5",
- "ruint",
- "serde",
- "tiny-keccak",
-]
-
-[[package]]
-name = "alloy-primitives"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4b6fb2b432ff223d513db7f908937f63c252bee0af9b82bfd25b0a5dd1eb0d8"
@@ -132,24 +111,6 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-macro"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "970e5cf1ca089e964d4f7f7afc7c9ad642bfb1bdc695a20b0cba3b3c28954774"
-dependencies = [
- "const-hex",
- "dunce",
- "heck",
- "indexmap 2.2.2",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 2.0.48",
- "syn-solidity 0.5.4",
- "tiny-keccak",
-]
-
-[[package]]
-name = "alloy-sol-macro"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b0b5ab0cb07c21adf9d72e988b34e8200ce648c2bba8d009183bb1c50fb1216"
@@ -162,20 +123,8 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
- "syn-solidity 0.6.2",
+ "syn-solidity",
  "tiny-keccak",
-]
-
-[[package]]
-name = "alloy-sol-types"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a059d4d2c78f8f21e470772c75f9abd9ac6d48c2aaf6b278d1ead06ed9ac664"
-dependencies = [
- "alloy-primitives 0.5.4",
- "alloy-sol-macro 0.5.4",
- "const-hex",
- "serde",
 ]
 
 [[package]]
@@ -184,8 +133,8 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c08f62ded7ce03513bfb60ef5cad4fff5d4f67eac6feb4df80426b7b9ffb06e"
 dependencies = [
- "alloy-primitives 0.6.2",
- "alloy-sol-macro 0.6.2",
+ "alloy-primitives",
+ "alloy-sol-macro",
  "const-hex",
  "serde",
 ]
@@ -2361,8 +2310,8 @@ dependencies = [
 name = "file-exchange"
 version = "0.0.1"
 dependencies = [
- "alloy-primitives 0.6.2",
- "alloy-sol-types 0.6.2",
+ "alloy-primitives",
+ "alloy-sol-types",
  "anyhow",
  "base64 0.21.7",
  "bs58",
@@ -2379,12 +2328,11 @@ dependencies = [
  "ethers",
  "ethers-core",
  "futures 0.3.30",
- "graphql-http 0.1.1",
+ "graphql-http",
  "hdwallet",
  "hex",
  "http 1.0.0",
  "hyper 1.1.0",
- "indexer-common",
  "ipfs-api-backend-hyper",
  "ipfs-api-prelude",
  "lazy_static",
@@ -2401,7 +2349,7 @@ dependencies = [
  "sha2",
  "tap_core 0.7.0 (git+https://github.com/semiotic-ai/timeline-aggregation-protocol)",
  "tempfile",
- "thegraph 0.3.0",
+ "thegraph",
  "tokio",
  "tokio-retry",
  "toml 0.8.9",
@@ -2455,7 +2403,7 @@ dependencies = [
  "sha3",
  "sqlx",
  "tempfile",
- "thegraph 0.5.0",
+ "thegraph",
  "thiserror",
  "tokio",
  "tokio-retry",
@@ -2802,19 +2750,6 @@ dependencies = [
  "quanta",
  "rand 0.8.5",
  "smallvec",
-]
-
-[[package]]
-name = "graphql-http"
-version = "0.1.1"
-source = "git+https://github.com/edgeandnode/toolshed?rev=796c23da750d48ccf4b6d8841ac164cb5c42655d#796c23da750d48ccf4b6d8841ac164cb5c42655d"
-dependencies = [
- "anyhow",
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
@@ -3281,10 +3216,10 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 [[package]]
 name = "indexer-common"
 version = "0.1.0"
-source = "git+https://github.com/graphprotocol/indexer-rs?branch=hope/operator-info-endpoint#2b9132ba88c8e99e9acd1c958ac1464001808b43"
+source = "git+https://github.com/graphprotocol/indexer-rs?rev=8b8e1080beb18e86cb04d16fe51a2835d7de65e9#8b8e1080beb18e86cb04d16fe51a2835d7de65e9"
 dependencies = [
- "alloy-primitives 0.6.2",
- "alloy-sol-types 0.6.2",
+ "alloy-primitives",
+ "alloy-sol-types",
  "anyhow",
  "arc-swap",
  "async-trait",
@@ -3294,7 +3229,7 @@ dependencies = [
  "ethers",
  "ethers-core",
  "eventuals",
- "graphql-http 0.2.1",
+ "graphql-http",
  "headers",
  "headers-derive",
  "keccak-hash",
@@ -3309,7 +3244,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tap_core 0.7.0 (git+https://github.com/semiotic-ai/timeline-aggregation-protocol?branch=aasseman/tap_core_0_7_0_fix_toolshed_dep)",
- "thegraph 0.5.0",
+ "thegraph",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -6336,18 +6271,6 @@ dependencies = [
 
 [[package]]
 name = "syn-solidity"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91ede2e5b2c6bfac4bc0ff4499957a11725dc12a7ddb86270e827ef575892553"
-dependencies = [
- "paste",
- "proc-macro2",
- "quote",
- "syn 2.0.48",
-]
-
-[[package]]
-name = "syn-solidity"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63bef2e2c735acbc06874eca3a8506f02a3c4700e6e748afc92cc2e4220e8a03"
@@ -6420,7 +6343,7 @@ name = "tap_core"
 version = "0.7.0"
 source = "git+https://github.com/semiotic-ai/timeline-aggregation-protocol?branch=aasseman/tap_core_0_7_0_fix_toolshed_dep#ae4fc69a5de5a33528b31284a32f71ae1093186c"
 dependencies = [
- "alloy-sol-types 0.6.2",
+ "alloy-sol-types",
  "anyhow",
  "async-trait",
  "ethereum-types",
@@ -6434,7 +6357,7 @@ dependencies = [
  "serde",
  "strum 0.24.1",
  "strum_macros 0.24.3",
- "thegraph 0.5.0",
+ "thegraph",
  "thiserror",
  "tokio",
 ]
@@ -6444,8 +6367,8 @@ name = "tap_core"
 version = "0.7.0"
 source = "git+https://github.com/semiotic-ai/timeline-aggregation-protocol#2f7c2680974d88a1de80123745c5df4862e08a27"
 dependencies = [
- "alloy-primitives 0.6.2",
- "alloy-sol-types 0.6.2",
+ "alloy-primitives",
+ "alloy-sol-types",
  "anyhow",
  "async-trait",
  "ethereum-types",
@@ -6499,28 +6422,11 @@ dependencies = [
 
 [[package]]
 name = "thegraph"
-version = "0.3.0"
-source = "git+https://github.com/edgeandnode/toolshed?rev=796c23da750d48ccf4b6d8841ac164cb5c42655d#796c23da750d48ccf4b6d8841ac164cb5c42655d"
-dependencies = [
- "alloy-primitives 0.5.4",
- "alloy-sol-types 0.5.4",
- "async-graphql 6.0.11",
- "bs58",
- "ethers-core",
- "lazy_static",
- "serde",
- "serde_with",
- "sha3",
- "thiserror",
-]
-
-[[package]]
-name = "thegraph"
 version = "0.5.0"
 source = "git+https://github.com/edgeandnode/toolshed?tag=thegraph-v0.5.0#7ab59b4fe0b19cd520edf025b72ad323be8e0506"
 dependencies = [
- "alloy-primitives 0.6.2",
- "alloy-sol-types 0.6.2",
+ "alloy-primitives",
+ "alloy-sol-types",
  "async-graphql 7.0.1",
  "bs58",
  "ethers-core",

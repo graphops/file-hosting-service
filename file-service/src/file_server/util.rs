@@ -1,45 +1,10 @@
-use build_info::BuildInfo;
-
 use file_exchange::{
     errors::{Error, ServerError},
     util::{build_wallet, wallet_address},
 };
-use serde::{Deserialize, Serialize};
+
 use std::fs;
-use std::{collections::HashMap, io};
-
-#[derive(Serialize, Deserialize)]
-pub struct Health {
-    pub healthy: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Operator {
-    #[serde(alias = "publicKey")]
-    pub public_key: String,
-}
-
-/// Struct for version control
-#[derive(Serialize, Debug, Clone)]
-pub struct PackageVersion {
-    pub version: String,
-    pub dependencies: HashMap<String, String>,
-}
-
-impl From<&BuildInfo> for PackageVersion {
-    fn from(value: &BuildInfo) -> Self {
-        Self {
-            version: value.crate_info.version.to_string(),
-            dependencies: HashMap::from_iter(
-                value
-                    .crate_info
-                    .dependencies
-                    .iter()
-                    .map(|d| (d.name.clone(), d.version.to_string())),
-            ),
-        }
-    }
-}
+use std::io;
 
 // Load public certificate from file.
 #[allow(unused)]

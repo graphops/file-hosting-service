@@ -76,7 +76,6 @@ mod tests {
                 &[server_0.to_string(), server_1.to_string()],
             )
             .await;
-        println!("endpoiunt: {:#?}", endpoints);
         assert!(endpoints.len() == 1);
         assert!(endpoints.first().unwrap().0 == "0xead22a75679608952db6e85537fbfdca02dae9cb");
         assert!(endpoints.first().unwrap().1 == server_0);
