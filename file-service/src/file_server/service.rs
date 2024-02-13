@@ -19,14 +19,12 @@ pub async fn file_service(
     req: &<ServerContext as IndexerServiceImpl>::Request,
     context: &ServerContext,
 ) -> Result<Response<Body>, Error> {
-    tracing::debug!("Received file range request");
-    let context_ref = context.state.lock().await;
     tracing::debug!(
         id = tracing::field::debug(&id.to_string()),
         "Received file range request"
     );
 
-    let requested_bundle = match context_ref.bundles.get(&id.to_string()) {
+    let requested_bundle = match context.state.bundles.lock().await.get(&id.to_string()) {
         Some(s) => s.clone(),
         None => {
             return Ok(Response::builder()

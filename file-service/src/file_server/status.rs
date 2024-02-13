@@ -117,9 +117,9 @@ impl StatusQuery {
         let bundles: Vec<Bundle> = ctx
             .data_unchecked::<ServerContext>()
             .state
+            .bundles
             .lock()
             .await
-            .bundles
             .values()
             .cloned()
             .collect();
@@ -151,9 +151,9 @@ impl StatusQuery {
         let bundles: Vec<Bundle> = ctx
             .data_unchecked::<ServerContext>()
             .state
+            .bundles
             .lock()
             .await
-            .bundles
             .values()
             .cloned()
             .collect();
@@ -179,9 +179,10 @@ impl StatusQuery {
         let all_bundles = &ctx
             .data_unchecked::<ServerContext>()
             .state
+            .bundles
             .lock()
             .await
-            .bundles.clone();
+            .clone();
 
         tracing::info!(bundles = tracing::field::debug(&all_bundles), "all bundles");
         let bundles = if deployments.is_none() {
@@ -215,9 +216,9 @@ impl StatusQuery {
         let bundle: Option<Bundle> = ctx
             .data_unchecked::<ServerContext>()
             .state
+            .bundles
             .lock()
             .await
-            .bundles
             .get(&deployment)
             .cloned();
 
@@ -234,8 +235,6 @@ pub async fn build_schema() -> StatusSchema {
 pub async fn status(State(context): State<ServerContext>, req: GraphQLRequest) -> GraphQLResponse {
     context
         .state
-        .lock()
-        .await
         .status_schema
         .execute(req.into_inner().data(context.clone()))
         .await

@@ -93,15 +93,23 @@ Example cost query
 ```
 curl -X POST \ 
         -H 'Content-Type: application/json' \
-        --data '{"query": "{costModels(deployments: []){deployment}}"}' \
+        --data '{"query": "{costModels(deployments: ["Qm,,,"]){deployment}}"}' \
         http://localhost:5677/files-cost
 ```
 
 Example status query
 ```
-curl -X POST \        -H 'Content-Type: application/json' \
-        --data '{"query": "{bundles{ipfsHash}}"}' \
+curl -X POST \
+        -H 'Content-Type: application/json' \
+        --data '{"query": "{bundles{ipfsHash manifest{fileType description} }}"}' \
         http://localhost:5677/files-status
+{"data":{"bundles":[{"ipfsHash":"QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v","manifest":{"fileType":"flatfiles","description":"random flatfiles"}}]}}%    
+
+curl -X POST \
+        -H 'Content-Type: application/json' \
+        --data '{"query": "{files{totalBytes chunkSize}}"}' \ 
+        http://localhost:5677/files-status
+{"data":{"files":[{"totalBytes":1052737,"chunkSize":1048576},{"totalBytes":24817953,"chunkSize":1048576},{"totalBytes":26359000,"chunkSize":1048576}]}}%   
 ```
 
 

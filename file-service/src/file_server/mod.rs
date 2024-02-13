@@ -33,9 +33,8 @@ pub mod util;
 pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
-    pub bundles: HashMap<String, Bundle>, // Keyed by IPFS hash
-    pub admin_auth_token: Option<String>, // Add bearer prefix
-    pub price_per_byte: f32,
+    pub bundles: Arc<Mutex<HashMap<String, Bundle>>>, // Keyed by IPFS hash
+    pub admin_auth_token: Option<String>,             // Add bearer prefix
     pub config: Config,
     pub database: PgPool,
     pub cost_schema: crate::file_server::cost::CostSchema,
@@ -44,11 +43,11 @@ pub struct ServerState {
 
 #[derive(Clone)]
 pub struct ServerContext {
-    state: Arc<Mutex<ServerState>>,
+    state: Arc<ServerState>,
 }
 
 impl ServerContext {
-    pub fn new(state: Arc<Mutex<ServerState>>) -> Self {
+    pub fn new(state: Arc<ServerState>) -> Self {
         Self { state }
     }
 }
@@ -104,14 +103,13 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
     build_info::build_info!(fn build_info);
     // Add the file to the service availability endpoint
     // This would be part of your server state initialization
-    let mut server_state = ServerState {
+    let server_state = ServerState {
         config: config.clone(),
         client: client.clone(),
-        bundles: HashMap::new(),
+        bundles: Arc::new(Mutex::new(HashMap::new())),
         admin_auth_token,
         operator_public_key: public_key(&config.common.indexer.operator_mnemonic)
             .expect("Failed to initiate with operator wallet"),
-        price_per_byte: config.server.price_per_byte,
         database: database::connect(&config.common.database.postgres_url).await,
         cost_schema: cost::build_schema().await,
         status_schema: status::build_schema().await,
@@ -124,11 +122,13 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
 
         server_state
             .bundles
+            .lock()
+            .await
             .insert(bundle.ipfs_hash.clone(), bundle);
     }
 
     // Return the server state wrapped in an Arc for thread safety
-    Ok(ServerContext::new(Arc::new(Mutex::new(server_state))))
+    Ok(ServerContext::new(Arc::new(server_state)))
 }
 
 /// Create an admin error response

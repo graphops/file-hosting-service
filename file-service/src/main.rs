@@ -16,9 +16,9 @@ pub mod file_server;
 /// Run the subgraph indexer service
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    console_subscriber::init();
+    // console_subscriber::init();
 
-    // file_exchange::config::init_tracing("pretty").expect("Initialize logger");
+    file_exchange::config::init_tracing("pretty").expect("Initialize logger");
 
     // Parse command line and environment arguments
     let cli = config::Cli::parse();

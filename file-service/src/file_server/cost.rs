@@ -41,12 +41,7 @@ impl Query {
             .into_iter()
             .map(|s| DeploymentId::from_str(&s))
             .collect::<Result<Vec<DeploymentId>, _>>()?;
-        let pool = &ctx
-            .data_unchecked::<ServerContext>()
-            .state
-            .lock()
-            .await
-            .database;
+        let pool = &ctx.data_unchecked::<ServerContext>().state.database;
         let cost_models = database::cost_models(pool, &deployment_ids).await?;
         Ok(cost_models.into_iter().map(|m| m.into()).collect())
     }
@@ -57,12 +52,7 @@ impl Query {
         deployment: String,
     ) -> Result<Option<GraphQlCostModel>, anyhow::Error> {
         let deployment_id = DeploymentId::from_str(&deployment)?;
-        let pool = &ctx
-            .data_unchecked::<ServerContext>()
-            .state
-            .lock()
-            .await
-            .database;
+        let pool = &ctx.data_unchecked::<ServerContext>().state.database;
         database::cost_model(pool, &deployment_id)
             .await
             .map(|model_opt| model_opt.map(GraphQlCostModel::from))
@@ -78,8 +68,6 @@ pub async fn build_schema() -> CostSchema {
 pub async fn cost(State(context): State<ServerContext>, req: GraphQLRequest) -> GraphQLResponse {
     context
         .state
-        .lock()
-        .await
         .cost_schema
         .execute(req.into_inner().data(context.clone()))
         .await
