@@ -4,8 +4,6 @@ on:
   push:
     branches: [ main, dev ]
   pull_request:
-    branches:
-      - 'hope/test-**'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +18,44 @@ jobs:
           rustup component add rustfmt
           cargo fmt --all -- --check
 
+  sqlx:
+    name: prepare query metadata
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    container: 
+      image: rust:1.74-bookworm
+    env:
+      DATABASE_URL: postgres://postgres@postgres:5432
+      SQLX_OFFLINE: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-sqlx-prepare-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install sqlx
+        run: cargo install sqlx-cli --no-default-features --features postgres
+      - name: Run the test sqlx migrations
+        run: cargo sqlx migrate run --source file-service/migrations
+      - name: Check that the sqlx prepared query metadata is up-to-date
+        run: cargo sqlx prepare --workspace --check -- --all-targets --all-features
+
   clippy:
     name: cargo clippy
     runs-on: ubuntu-latest
@@ -27,6 +63,7 @@ jobs:
       image: rust:1.74-bookworm
     env:
       DATABASE_URL: postgres://postgres@postgres:5432
+      SQLX_OFFLINE: true
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
@@ -42,22 +79,7 @@ jobs:
           rustup component add clippy
           # Temporarily allowing dead-code, while denying all other warnings
           cargo clippy --all-features --all-targets -- -A dead-code -D warnings
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-sqlx-prepare-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sqlx
-        run: cargo install sqlx-cli --no-default-features --features postgres
-      - name: Run the test sqlx migrations
-        run: cargo sqlx migrate run
-      - name: Check that the sqlx prepared query metadata is up-to-date
-        run: cargo sqlx prepare --workspace --check -- --all-targets --all-features
-        
+
   test-and-coverage:
     name: cargo test and coverage
     runs-on: ubuntu-latest
@@ -80,7 +102,8 @@ jobs:
     container:
       image: rust:1.74-bookworm
     env:
-      DATABASE_URL: postgres://postgres@postgres:5432 
+      DATABASE_URL: postgres://postgres@postgres:5432
+      SQLX_OFFLINE: true
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
@@ -97,9 +120,9 @@ jobs:
       - name: Install sqlx
         run: cargo install sqlx-cli --no-default-features --features postgres
       - name: Run the test sqlx migrations
-        run: cargo sqlx migrate run
+        run: cargo sqlx migrate run --source file-service/migrations
       - name: Run tests and generate coverage report
-        run: cargo llvm-cov test --all-features --workspace --lcov --output-path lcov.info
+        run: RUSTFLAGS="--cfg profile=\"git-test\"" LLVM_PROFILE_FILE="{}-%Nm" cargo llvm-cov test --all-features --workspace --lcov --output-path lcov.info
       - name: Test documentation code snippets
         run: cargo test --doc --all-features --workspace
       - name: Upload coverage to Coveralls

@@ -13,4 +13,4 @@ Simple option: run general installation that supports all databases supported by
 
 ### Run the migration
 
-Run `sqlx migrate run`
+Run `sqlx migrate run --source file-service/migrations`

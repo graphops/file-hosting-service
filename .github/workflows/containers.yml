@@ -1,12 +1,11 @@
 name: Build and upload Docker image
 
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "*.*.*"
-    branches:
-      - main
-  pull_request:
     branches:
       - main
       - dev
@@ -20,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [file-exchange]
+        target: [file-exchange, file-service]
 
     permissions:
       packages: write
