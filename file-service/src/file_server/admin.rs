@@ -236,3 +236,20 @@
 //         .body("Price successfully updated".into())
 //         .unwrap())
 // }
+
+// fn get_token_from_headers(headers: &HeaderMap) -> Option<Token> {
+//     headers
+//         .get("Token")
+//         .and_then(|value| value.to_str().map(|s| Token(s.to_string())).ok())
+// }
+
+// pub async fn graphql_handler(
+//     // headers: HeaderMap,
+//     req: GraphQLRequest,
+// ) -> GraphQLResponse {
+//     let mut req = req.into_inner();
+//     if let Some(token) = get_token_from_headers(&headers) {
+//         req = req.data(token);
+//     }
+//     schema.execute(req).await.into()
+// }

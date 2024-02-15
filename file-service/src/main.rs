@@ -1,7 +1,9 @@
 use anyhow::Error;
-use axum::{routing::post, Router};
+use axum::{routing::get, Router};
 use clap::Parser;
-use file_service::file_server::{cost::cost, initialize_server_context, status::status};
+use file_service::file_server::{
+    cost::cost, initialize_server_context, status::status, util::graphql_playground,
+};
 use indexer_common::indexer_service::http::{
     IndexerService, IndexerServiceOptions, IndexerServiceRelease,
 };
@@ -49,10 +51,9 @@ async fn main() -> Result<(), Error> {
         metrics_prefix: "files",
         service_impl: state.clone(),
         extra_routes: Router::new()
-            .route("/files-cost", post(cost))
-            .route("/files-status", post(status))
+            .route("/files-cost", get(graphql_playground).post(cost))
+            .route("/files-status", get(graphql_playground).post(status))
             // .route("/admin", post(admin::handle_admin_request))
-            // "/admin" => handle_admin_request(req, &context).await,
             .with_state(state),
     })
     .await

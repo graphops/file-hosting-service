@@ -1,3 +1,5 @@
+use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
+use axum::response::{Html, IntoResponse};
 use file_exchange::{
     errors::{Error, ServerError},
     util::{build_wallet, wallet_address},
@@ -5,6 +7,11 @@ use file_exchange::{
 
 use std::fs;
 use std::io;
+
+/// GraphQL playground UI
+pub async fn graphql_playground() -> impl IntoResponse {
+    Html(playground_source(GraphQLPlaygroundConfig::new("/")))
+}
 
 // Load public certificate from file.
 #[allow(unused)]
