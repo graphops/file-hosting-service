@@ -87,9 +87,9 @@ Manifest(s) removed successfully
 
 **Cost and Status API**
 
-Schema is provided at the `server-[]-schema.json`.
+Schema is provided at the `server-[]-schema.json`. One can access the graphql playground by navigating to the server's endpoint at `/files-status` or `/files-cost`.
 
-Example cost query
+Through curl, an example cost query
 ```
 curl -X POST \ 
         -H 'Content-Type: application/json' \
