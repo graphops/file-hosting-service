@@ -11,5 +11,9 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 
+[profile.git-test]
+inherits = "dev"
+debug = false
+
 # [workspace.dependencies]
 # tracing = "0.1.37"
