@@ -167,7 +167,7 @@ impl Downloader {
                 tracing::field::debug(&incomplete_files),
             );
             tracing::warn!(msg);
-            return Err(Error::DataUnavilable(msg));
+            return Err(Error::DataUnavailable(msg));
         } else {
             tracing::info!("File manifests download completed");
         }
@@ -257,7 +257,7 @@ impl Downloader {
             for handle in handles {
                 let _ = handle
                     .await
-                    .map_err(|e| Error::DataUnavilable(e.to_string()))?;
+                    .map_err(|e| Error::DataUnavailable(e.to_string()))?;
             }
         }
 
@@ -307,7 +307,7 @@ impl Downloader {
             } else {
                 let err_msg = "No operator serving the file, data unavailable".to_string();
                 tracing::warn!(err_msg);
-                return Err(Error::DataUnavilable(err_msg.to_string()));
+                return Err(Error::DataUnavailable(err_msg.to_string()));
             };
         //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
         let query_endpoint = url + "/files/id/" + &self.ipfs_hash;
@@ -363,7 +363,7 @@ impl Downloader {
                         "Files available on these available bundles: {:#?}",
                         tracing::field::debug(&map.lock().await),
                     );
-                    return Err(Error::DataUnavilable(msg));
+                    return Err(Error::DataUnavailable(msg));
                 }
                 Err(e) => {
                     let msg = format!(
@@ -372,7 +372,7 @@ impl Downloader {
                         tracing::field::debug(&e),
                     );
                     tracing::error!(msg);
-                    return Err(Error::DataUnavilable(msg));
+                    return Err(Error::DataUnavailable(msg));
                 }
             }
         };
@@ -441,7 +441,7 @@ async fn download_chunk_and_write_to_file(
 
         attempts += 1;
         if attempts >= request.max_retry {
-            return Err(Error::DataUnavilable(
+            return Err(Error::DataUnavailable(
                 "Max retry attempts reached for chunk download".to_string(),
             ));
         }

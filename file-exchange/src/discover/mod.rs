@@ -43,24 +43,19 @@ impl Finder {
         bundle_hash: &str,
         url: &str,
     ) -> Result<IndexerEndpoint, Error> {
-        let files = self.indexer_status(url).await?;
+        let bundles = self.indexer_bundles(url).await?;
         let operator: String = self.indexer_operator(url).await?;
 
         tracing::debug!(
             url,
             operator = tracing::field::debug(&operator),
-            files = tracing::field::debug(&files),
+            bundles = tracing::field::debug(&bundles),
             "Indexer endpoint"
         );
 
-        if !files.contains(&bundle_hash.to_string()) {
-            tracing::trace!(
-                url,
-                files = tracing::field::debug(&files),
-                "IPFS hash not found in served bundle status"
-            );
-            return Err(Error::DataUnavilable(format!(
-                "IPFS hash not found in files served at {}",
+        if !bundles.contains(&bundle_hash.to_string()) {
+            return Err(Error::DataUnavailable(format!(
+                "IPFS hash not found in bundles served at {}",
                 url
             )));
         }
@@ -138,7 +133,7 @@ impl Finder {
     ) -> Result<(), Error> {
         let operator = self.indexer_operator(url).await?;
         let indexer_endpoint = (operator, url.to_string());
-        let bundles = self.indexer_status(url).await?;
+        let bundles = self.indexer_bundles(url).await?;
 
         // Map of indexer_endpoints to served manifests
         // For each endpoint, populate indexer_map with the available files
@@ -165,7 +160,7 @@ impl Finder {
 
         match unavailable_files(&file_map).await {
             files if !files.is_empty() => {
-                return Err(Error::DataUnavilable(format!(
+                return Err(Error::DataUnavailable(format!(
                     "File availability incomplete, missing files: {:#?}",
                     files
                 )));
@@ -197,7 +192,7 @@ impl Finder {
         );
         if !operator_response.status().is_success() {
             tracing::error!("Operator response error for {}", operator_url);
-            return Err(Error::DataUnavilable(
+            return Err(Error::DataUnavailable(
                 "Operator request failed.".to_string(),
             ));
         }
@@ -211,10 +206,20 @@ impl Finder {
         }
     }
 
-    async fn indexer_status(&self, url: &str) -> Result<Vec<String>, Error> {
+    // Indexer bundles
+    //TODO: find how to generate bundle GraphQL type shareable to file-service
+    //so values can be parsed more elegantly
+    async fn indexer_bundles(&self, url: &str) -> Result<Vec<String>, Error> {
         let status_url = format!("{}/files-status", url);
+
         tracing::debug!(status = tracing::field::debug(&status_url), "Status query");
-        let status_response = match self.http_client.post(&status_url).send().await {
+        let status_response = match self
+            .http_client
+            .post(&status_url)
+            .json(&serde_json::json!({"query": "{bundles{ipfsHash}}"}))
+            .send()
+            .await
+        {
             Ok(response) => response,
             Err(e) => {
                 tracing::error!("Status request failed for {}", status_url);
@@ -227,25 +232,52 @@ impl Finder {
         );
         if !status_response.status().is_success() {
             let err_msg = format!("Status response errored: {}", status_url);
-            return Err(Error::DataUnavilable(err_msg));
+            return Err(Error::DataUnavailable(err_msg));
         }
 
         let res_json = &status_response
             .json::<serde_json::Value>()
             .await
-            .map_err(|e| Error::DataUnavilable(e.to_string()))?;
+            .map_err(|e| Error::DataUnavailable(e.to_string()))?;
+        tracing::trace!(status = tracing::field::debug(&res_json), "Status reponse");
         let data = res_json["data"]
-            .as_str()
-            .ok_or(Error::DataUnavilable(
+            .as_object()
+            .ok_or(Error::DataUnavailable(
                 "Status did not provide data".to_string(),
             ))
             .and_then(|s| {
-                serde_json::from_str::<Vec<String>>(s)
-                    .map_err(|e| Error::DataUnavilable(e.to_string()))
+                s.get("bundles").ok_or(Error::DataUnavailable(
+                    "Status did not provide bundles".to_string(),
+                ))
+            })
+            .and_then(|bundles| {
+                bundles.as_array().ok_or(Error::DataUnavailable(
+                    "Status did not provide a vector of bundles".to_string(),
+                ))
+            })
+            .and_then(|bundles| {
+                bundles
+                    .iter()
+                    .map(|b| {
+                        b.get("ipfsHash")
+                            .ok_or(Error::DataUnavailable(
+                                "Bundle does not contain ipfsHash".to_string(),
+                            ))
+                            .and_then(|i| {
+                                i.as_str()
+                                    .ok_or(Error::DataUnavailable(
+                                        "IPFS hash is not a string".to_string(),
+                                    ))
+                                    .map(|s| s.to_string())
+                            })
+                    })
+                    .collect::<Result<Vec<String>, _>>() // Collect into a Result<Vec<String>, Error>
             });
 
-        tracing::debug!(status = tracing::field::debug(&data), "Status reponse");
-
+        tracing::debug!(
+            status = tracing::field::debug(&data),
+            "Parsed status reponse"
+        );
         data
     }
 

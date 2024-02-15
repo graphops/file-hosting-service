@@ -81,7 +81,7 @@ impl Store {
         let object_meta = self
             .find_object(location, None)
             .await
-            .ok_or(Error::DataUnavilable(format!(
+            .ok_or(Error::DataUnavailable(format!(
                 "Did not find file {}",
                 location
             )))?;

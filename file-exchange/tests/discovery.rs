@@ -8,9 +8,7 @@ mod tests {
         test_util::server_ready,
     };
 
-    // TODO: set up test environment
     #[tokio::test]
-    // #[ignore]
     async fn test_discovery() {
         // 0. Basic setup; const
         std::env::set_var("RUST_LOG", "off,file_exchange=warn,file_transfer=trace,file_service=info,indexer_service=warn,indexer_common=warn");

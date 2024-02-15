@@ -184,9 +184,8 @@ impl StatusQuery {
             .await
             .clone();
 
-        tracing::info!(bundles = tracing::field::debug(&all_bundles), "all bundles");
         let bundles = if deployments.is_none() {
-            tracing::info!(
+            tracing::trace!(
                 bundles = tracing::field::debug(&all_bundles),
                 "no deployment filter"
             );
@@ -203,11 +202,11 @@ impl StatusQuery {
                 .map(GraphQlBundle::from)
                 .collect()
         };
-        tracing::info!(bundles = tracing::field::debug(&bundles), "queried bundles");
+        tracing::debug!(bundles = tracing::field::debug(&bundles), "queried bundles");
         Ok(bundles)
     }
 
-    async fn status(
+    async fn bundle(
         &self,
         ctx: &Context<'_>,
         deployment: String,

@@ -11,10 +11,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_transfer() {
-        std::env::set_var("RUST_LOG", "off,file_exchange=info,file_transfer=trace,file_service=warn,indexer_service=warn,indexer_common=warn");
+        std::env::set_var("RUST_LOG", "off,file_exchange=info,file_transfer=trace,file_service=info,indexer_service=warn,indexer_common=warn");
         file_exchange::config::init_tracing("pretty").unwrap();
 
-        tracing::info!(dir = tracing::field::debug(&std::env::current_dir()));
         let client = IpfsClient::new("https://ipfs.network.thegraph.com")
             .expect("Could not create client to thegraph IPFS gateway");
         let target_bundle = "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v".to_string();
