@@ -200,7 +200,14 @@ pub fn validate_bundle_entry(entry: String) -> Result<(String, PathBuf), Error> 
 
     let ipfs_hash = parts[0];
     let local_path = parts[1];
+    validate_bundle_and_location(ipfs_hash, local_path)
+}
 
+// Check for valid ipfs hash and path
+pub fn validate_bundle_and_location(
+    ipfs_hash: &str,
+    local_path: &str,
+) -> Result<(String, PathBuf), Error> {
     if !is_valid_ipfs_hash(ipfs_hash) {
         return Err(Error::InvalidConfig(format!(
             "Invalid IPFS hash: {}",

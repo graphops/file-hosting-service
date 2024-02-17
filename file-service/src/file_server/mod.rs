@@ -12,7 +12,7 @@ use indexer_common::indexer_service::http::{IndexerServiceImpl, IndexerServiceRe
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use file_exchange::errors::{Error, ServerError};
+use file_exchange::errors::Error;
 use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
 };
@@ -22,7 +22,6 @@ use crate::{config::Config, database, file_server::util::public_key};
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;
 
-pub mod admin;
 pub mod cost;
 pub mod range;
 pub mod service;
@@ -43,7 +42,7 @@ pub struct ServerState {
 
 #[derive(Clone)]
 pub struct ServerContext {
-    state: Arc<ServerState>,
+    pub state: Arc<ServerState>,
 }
 
 impl ServerContext {
@@ -129,13 +128,6 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
 
     // Return the server state wrapped in an Arc for thread safety
     Ok(ServerContext::new(Arc::new(server_state)))
-}
-
-/// Create an admin error response
-pub fn admin_error_response(msg: &str) -> FileServiceError {
-    FileServiceError::AdminError(Error::ServerError(ServerError::InvalidAuthentication(
-        msg.to_string(),
-    )))
 }
 
 #[derive(Debug, Error)]

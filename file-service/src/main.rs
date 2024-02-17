@@ -4,16 +4,11 @@ use clap::Parser;
 use file_service::file_server::{
     cost::cost, initialize_server_context, status::status, util::graphql_playground,
 };
+use file_service::{admin, config};
 use indexer_common::indexer_service::http::{
     IndexerService, IndexerServiceOptions, IndexerServiceRelease,
 };
-
 use tracing::error;
-
-mod cli;
-mod config;
-pub mod database;
-pub mod file_server;
 
 /// Run the subgraph indexer service
 #[tokio::main]
@@ -43,6 +38,7 @@ async fn main() -> Result<(), Error> {
     let state = initialize_server_context(config.clone())
         .await
         .expect("Failed to initiate bundle server");
+    admin::serve_admin(state.clone());
 
     IndexerService::run(IndexerServiceOptions {
         release,

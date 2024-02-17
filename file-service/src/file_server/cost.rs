@@ -7,8 +7,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thegraph::types::DeploymentId;
 
-use super::ServerContext;
-use crate::database::{self, CostModel};
+use crate::{
+    database::{self, CostModel},
+    file_server::ServerContext,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct GraphQlCostModel {

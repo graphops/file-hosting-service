@@ -1,12 +1,11 @@
 use clap::{arg, Args, Parser};
-use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
-
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
 use indexer_common::indexer_service::http::IndexerServiceConfig;
+use serde::{Deserialize, Serialize};
+use std::{fmt, net::SocketAddr, path::PathBuf};
 
 #[derive(Parser)]
 pub struct Cli {
@@ -26,7 +25,7 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Args, Serialize, Deserialize)]
 #[group(required = false, multiple = true)]
 pub struct ServerArgs {
     // Taking from config right now, later can read from DB table for managing server states
@@ -48,12 +47,12 @@ pub struct ServerArgs {
     //TODO: More complex price management
     #[arg(
         long,
-        value_name = "PRICE_PER_BYTE",
-        default_value = "1",
-        env = "PRICE_PER_BYTE",
-        help = "Price per byte; price do not currently have a unit, perhaps use DAI or GRT, refer to TAP"
+        value_name = "ADMIN_ADDR",
+        default_value = "0.0.0.0/6700",
+        env = "ADMIN_ADDR",
+        help = "Expost Admin service at address with both host and port"
     )]
-    pub price_per_byte: f32,
+    pub admin_host_and_port: SocketAddr,
     #[arg(
         long,
         value_name = "IPFS_GATEWAY_URL",
