@@ -58,32 +58,7 @@ cargo run -p file-service -- --config ./file-server/template.toml
 
 Check out the template toml configuration file for an example.
 
-> **admin** is currently unavailable as we just moved to indexer-rs framework, will be available soon as a graphql endpoint.  
-
-3. Access the server via the **admin** endpoint.
-
-HTTP request example to get, add, and remove file services
-```
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
-  -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"add_bundle","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ:./example-file"],"id":1,"jsonrpc":"2.0"}' 
-Manifest(s) added successfully%      
-
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
-  -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"get_bundles","id":1,"jsonrpc":"2.0"}'
-[{
-  "ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","bundle":{"file_manifests":[{"chunk_hashes":["uKD2xdfp1WszuvIP1nFNNTYoZ7zvm2KX6KFElwwBfdI=","TrusR0Z+EYg33o4KRXGvSN910yavCkjD7K3pYImGZaQ="],"chunk_size":1048576,"file_name":"example-create-17686085.dbin","total_bytes":1052737},{"chunk_hashes":["/5jJskCMgWAZIZHWBWcwnaLP8Ax4sOzCq6d9+k2ouE8=",...],"chunk_size":1048576,"file_name":"0017234500.dbin.zst","total_bytes":24817953},...],
-"ipfs_hash":"QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ","local_path":"./example-file","manifest":{"block_range":{"end_block":null,"start_block":null},"chain_id":"0","description":"random flatfiles","file_type":"flatfiles","files":[{"hash":"QmSgzLLsQzdRAQRA2d7X3wqLEUTBLSbRe2tqv9rJBy7Wqv","name":"example-create-17686085.dbin"}, ...],"spec_version":"0.0.0"}}}, ...]%                            
-
-✗ curl http://localhost:5678/admin -X POST \
-  -H "Content-Type: application/json" \
-  -H "AUTHORIZATION: Bearer imadmin" \
- --data '{"method":"remove_bundle","params":["QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ"],"id":1,"jsonrpc":"2.0"}' 
-Manifest(s) removed successfully
-```
+3. Access services via the additional endpoints:
 
 **Cost and Status API**
 
@@ -111,6 +86,25 @@ curl -X POST \
         http://localhost:5677/files-status
 {"data":{"files":[{"totalBytes":1052737,"chunkSize":1048576},{"totalBytes":24817953,"chunkSize":1048576},{"totalBytes":26359000,"chunkSize":1048576}]}}%   
 ```
+
+**Admin API**
+
+Available mutations you can make, in addition to Status queries, are to add and remove bundle(s). If you supplied an admin token, then mutation functions will require the token in the request header.
+
+Curl query will be similar to the above examples, here we provide an example in the GraphQL version
+```
+mutation{
+  addBundles(deployments:["QmeD3dRVV6Gs84TRwiNj3tLt9mBEMVqy3GoWm7WN8oDzGz", "QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v"], 
+    locations:["./example-file", "./example-file"]){
+    ipfsHash
+  }
+}
+```
+with configuration 
+```
+{"authorization": "Bearer admin-token"}
+```
+(`-H 'authorization: Bearer admin-token'` in curl.)
 
 
 4. (TODO) Register the server endpoint on the smart contract. Currently we assume the service endpoint has been registered with indexer-agent (for subgraphs). 

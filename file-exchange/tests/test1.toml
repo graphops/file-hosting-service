@@ -5,6 +5,7 @@ bundles = [
     "QmTSwj1BGkkmVSnhw6uEGkcxGZvP5nq4pDhzHjwJvsQC2Z:./../example-file/"
 ]
 admin_auth_token = "kueen"
+admin_host_and_port = "0.0.0.0:5666"
 price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Pretty"

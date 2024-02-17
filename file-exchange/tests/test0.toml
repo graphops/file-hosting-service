@@ -1,6 +1,7 @@
 [server]
 bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:./../example-file/"]
 admin_auth_token = "slayyy"
+admin_host_and_port = "0.0.0.0:5666"
 price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Full"
