@@ -70,6 +70,15 @@ pub struct ServerArgs {
         default_value = "pretty"
     )]
     pub log_format: LogFormat,
+    //TODO: More complex price management
+    #[arg(
+        long,
+        value_name = "PRICE_PER_BYTE",
+        default_value = "1",
+        env = "PRICE_PER_BYTE",
+        help = "Price per byte in GRT"
+    )]
+    pub price_per_byte: f32,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]
