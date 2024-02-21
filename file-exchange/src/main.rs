@@ -3,6 +3,7 @@ use dotenv::dotenv;
 use file_exchange::{
     config::{Cli, OnchainAction, Role},
     download_client::Downloader,
+    graphql::{network_query::current_epoch, GraphQLClient},
     manifest::ipfs::IpfsClient,
     publisher::ManifestPublisher,
     transaction_manager::TransactionManager,
@@ -66,12 +67,15 @@ async fn main() {
 
             let result = match transaction_manager.args.action.clone() {
                 Some(OnchainAction::Allocate(allocate_args)) => {
+                    let epoch = current_epoch(
+                        GraphQLClient::new(),
+                        &transaction_manager.args.network_subgraph,
+                        1,
+                    )
+                    .await
+                    .expect("Fetch epoch number");
                     transaction_manager
-                        .allocate(
-                            &allocate_args.deployment_ipfs,
-                            allocate_args.tokens,
-                            allocate_args.epoch,
-                        )
+                        .allocate(&allocate_args.deployment_ipfs, allocate_args.tokens, epoch)
                         .await
                 }
                 Some(OnchainAction::Unallocate(unallocate_args)) => {
