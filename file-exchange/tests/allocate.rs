@@ -20,6 +20,7 @@ mod tests {
             ),
             provider: String::from("https://arbitrum-sepolia.infura.io/v3/aaaaaaaaaaaaaaaaaaaa"),
             verifier: Some(String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF")),
+            network_subgraph: String::from("https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia"),
             action: Some(file_exchange::config::OnchainAction::Allocate(
                 AllocateArgs {
                     tokens: U256::from(100),

@@ -107,6 +107,13 @@ pub struct WalletArgs {
         help = "TAP verifier contract address"
     )]
     pub verifier: Option<String>,
+    #[clap(
+        long,
+        value_name = "network_subgraph",
+        env = "NETWORK_SUBGRAPH",
+        help = "Graph Network subgraph API endpoint"
+    )]
+    pub network_subgraph: String,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
