@@ -104,7 +104,14 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres@postgres:5432
       SQLX_OFFLINE: true
+      LLVM_PROFILE_FILE_NAME: '{}-%Nm.profraw'
     steps:
+      - name: Free some space
+        run: |
+          rm -rf /usr/share/dotnet
+          rm -rf /opt/ghc
+          rm -rf "/usr/local/share/boost"
+          rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
         with:
@@ -122,7 +129,7 @@ jobs:
       - name: Run the test sqlx migrations
         run: cargo sqlx migrate run --source file-service/migrations
       - name: Run tests and generate coverage report
-        run: RUSTFLAGS="--cfg profile=\"git-test\"" LLVM_PROFILE_FILE="{}-%Nm" cargo llvm-cov test --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov test --profile "git-test" --all-features --workspace --lcov --output-path lcov.info
       - name: Test documentation code snippets
         run: cargo test --doc --all-features --workspace
       - name: Upload coverage to Coveralls
