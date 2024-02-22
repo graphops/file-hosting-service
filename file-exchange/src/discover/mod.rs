@@ -21,10 +21,15 @@ use crate::util::{UDecimal18, GRT};
 // Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves
 //TODO: smarter type for tracking available endpoints
-pub type IndexerEndpoint = (String, String);
-// Pair HashMap< FileManifestIPFS, HashMap< IndexerEndpoint, Vec< MatchedManifestIPFS > > >
-pub type FileAvailbilityMap =
-    Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<IndexerEndpoint, Vec<String>>>>>>>;
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ServiceEndpoint {
+    pub operator: String,
+    pub service_endpoint: String,
+    pub deployment: String,
+    pub price_per_byte: f32,
+}
+// Pair HashMap< FileManifestIPFS, HashMap< Service URL, Vec< MatchedManifestIPFS > > >
+pub type FileAvailbilityMap = Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<String, Vec<String>>>>>>>;
 
 pub struct Finder {
     ipfs_client: IpfsClient,
@@ -44,7 +49,7 @@ impl Finder {
         &self,
         bundle_hash: &str,
         url: &str,
-    ) -> Result<IndexerEndpoint, Error> {
+    ) -> Result<ServiceEndpoint, Error> {
         let bundles = indexer_bundles(&self.http_client, url).await?;
         let operator: String = self.indexer_operator(url).await?;
 
@@ -60,14 +65,21 @@ impl Finder {
                 "IPFS hash not found in bundles served at {}",
                 url
             )));
-        } else {
-            let cost = indexer_bundle_cost(&self.http_client, url, bundle_hash)
-                .await
-                .expect("Fetch indexer cost");
-            tracing::debug!(cost, "Indexer posted price for the bundle")
         }
 
-        Ok((operator, url.to_string()))
+        let cost = indexer_bundle_cost(&self.http_client, url, bundle_hash)
+            .await?
+            .ok_or(Error::PricingError(
+                "Indexer did not provide a price".to_string(),
+            ))?;
+        tracing::debug!(cost, "Indexer posted price for the bundle");
+
+        Ok(ServiceEndpoint {
+            operator,
+            service_endpoint: url.to_string(),
+            deployment: bundle_hash.to_string(),
+            price_per_byte: cost,
+        })
     }
 
     /// Check the availability of a bundle at various indexer endpoints
@@ -76,7 +88,7 @@ impl Finder {
         &self,
         bundle_hash: &str,
         endpoint_checklist: &[String],
-    ) -> Vec<IndexerEndpoint> {
+    ) -> Vec<ServiceEndpoint> {
         tracing::debug!(
             bundle_hash,
             "{:#?} {:#?}",
@@ -88,7 +100,7 @@ impl Finder {
         let results = stream::iter(endpoint_checklist)
             .map(|url| self.bundle_availability(bundle_hash, url))
             .buffer_unordered(endpoint_checklist.len()) // Parallelize up to the number of endpoints
-            .collect::<Vec<Result<IndexerEndpoint, Error>>>()
+            .collect::<Vec<Result<ServiceEndpoint, Error>>>()
             .await;
 
         tracing::trace!(
@@ -99,7 +111,7 @@ impl Finder {
         results
             .into_iter()
             .filter_map(Result::ok)
-            .collect::<Vec<IndexerEndpoint>>()
+            .collect::<Vec<ServiceEndpoint>>()
     }
 
     pub async fn file_discovery(
@@ -108,7 +120,7 @@ impl Finder {
         endpoint_checklist: &[String],
     ) -> Result<FileAvailbilityMap, Error> {
         let bundle = read_bundle(&self.ipfs_client, bundle_hash, PathBuf::new()).await?;
-        // To fill in availability for each file, get a vector of (IndexerEndpoint, ManifestIPFS) that serves the file
+        // To fill in availability for each file, get a vector of (ServiceEndpoint, ManifestIPFS) that serves the file
         let target_hashes: FileAvailbilityMap = Arc::new(Mutex::new(
             bundle
                 .file_manifests
@@ -138,8 +150,7 @@ impl Finder {
         url: &str,
         file_map: FileAvailbilityMap,
     ) -> Result<(), Error> {
-        let operator = self.indexer_operator(url).await?;
-        let indexer_endpoint = (operator, url.to_string());
+        let indexer_endpoint = url.to_string();
         let bundles = indexer_bundles(&self.http_client, url).await?;
 
         // Map of indexer_endpoints to served manifests

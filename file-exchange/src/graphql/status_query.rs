@@ -23,12 +23,10 @@ struct FileStatus {
 pub async fn indexer_bundles(client: &reqwest::Client, url: &str) -> Result<Vec<String>, Error> {
     let status_url = format!("{}/files-status", url);
     let query = r#"query{bundles{ipfsHash}}"#;
-    let result = graphql_query::<FileStatus>(client, &status_url, Query::new(query))
-        .await
-        .map_err(Error::GraphQLError)?;
+    let result = graphql_query::<FileStatus>(client, &status_url, Query::new(query)).await?;
 
     Ok(result
-        .map_err(|e| Error::GraphQLError(anyhow::anyhow!(e.to_string())))?
+        .map_err(Error::GraphQLResponseError)?
         .bundles
         .iter()
         .map(|bundle| bundle.ipfs_hash.clone())

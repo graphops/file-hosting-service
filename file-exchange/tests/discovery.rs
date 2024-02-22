@@ -3,7 +3,7 @@ mod tests {
     use std::{process::Command, time::Duration};
 
     use file_exchange::{
-        discover::{unavailable_files, FileAvailbilityMap, Finder, IndexerEndpoint},
+        discover::{unavailable_files, FileAvailbilityMap, Finder},
         manifest::ipfs::IpfsClient,
         test_util::server_ready,
     };
@@ -26,14 +26,8 @@ mod tests {
         let bundle_hash_2 = "QmeD3dRVV6Gs84TRwiNj3tLt9mBEMVqy3GoWm7WN8oDzGz".to_string(); // files: B,C
         let bundle_hash_3 = "QmTSwj1BGkkmVSnhw6uEGkcxGZvP5nq4pDhzHjwJvsQC2Z".to_string(); // files: B
 
-        let indexer_0: IndexerEndpoint = (
-            "0xead22a75679608952db6e85537fbfdca02dae9cb".to_string(),
-            server_0.to_string(),
-        );
-        let indexer_1: IndexerEndpoint = (
-            "0x19804e50af1b72db4ce22a3c028e80c78d75af62".to_string(),
-            "http://0.0.0.0:5679".to_string(),
-        );
+        let indexer_address_0: String = "0xead22a75679608952db6e85537fbfdca02dae9cb".to_string();
+        let indexer_address_1: String = "0x19804e50af1b72db4ce22a3c028e80c78d75af62".to_string();
 
         // 1. Setup servers 0 and 1
         let mut server_process_0 = Command::new("cargo")
@@ -75,8 +69,10 @@ mod tests {
             )
             .await;
         assert!(endpoints.len() == 1);
-        assert!(endpoints.first().unwrap().0 == "0xead22a75679608952db6e85537fbfdca02dae9cb");
-        assert!(endpoints.first().unwrap().1 == server_0);
+        assert!(
+            endpoints.first().unwrap().operator == "0xead22a75679608952db6e85537fbfdca02dae9cb"
+        );
+        assert!(endpoints.first().unwrap().service_endpoint == server_0);
 
         // 3.2 find bundle_1 with server 0 and 1, get server 1
         let endpoints = finder
@@ -86,8 +82,10 @@ mod tests {
             )
             .await;
         assert!(endpoints.len() == 1);
-        assert!(endpoints.first().unwrap().0 == "0x19804e50af1b72db4ce22a3c028e80c78d75af62");
-        assert!(endpoints.first().unwrap().1 == server_1);
+        assert!(
+            endpoints.first().unwrap().operator == "0x19804e50af1b72db4ce22a3c028e80c78d75af62"
+        );
+        assert!(endpoints.first().unwrap().service_endpoint == server_1);
 
         // 3.3 find bundle_0 with sieved availability
         let map = finder
@@ -102,7 +100,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_a,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -111,7 +109,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -120,7 +118,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_c,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -129,7 +127,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_a,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_1]
             )
             .await
@@ -139,14 +137,14 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_3, &bundle_hash_2]
             )
             .await
                 || matched(
                     &map,
                     &file_manifest_hash_b,
-                    &indexer_1,
+                    &indexer_address_1,
                     &vec![&bundle_hash_2, &bundle_hash_3]
                 )
                 .await
@@ -155,7 +153,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_c,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_2]
             )
             .await
@@ -174,7 +172,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_a,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -183,7 +181,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_a,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_1]
             )
             .await
@@ -202,7 +200,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -211,7 +209,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_c,
-                &indexer_0,
+                &indexer_address_0,
                 &vec![&bundle_hash_0]
             )
             .await
@@ -220,14 +218,14 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_3, &bundle_hash_2]
             )
             .await
                 || matched(
                     &map,
                     &file_manifest_hash_b,
-                    &indexer_1,
+                    &indexer_address_1,
                     &vec![&bundle_hash_2, &bundle_hash_3]
                 )
                 .await
@@ -236,7 +234,7 @@ mod tests {
             matched(
                 &map,
                 &file_manifest_hash_c,
-                &indexer_1,
+                &indexer_address_1,
                 &vec![&bundle_hash_2]
             )
             .await
@@ -275,7 +273,7 @@ mod tests {
     async fn matched(
         file_map: &FileAvailbilityMap,
         file_manifest: &str,
-        endpoint: &IndexerEndpoint,
+        endpoint: &String,
         bundle_hashes: &Vec<&str>,
     ) -> bool {
         let map = file_map.lock().await;
