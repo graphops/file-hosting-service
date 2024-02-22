@@ -25,7 +25,7 @@ use crate::manifest::{
 };
 use crate::{config::DownloaderArgs, discover, graphql};
 use crate::{
-    discover::{Finder, IndexerEndpoint},
+    discover::{Finder, ServiceEndpoint},
     download_client::signer::Access,
 };
 
@@ -42,7 +42,7 @@ pub struct Downloader {
     _gateway_url: Option<String>,
     static_endpoints: Vec<String>,
     output_dir: String,
-    indexer_urls: Arc<StdMutex<Vec<IndexerEndpoint>>>,
+    indexer_urls: Arc<StdMutex<Vec<ServiceEndpoint>>>,
     indexer_blocklist: Arc<StdMutex<HashSet<String>>>,
     // key is the file manifest identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
     target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
@@ -113,7 +113,7 @@ impl Downloader {
         }
     }
 
-    pub fn update_indexer_urls(&self, endpoints: &[IndexerEndpoint]) {
+    pub fn update_indexer_urls(&self, endpoints: &[ServiceEndpoint]) {
         self.indexer_urls.lock().unwrap().clear();
         self.indexer_urls
             .lock()
@@ -294,23 +294,21 @@ impl Downloader {
     ) -> Result<DownloadRangeRequest, Error> {
         let mut rng = rand::thread_rng();
         let query_endpoints = &self.indexer_urls.lock().unwrap();
-        let (operator, url) =
-            if let Some((operator, url)) = query_endpoints.choose(&mut rng).cloned() {
-                tracing::debug!(
-                    operator,
-                    url,
-                    chunk = i,
-                    file_manifest = meta.meta_info.hash,
-                    "Querying operator"
-                );
-                (operator, url)
-            } else {
-                let err_msg = "No operator serving the file, data unavailable".to_string();
-                tracing::warn!(err_msg);
-                return Err(Error::DataUnavailable(err_msg.to_string()));
-            };
+        let service = if let Some(service) = query_endpoints.choose(&mut rng).cloned() {
+            tracing::debug!(
+                service = tracing::field::debug(&service),
+                chunk = i,
+                file_manifest = meta.meta_info.hash,
+                "Randomly picked provider"
+            );
+            service
+        } else {
+            let err_msg = "No operator serving the file, data unavailable".to_string();
+            tracing::warn!(err_msg);
+            return Err(Error::DataUnavailable(err_msg.to_string()));
+        };
         //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
-        let query_endpoint = url + "/files/id/" + &self.ipfs_hash;
+        let query_endpoint = service.service_endpoint.clone() + "/files/id/" + &self.ipfs_hash;
         let file_hash = meta.meta_info.hash.clone();
         let start = i * meta.file_manifest.chunk_size;
         let end = u64::min(
@@ -320,7 +318,7 @@ impl Downloader {
         let chunk_hash = meta.file_manifest.chunk_hashes[i as usize].clone();
 
         Ok(DownloadRangeRequest {
-            receiver: operator,
+            receiver: service.operator.clone(),
             query_endpoint,
             file_hash,
             start,
@@ -331,6 +329,7 @@ impl Downloader {
         })
     }
 
+    /// Make sure the requested bundle is available from at least 1 provider
     async fn availbility_check(&self) -> Result<(), Error> {
         let blocklist = self.indexer_blocklist.lock().unwrap().clone();
         let endpoints = &self

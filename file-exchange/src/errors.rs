@@ -1,5 +1,7 @@
 use std::{error::Error as StdError, fmt};
 
+use graphql_http::http_client::{RequestError, ResponseError};
+
 #[derive(Debug)]
 pub enum Error {
     InvalidConfig(String),
@@ -13,7 +15,8 @@ pub enum Error {
     ServerError(ServerError),
     JsonError(serde_json::Error),
     YamlError(serde_yaml::Error),
-    GraphQLError(anyhow::Error),
+    GraphQLRequestError(RequestError),
+    GraphQLResponseError(ResponseError),
     PricingError(String),
     ContractError(String),
     ObjectStoreError(object_store::Error),
@@ -34,7 +37,8 @@ impl fmt::Display for Error {
             Error::ServerError(ref err) => write!(f, "Server error: {}", err),
             Error::JsonError(ref err) => write!(f, "JSON error: {}", err),
             Error::YamlError(ref err) => write!(f, "YAML error: {}", err),
-            Error::GraphQLError(ref err) => write!(f, "GraphQL error: {}", err),
+            Error::GraphQLRequestError(ref err) => write!(f, "GraphQL error: {}", err),
+            Error::GraphQLResponseError(ref err) => write!(f, "GraphQL error: {}", err),
             Error::PricingError(ref msg) => write!(f, "Price format error: {}", msg),
             Error::ContractError(ref msg) => write!(f, "Contract call error: {}", msg),
             Error::ObjectStoreError(ref err) => write!(f, "Object store error: {}", err),

@@ -9,6 +9,8 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
+use crate::errors::Error;
+
 pub mod cost_query;
 pub mod network_query;
 pub mod status_query;
@@ -79,10 +81,11 @@ pub async fn graphql_query<T: for<'de> Deserialize<'de>>(
     client: &reqwest::Client,
     query_url: &str,
     query: impl IntoRequestParameters + Send,
-) -> Result<ResponseResult<T>, anyhow::Error> {
-    Ok(client
+) -> Result<ResponseResult<T>, Error> {
+    client
         .post(query_url)
         .header(header::USER_AGENT, "file-service")
         .send_graphql(query)
-        .await?)
+        .await
+        .map_err(Error::GraphQLRequestError)
 }

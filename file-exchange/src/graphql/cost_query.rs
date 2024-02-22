@@ -2,6 +2,8 @@ use anyhow::Result;
 use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
+use crate::errors::Error;
+
 use super::{graphql_query, Query};
 
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
@@ -21,7 +23,7 @@ pub async fn indexer_bundle_cost(
     client: &reqwest::Client,
     url: &str,
     deployment: &str,
-) -> Result<Option<f32>, anyhow::Error> {
+) -> Result<Option<f32>, Error> {
     let cost_endpoint = format!("{}/files-cost", url);
     let query =
         r#"query cost($deployment: String!){costModel(deployment: $deployment){pricePerByte}}"#;
@@ -31,5 +33,8 @@ pub async fn indexer_bundle_cost(
         Query::new_with_variables(query, [("deployment", deployment.into())]),
     )
     .await?;
-    Ok(result?.cost_model.map(|c| c.price_per_byte))
+    Ok(result
+        .map_err(Error::GraphQLResponseError)?
+        .cost_model
+        .map(|c| c.price_per_byte))
 }
