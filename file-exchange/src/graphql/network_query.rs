@@ -1,10 +1,12 @@
 use serde::Deserialize;
 
-use super::{GraphQLClient, Query};
+use crate::graphql::graphql_query;
+
+use super::Query;
 
 // Query current epoch from network subgraph
 pub async fn current_epoch(
-    graphql_client: GraphQLClient,
+    graphql_client: &reqwest::Client,
     network_subgraph: &str,
     graph_network_id: u64,
 ) -> Result<u64, anyhow::Error> {
@@ -22,12 +24,12 @@ pub async fn current_epoch(
 
     // Query the current epoch
     let query = r#"query epoch($id: ID!) { graphNetwork(id: $id) { currentEpoch } }"#;
-    let result = graphql_client
-        .query::<GraphNetworkData>(
-            network_subgraph,
-            Query::new_with_variables(query, [("id", graph_network_id.into())]),
-        )
-        .await?;
+    let result = graphql_query::<GraphNetworkData>(
+        graphql_client,
+        network_subgraph,
+        Query::new_with_variables(query, [("id", graph_network_id.into())]),
+    )
+    .await?;
 
     result?
         .graph_network
