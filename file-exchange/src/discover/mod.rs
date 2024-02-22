@@ -9,7 +9,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::errors::Error;
+use crate::graphql::cost_query::indexer_bundle_cost;
 
+use crate::graphql::status_query::indexer_bundles;
 use crate::manifest::{
     ipfs::IpfsClient,
     manifest_fetcher::{fetch_bundle_from_ipfs, read_bundle},
@@ -43,7 +45,7 @@ impl Finder {
         bundle_hash: &str,
         url: &str,
     ) -> Result<IndexerEndpoint, Error> {
-        let bundles = self.indexer_bundles(url).await?;
+        let bundles = indexer_bundles(&self.http_client, url).await?;
         let operator: String = self.indexer_operator(url).await?;
 
         tracing::debug!(
@@ -58,6 +60,11 @@ impl Finder {
                 "IPFS hash not found in bundles served at {}",
                 url
             )));
+        } else {
+            let cost = indexer_bundle_cost(&self.http_client, url, bundle_hash)
+                .await
+                .expect("Fetch indexer cost");
+            tracing::debug!(cost, "Indexer posted price for the bundle")
         }
 
         Ok((operator, url.to_string()))
@@ -133,7 +140,7 @@ impl Finder {
     ) -> Result<(), Error> {
         let operator = self.indexer_operator(url).await?;
         let indexer_endpoint = (operator, url.to_string());
-        let bundles = self.indexer_bundles(url).await?;
+        let bundles = indexer_bundles(&self.http_client, url).await?;
 
         // Map of indexer_endpoints to served manifests
         // For each endpoint, populate indexer_map with the available files
@@ -204,81 +211,6 @@ impl Finder {
                 Err(Error::Request(e))
             }
         }
-    }
-
-    // Indexer bundles
-    //TODO: find how to generate bundle GraphQL type shareable to file-service
-    //so values can be parsed more elegantly
-    async fn indexer_bundles(&self, url: &str) -> Result<Vec<String>, Error> {
-        let status_url = format!("{}/files-status", url);
-
-        tracing::debug!(status = tracing::field::debug(&status_url), "Status query");
-        let status_response = match self
-            .http_client
-            .post(&status_url)
-            .json(&serde_json::json!({"query": "{bundles{ipfsHash}}"}))
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(e) => {
-                tracing::error!("Status request failed for {}", status_url);
-                return Err(Error::Request(e));
-            }
-        };
-        tracing::debug!(
-            status = tracing::field::debug(&status_response),
-            "sent status response"
-        );
-        if !status_response.status().is_success() {
-            let err_msg = format!("Status response errored: {}", status_url);
-            return Err(Error::DataUnavailable(err_msg));
-        }
-
-        let res_json = &status_response
-            .json::<serde_json::Value>()
-            .await
-            .map_err(|e| Error::DataUnavailable(e.to_string()))?;
-        tracing::trace!(status = tracing::field::debug(&res_json), "Status reponse");
-        let data = res_json["data"]
-            .as_object()
-            .ok_or(Error::DataUnavailable(
-                "Status did not provide data".to_string(),
-            ))
-            .and_then(|s| {
-                s.get("bundles").ok_or(Error::DataUnavailable(
-                    "Status did not provide bundles".to_string(),
-                ))
-            })
-            .and_then(|bundles| {
-                bundles.as_array().ok_or(Error::DataUnavailable(
-                    "Status did not provide a vector of bundles".to_string(),
-                ))
-            })
-            .and_then(|bundles| {
-                bundles
-                    .iter()
-                    .map(|b| {
-                        b.get("ipfsHash")
-                            .ok_or(Error::DataUnavailable(
-                                "Bundle does not contain ipfsHash".to_string(),
-                            ))
-                            .and_then(|i| {
-                                i.as_str()
-                                    .ok_or(Error::DataUnavailable(
-                                        "IPFS hash is not a string".to_string(),
-                                    ))
-                                    .map(|s| s.to_string())
-                            })
-                    })
-                    .collect::<Result<Vec<String>, _>>() // Collect into a Result<Vec<String>, Error>
-            });
-
-        tracing::debug!(
-            status = tracing::field::debug(&data),
-            "Parsed status reponse"
-        );
-        data
     }
 
     /// Should ping indexer cost endpoint for delicate cost model processing

@@ -3,7 +3,7 @@ use dotenv::dotenv;
 use file_exchange::{
     config::{Cli, OnchainAction, Role},
     download_client::Downloader,
-    graphql::{network_query::current_epoch, GraphQLClient},
+    graphql::network_query::current_epoch,
     manifest::ipfs::IpfsClient,
     publisher::ManifestPublisher,
     transaction_manager::TransactionManager,
@@ -13,9 +13,6 @@ use file_exchange::{
 async fn main() {
     dotenv().ok();
     let cli: Cli = Cli::args();
-
-    tracing::info!(cli = tracing::field::debug(&cli), "Running cli");
-
     let client = if let Ok(client) = IpfsClient::new(&cli.ipfs_gateway) {
         client
     } else {
@@ -68,7 +65,7 @@ async fn main() {
             let result = match transaction_manager.args.action.clone() {
                 Some(OnchainAction::Allocate(allocate_args)) => {
                     let epoch = current_epoch(
-                        GraphQLClient::new(),
+                        &reqwest::Client::new(),
                         &transaction_manager.args.network_subgraph,
                         1,
                     )
