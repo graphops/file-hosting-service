@@ -4,7 +4,7 @@ mod tests {
     use chrono::Utc;
     use ethers_core::types::U256;
     use file_exchange::{
-        config::{AllocateArgs, OnchainAction, WalletArgs},
+        config::{AllocateArgs, OnChainArgs, OnchainAction},
         transaction_manager::TransactionManager,
     };
 
@@ -14,13 +14,14 @@ mod tests {
         // 1. Basic setup; const
         std::env::set_var("RUST_LOG", "off,file_exchange=debug,allocate=trace");
         file_exchange::config::init_tracing("pretty").unwrap();
-        let wallet_args = WalletArgs {
+        let wallet_args = OnChainArgs {
             mnemonic: String::from(
                 "sheriff obscure trick beauty army fat wink legal flee leader section suit",
             ),
             provider: String::from("https://arbitrum-sepolia.infura.io/v3/aaaaaaaaaaaaaaaaaaaa"),
             verifier: Some(String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF")),
             network_subgraph: String::from("https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia"),
+            escrow_subgraph: String::from("https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia"),
             action: Some(file_exchange::config::OnchainAction::Allocate(
                 AllocateArgs {
                     tokens: U256::from(100),

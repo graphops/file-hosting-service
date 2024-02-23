@@ -54,7 +54,7 @@ impl Cli {
 pub enum Role {
     Downloader(DownloaderArgs),
     Publisher(PublisherArgs),
-    Wallet(WalletArgs),
+    Wallet(OnChainArgs),
 }
 
 /// Server enable payments through the staking contract,
@@ -81,7 +81,7 @@ pub enum OnchainAction {
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
-pub struct WalletArgs {
+pub struct OnChainArgs {
     #[clap(subcommand)]
     pub action: Option<OnchainAction>,
     #[clap(
@@ -111,9 +111,16 @@ pub struct WalletArgs {
         long,
         value_name = "network_subgraph",
         env = "NETWORK_SUBGRAPH",
-        help = "Graph Network subgraph API endpoint"
+        help = "The Graph Network subgraph API endpoint"
     )]
     pub network_subgraph: String,
+    #[clap(
+        long,
+        value_name = "escrow_subgraph",
+        env = "ESCROW_SUBGRAPH",
+        help = "The Graph Scalar TAP subgraph API endpoint"
+    )]
+    pub escrow_subgraph: String,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
@@ -153,7 +160,7 @@ pub struct DownloaderArgs {
         env = "VERIFIER",
         help = "TAP verifier contract address"
     )]
-    pub verifier: String,
+    pub verifier: Option<String>,
     // Trust tracking should be done by the gateway/DHT
     #[arg(
         long,
@@ -178,6 +185,20 @@ pub struct DownloaderArgs {
         help = "Auth token that to query for free"
     )]
     pub free_query_auth_token: Option<String>,
+    #[clap(
+        long,
+        value_name = "NETWORK_SUBGRAPH",
+        env = "NETWORK_SUBGRAPH",
+        help = "The Graph Network Subgraph API endpoint"
+    )]
+    pub network_subgraph: String,
+    #[clap(
+        long,
+        value_name = "ESCROW_SUBGRAPH",
+        env = "ESCROW_SUBGRAPH",
+        help = "The Graph Scalar TAP Subgraph API endpoint"
+    )]
+    pub escrow_subgraph: String,
 
     #[arg(
         long,
@@ -187,6 +208,14 @@ pub struct DownloaderArgs {
         help = "Maximum retry for each chunk"
     )]
     pub max_retry: u64,
+    #[arg(
+        long,
+        value_name = "PROVIDER_CONCURRENCY",
+        default_value = "10",
+        env = "PROVIDER_CONCURRENCY",
+        help = "Configure maximum concurrency limit for downloading the bundle from; affects cost estimation for escrow accounts, transfer speed performance, failure rate"
+    )]
+    pub provider_concurrency: u64,
 }
 
 /// Publisher takes the files, generate bundle manifest, and publish to IPFS

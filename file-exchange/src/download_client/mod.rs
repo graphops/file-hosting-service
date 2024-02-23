@@ -18,12 +18,12 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-use crate::errors::Error;
 use crate::manifest::{
     file_hasher::verify_chunk, ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle,
     FileManifestMeta,
 };
 use crate::{config::DownloaderArgs, discover, graphql};
+use crate::{config::OnChainArgs, errors::Error, transaction_manager::TransactionManager};
 use crate::{
     discover::{Finder, ServiceEndpoint},
     download_client::signer::Access,
@@ -47,6 +47,7 @@ pub struct Downloader {
     // key is the file manifest identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
     target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     chunk_max_retry: u64,
+    provider_concurrency: u64,
     bundle_finder: Finder,
     payment: PaymentMethod,
 }
@@ -54,7 +55,13 @@ pub struct Downloader {
 /// A downloader can either provide a free query auth token or receipt signer
 pub enum PaymentMethod {
     FreeQuery(String),
-    TAPSigner(ReceiptSigner),
+    PaidQuery(OnChainSigner),
+}
+
+pub struct OnChainSigner {
+    #[allow(dead_code)]
+    transaction_manager: TransactionManager,
+    receipt_signer: ReceiptSigner,
 }
 
 impl Downloader {
@@ -74,9 +81,9 @@ impl Downloader {
             let signing_key = wallet.signer().to_bytes();
             let secp256k1_private_key =
                 SecretKey::from_slice(&signing_key).expect("Private key from wallet");
+            let provider_link = args.provider.expect("Provider required to connect");
             let provider =
-                Provider::<Http>::try_from(&args.provider.expect("Provider required to connect"))
-                    .expect("Connect to the provider");
+                Provider::<Http>::try_from(&provider_link).expect("Connect to the provider");
             //TODO: migrate ethers type to alloy
             let chain_id = U256::from(
                 provider
@@ -85,14 +92,27 @@ impl Downloader {
                     .expect("Get chain id from provider")
                     .as_u128(),
             );
-            PaymentMethod::TAPSigner(
-                ReceiptSigner::new(
-                    secp256k1_private_key,
-                    chain_id,
-                    Address::from_str(&args.verifier).expect("Parse verifier"),
-                )
-                .await,
+            let transaction_manager = TransactionManager::new(OnChainArgs {
+                action: None,
+                mnemonic: mnemonic.to_string(),
+                provider: provider_link.clone(),
+                verifier: args.verifier.clone(),
+                network_subgraph: args.network_subgraph,
+                escrow_subgraph: args.escrow_subgraph,
+            })
+            .await
+            .expect("Initialize transaction manager for paid queries");
+            let receipt_signer = ReceiptSigner::new(
+                secp256k1_private_key,
+                chain_id,
+                Address::from_str(&args.verifier.expect("Provide verifier"))
+                    .expect("Parse verifier"),
             )
+            .await;
+            PaymentMethod::PaidQuery(OnChainSigner {
+                transaction_manager,
+                receipt_signer,
+            })
         } else {
             panic!("No payment wallet nor free query token provided");
         };
@@ -108,6 +128,7 @@ impl Downloader {
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
             target_chunks: Arc::new(StdMutex::new(HashMap::new())),
             chunk_max_retry: args.max_retry,
+            provider_concurrency: args.provider_concurrency,
             bundle_finder: Finder::new(ipfs_client),
             payment,
         }
@@ -273,8 +294,9 @@ impl Downloader {
     async fn payment_header(&self, receiver: &str) -> Result<(HeaderName, String), Error> {
         match &self.payment {
             PaymentMethod::FreeQuery(token) => Ok((AUTHORIZATION, token.to_string())),
-            PaymentMethod::TAPSigner(signer) => {
+            PaymentMethod::PaidQuery(signer) => {
                 let receipt = signer
+                    .receipt_signer
                     .create_receipt(graphql::allocation_id(receiver), &discover::Finder::fees())
                     .await?;
                 Ok((
@@ -338,11 +360,23 @@ impl Downloader {
             .filter(|url| !blocklist.contains(*url))
             .cloned()
             .collect::<Vec<_>>();
+        let all_available = &self
+            .bundle_finder
+            .bundle_availabilities(&self.ipfs_hash, endpoints)
+            .await;
+        let mut sorted_endpoints = all_available.to_vec();
+        // Sort by price_per_byte in ascending order and select the top 'provider_concurrency' endpoints
+        //TODO: add other types of selection such as latency and reliability
+        sorted_endpoints.sort_by(|a, b| {
+            a.price_per_byte
+                .partial_cmp(&b.price_per_byte)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         self.update_indexer_urls(
-            &self
-                .bundle_finder
-                .bundle_availabilities(&self.ipfs_hash, endpoints)
-                .await,
+            &sorted_endpoints
+                .into_iter()
+                .take(self.provider_concurrency as usize)
+                .collect::<Vec<ServiceEndpoint>>(),
         );
         let indexer_endpoints = self.indexer_urls.lock().unwrap().clone();
         if indexer_endpoints.is_empty() {
@@ -374,6 +408,28 @@ impl Downloader {
                     return Err(Error::DataUnavailable(msg));
                 }
             }
+        } else {
+            // estimate the cost to download the bundle from each provider
+            let _num_files = self.bundle.file_manifests.len();
+            let total_bytes: f32 = self
+                .bundle
+                .file_manifests
+                .iter()
+                .map(|f| f.file_manifest.total_bytes)
+                .sum::<u64>() as f32;
+
+            //TODO: add concurrency limit for better calculations
+            for endpoint in indexer_endpoints {
+                let fail_tolerance = 1.5_f32;
+                let _escrow_requirement = endpoint.price_per_byte * total_bytes
+                    / (self.provider_concurrency as f32)
+                    * fail_tolerance;
+
+                // check for escrow balance
+            }
+            // indexer_endpoints.iter().map(|e| {
+            //     let total_ask = e.price_per_byte * total_bytes;
+            // })
         };
         Ok(())
     }

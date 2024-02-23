@@ -43,7 +43,7 @@ mod tests {
                 "http://localhost:5677".to_string(),
             ]
             .to_vec(),
-            verifier: String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF"),
+            verifier: Some(String::from("0xfC24cE7a4428A6B89B52645243662A02BA734ECF")),
             mnemonic: None,
             free_query_auth_token: Some("Bearer free-token".to_string()),
             provider: None,

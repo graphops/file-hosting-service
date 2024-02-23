@@ -7,7 +7,7 @@ use std::fs;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::config::WalletArgs;
+use crate::config::OnChainArgs;
 use crate::errors::Error;
 use crate::transaction_manager::{escrow::Escrow, graph_token::L2GraphToken, staking::L2Staking};
 use crate::util::build_wallet;
@@ -30,12 +30,12 @@ pub struct TransactionManager {
     staking_contract: L2Staking<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
     escrow_contract: Escrow<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
     token_contract: L2GraphToken<Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>,
-    pub args: WalletArgs,
+    pub args: OnChainArgs,
 }
 
 impl TransactionManager {
     // Constructor to create a new instance
-    pub async fn new(args: WalletArgs) -> Result<Self, anyhow::Error> {
+    pub async fn new(args: OnChainArgs) -> Result<Self, anyhow::Error> {
         tracing::info!("Initialize transaction manager");
         let provider = Provider::<Http>::try_from(&args.provider)?;
         let chain_id = provider.get_chainid().await?;
