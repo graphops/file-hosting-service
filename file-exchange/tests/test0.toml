@@ -1,7 +1,7 @@
 [server]
 bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:./../example-file/"]
 admin_auth_token = "slayyy"
-admin_host_and_port = "0.0.0.0:5666"
+admin_host_and_port = "0.0.0.0:5664"
 price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Full"
@@ -23,7 +23,7 @@ status_url = "http://localhost:8030/graphql"
 query_base_url = "http://localhost:8000"
 
 [common.database]
-postgres_url = "postgres://graphuser:idiot@localhost/graph"
+postgres_url = "postgres://postgres@postgres:5432"
 
 [common.network_subgraph]
 query_url = "https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia"
