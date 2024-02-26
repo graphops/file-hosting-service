@@ -3,12 +3,6 @@ name: Build and upload release binaries
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - "*.*.*"
-    branches:
-      - main
-      - dev
 
 jobs:
   build-linux:
