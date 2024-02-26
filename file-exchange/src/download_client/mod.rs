@@ -427,13 +427,15 @@ impl Downloader {
         Ok(())
     }
 
+    /// Check escrow balances with cheapest N providers (N is the downloader client configured provider concurrency)
+    /// Make suggestion to individual escrow accounts if balance is low
+    /// Error out if gross buying power is insufficient, otherwise proceed with downloading
     async fn escrow_check(&self) -> Result<(), Error> {
         // check balance availability if payment is enabled
-        tracing::debug!("Escrow account checks");
+        tracing::trace!("Escrow account checks");
         if let PaymentMethod::PaidQuery(on_chain) = &self.payment {
             let mut estimated_buying_power_in_bytes: f64 = 0.0;
             // estimate the cost to download the bundle from each provider
-            let _num_files = self.bundle.file_manifests.len();
             let total_bytes = self
                 .bundle
                 .file_manifests
@@ -443,11 +445,11 @@ impl Downloader {
 
             let endpoints = self.indexer_urls.lock().unwrap().clone();
             for endpoint in endpoints {
-                tracing::debug!(
+                tracing::trace!(
                     endpoint = tracing::field::debug(&endpoint),
                     "Check escrow account for indexer"
                 );
-                let fail_tolerance = 1.5_f64;
+                let fail_tolerance = 1.2_f64;
                 let escrow_requirement = endpoint.price_per_byte * (total_bytes as f64)
                     / (self.provider_concurrency as f64)
                     * fail_tolerance;
@@ -457,16 +459,14 @@ impl Downloader {
                 let account = escrow_balance(&self.http_client, escrow, &sender, &receiver).await?;
 
                 // check for escrow balance
-                // let balance: Option<f32> = account.clone().map(|a| a.balance.parse().unwrap());
                 let _ = match account {
                     None => {
-                        tracing::warn!("Account doesnt exist");
+                        tracing::warn!("Escrow account doesn't exist, make deposits");
                         Err(Error::DataUnavailable(
                             "Escrow account doesn't exist".to_string(),
                         ))
                     }
                     Some(a) if a.lt(&escrow_requirement) => {
-                        // Some(a) if balance.unwrap().lt(&escrow_requirement) => {
                         let msg = format!(
                             "Top-up required to make averaged concurrent requests: {} availble, recommend topping up to {}",
                             a, escrow_requirement
@@ -478,7 +478,7 @@ impl Downloader {
                     }
                     Some(a) => {
                         estimated_buying_power_in_bytes += a / endpoint.price_per_byte;
-                        tracing::debug!("Balance is enough for this account");
+                        tracing::trace!("Balance is enough for this account");
                         Ok(())
                     }
                 };

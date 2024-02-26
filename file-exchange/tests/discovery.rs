@@ -11,7 +11,7 @@ mod tests {
     #[tokio::test]
     async fn test_discovery() {
         // 0. Basic setup; const
-        std::env::set_var("RUST_LOG", "off,file_exchange=warn,file_transfer=trace,file_service=info,indexer_service=warn,indexer_common=warn");
+        std::env::set_var("RUST_LOG", "off,file_exchange=trace,file_transfer=trace,file_service=trace,indexer_service=trace,indexer_common=trace,discovery=trace");
         file_exchange::config::init_tracing("pretty").unwrap();
 
         let server_0 = "http://0.0.0.0:5677";
@@ -25,9 +25,6 @@ mod tests {
         let bundle_hash_1 = "QmVPPWWaraEvoc4LCrYXtMbL13WPNbnuXV2yo7W8zexFGq".to_string(); // files: A
         let bundle_hash_2 = "QmeD3dRVV6Gs84TRwiNj3tLt9mBEMVqy3GoWm7WN8oDzGz".to_string(); // files: B,C
         let bundle_hash_3 = "QmTSwj1BGkkmVSnhw6uEGkcxGZvP5nq4pDhzHjwJvsQC2Z".to_string(); // files: B
-
-        let indexer_address_0: String = "0xead22a75679608952db6e85537fbfdca02dae9cb".to_string();
-        let indexer_address_1: String = "0x19804e50af1b72db4ce22a3c028e80c78d75af62".to_string();
 
         // 1. Setup servers 0 and 1
         let mut server_process_0 = Command::new("cargo")
@@ -96,68 +93,28 @@ mod tests {
             .await
             .unwrap();
         assert!(map.lock().await.len() == 3);
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_a,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_b,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_c,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_a,
-                &indexer_address_1,
-                &vec![&bundle_hash_1]
-            )
-            .await
-        );
+        assert!(matched(&map, &file_manifest_hash_a, server_0, &vec![&bundle_hash_0]).await);
+        assert!(matched(&map, &file_manifest_hash_b, server_0, &vec![&bundle_hash_0]).await);
+        assert!(matched(&map, &file_manifest_hash_c, server_0, &vec![&bundle_hash_0]).await);
+        assert!(matched(&map, &file_manifest_hash_a, server_1, &vec![&bundle_hash_1]).await);
         // update innermost vec to be a hashset to avoid ordering problem
         assert!(
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_address_1,
+                server_1,
                 &vec![&bundle_hash_3, &bundle_hash_2]
             )
             .await
                 || matched(
                     &map,
                     &file_manifest_hash_b,
-                    &indexer_address_1,
+                    server_1,
                     &vec![&bundle_hash_2, &bundle_hash_3]
                 )
                 .await
         );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_c,
-                &indexer_address_1,
-                &vec![&bundle_hash_2]
-            )
-            .await
-        );
+        assert!(matched(&map, &file_manifest_hash_c, server_1, &vec![&bundle_hash_2]).await);
 
         // 3.4 find bundle_1 with sieved availability, get
         let map = finder
@@ -168,24 +125,8 @@ mod tests {
             .await
             .unwrap();
         assert!(map.lock().await.len() == 1);
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_a,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_a,
-                &indexer_address_1,
-                &vec![&bundle_hash_1]
-            )
-            .await
-        );
+        assert!(matched(&map, &file_manifest_hash_a, server_0, &vec![&bundle_hash_0]).await);
+        assert!(matched(&map, &file_manifest_hash_a, server_1, &vec![&bundle_hash_1]).await);
 
         // 3.5 find bundle_2 with sieved availability, get both 0 and 1
         let map = finder
@@ -196,49 +137,25 @@ mod tests {
             .await
             .unwrap();
         assert!(map.lock().await.len() == 2);
+        assert!(matched(&map, &file_manifest_hash_b, server_0, &vec![&bundle_hash_0]).await);
+        assert!(matched(&map, &file_manifest_hash_c, server_0, &vec![&bundle_hash_0]).await);
         assert!(
             matched(
                 &map,
                 &file_manifest_hash_b,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_c,
-                &indexer_address_0,
-                &vec![&bundle_hash_0]
-            )
-            .await
-        );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_b,
-                &indexer_address_1,
+                server_1,
                 &vec![&bundle_hash_3, &bundle_hash_2]
             )
             .await
                 || matched(
                     &map,
                     &file_manifest_hash_b,
-                    &indexer_address_1,
+                    server_1,
                     &vec![&bundle_hash_2, &bundle_hash_3]
                 )
                 .await
         );
-        assert!(
-            matched(
-                &map,
-                &file_manifest_hash_c,
-                &indexer_address_1,
-                &vec![&bundle_hash_2]
-            )
-            .await
-        );
+        assert!(matched(&map, &file_manifest_hash_c, server_1, &vec![&bundle_hash_2]).await);
 
         // 3.6 large files, not available on neither
         let large_bundle_hash = "QmPexYQsJKyhL867xRaGS2kciNDwggCk7pgUxrNoPQSuPL"; // contains File A,B,C,D,E
@@ -273,7 +190,7 @@ mod tests {
     async fn matched(
         file_map: &FileAvailbilityMap,
         file_manifest: &str,
-        endpoint: &String,
+        endpoint: &str,
         bundle_hashes: &Vec<&str>,
     ) -> bool {
         let map = file_map.lock().await;

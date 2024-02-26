@@ -16,6 +16,7 @@ pub mod escrow_query;
 pub mod network_query;
 pub mod status_query;
 
+//TODO: deprecate when we determine the on-chain discovery piece for allocation
 pub fn allocation_id(_indexer: &str) -> Address {
     Address::from_str("0x29cc405f6104b1d6d2d7f2989c5932818f6268c2").unwrap()
 }

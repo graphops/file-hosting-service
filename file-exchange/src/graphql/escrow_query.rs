@@ -1,5 +1,3 @@
-use graphql_http::http::request::IntoRequestParameters;
-
 use serde::Deserialize;
 
 use crate::{errors::Error, graphql::graphql_query};
@@ -9,8 +7,8 @@ use super::Query;
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EscrowAccount {
-    // pub sender: ID,
-    // pub receiver: ID,
+    pub sender: ID,
+    pub receiver: ID,
     pub balance: String,
 }
 
@@ -57,23 +55,8 @@ pub async fn escrow_balance(
     sender: &str,
     receiver: &str,
 ) -> Result<Option<f64>, Error> {
-    // Query  escrow accounts
-    //     {
-    //   escrowAccounts(where:{sender:"0xe9a1cabd57700b17945fd81feefba82340d9568f",
-    //                          receiver:"0xe9a1cabd57700b17945fd81feefba82340d9568f"}){
-    //     balance
-    //   }
-    // }
-
-    let query = r#"query account($sender: ID!, $receiver: ID!) { escrowAccounts(where: {sender: $sender, receiver: $receiver}) { balance } }"#;
-    // let query = r#"query account($sender: ID!, $receiver: ID!) { escrowAccounts(where: {sender: $sender, receiver: $receiver}) { sender { id } receiver { id } balance } }"#;
-    let q = Query::new_with_variables(
-        query,
-        [("sender", sender.into()), ("receiver", receiver.into())],
-    );
-    tracing::warn!(q = tracing::field::debug(&q.into_request_parameters()), "q");
+    let query = r#"query account($sender: ID!, $receiver: ID!) { escrowAccounts(where: {sender: $sender, receiver: $receiver}) { sender { id } receiver { id } balance } }"#;
     let result = graphql_query::<EscrowStatus>(
-        // let result: Result<Vec<EscrowAccount>, _> = typed_query(
         graphql_client,
         escrow_subgraph,
         Query::new_with_variables(

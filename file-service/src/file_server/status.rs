@@ -175,7 +175,7 @@ impl StatusQuery {
         ctx: &Context<'_>,
         deployments: Option<Vec<String>>,
     ) -> Result<Vec<GraphQlBundle>, anyhow::Error> {
-        tracing::info!("received bundles request");
+        tracing::trace!("received bundles request");
         let all_bundles = &ctx
             .data_unchecked::<ServerContext>()
             .state
@@ -211,7 +211,7 @@ impl StatusQuery {
         ctx: &Context<'_>,
         deployment: String,
     ) -> Result<Option<GraphQlBundle>, anyhow::Error> {
-        tracing::info!("received bundle request");
+        tracing::trace!("received bundle request");
         // let deployment_id = DeploymentId::from_str(&deployment)?;
         let bundle: Option<Bundle> = ctx
             .data_unchecked::<ServerContext>()
