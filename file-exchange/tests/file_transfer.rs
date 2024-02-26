@@ -11,7 +11,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_transfer() {
-        std::env::set_var("RUST_LOG", "off,file_exchange=info,file_transfer=trace,file_service=info,indexer_service=warn,indexer_common=warn");
+        std::env::set_var("RUST_LOG", "off,file_exchange=trace,file_transfer=trace,file_service=trace,indexer_service=trace,indexer_common=trace");
         file_exchange::config::init_tracing("pretty").unwrap();
 
         let client = IpfsClient::new("https://ipfs.network.thegraph.com")
@@ -47,6 +47,7 @@ mod tests {
             mnemonic: None,
             free_query_auth_token: Some("Bearer free-token".to_string()),
             provider: None,
+            provider_concurrency: 2,
             ..Default::default()
         };
 
@@ -56,6 +57,10 @@ mod tests {
         let download_result = downloader.download_bundle().await;
 
         // 4. Validate the download
+        tracing::info!(
+            result = tracing::field::debug(&download_result),
+            "Download result"
+        );
         assert!(download_result.is_ok());
         // Further checks can be added to verify the contents of the downloaded files
 

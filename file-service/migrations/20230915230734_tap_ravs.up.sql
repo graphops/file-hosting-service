@@ -1,9 +1,18 @@
 CREATE TABLE IF NOT EXISTS scalar_tap_ravs (
-    allocation_id CHAR(40) NOT NULL,
     sender_address CHAR(40) NOT NULL,
-    rav JSON NOT NULL,
+
+    -- Values below are the individual fields of the EIP-712 RAV
+    signature BYTEA NOT NULL,
+    allocation_id CHAR(40) NOT NULL,
+    timestamp_ns NUMERIC(20) NOT NULL,
+    value_aggregate NUMERIC(39) NOT NULL,
+
     final BOOLEAN DEFAULT FALSE NOT NULL,
-    PRIMARY KEY (allocation_id, sender_address)
+    PRIMARY KEY (allocation_id, sender_address),
+
+    -- To make indexer-agent's sequelize happy
+    "createdAt" TIMESTAMP WITH TIME ZONE,
+    "updatedAt" TIMESTAMP WITH TIME ZONE
 );
 
 -- This table is used to store failed RAV requests.

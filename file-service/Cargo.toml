@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 file-exchange = { path = "../file-exchange" }
-indexer-common = { package = "indexer-common", git = "https://github.com/graphprotocol/indexer-rs", rev = "8b8e1080beb18e86cb04d16fe51a2835d7de65e9" }
+indexer-common = { package = "indexer-common", git = "https://github.com/graphprotocol/indexer-rs", rev = "b13bd8a" }
 thegraph = { git = "https://github.com/edgeandnode/toolshed", tag = "thegraph-v0.5.0" }
 anyhow = "1.0"
 async-graphql = "6.0.11"
