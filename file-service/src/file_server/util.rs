@@ -1,9 +1,6 @@
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use axum::response::{Html, IntoResponse};
-use file_exchange::{
-    errors::{Error, ServerError},
-    util::{build_wallet, wallet_address},
-};
+use file_exchange::errors::{Error, ServerError};
 
 use std::fs;
 use std::io;
@@ -61,12 +58,4 @@ fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
     }
 
     Ok(rustls::PrivateKey(keys[0].clone()))
-}
-
-/// Validate that private key as an Eth wallet
-pub fn public_key(value: &str) -> Result<String, Error> {
-    let wallet = build_wallet(value)?;
-    let addr = wallet_address(&wallet);
-    tracing::trace!(address = addr, "Resolved wallet address");
-    Ok(addr)
 }

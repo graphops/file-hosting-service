@@ -12,6 +12,7 @@ use std::str::FromStr;
 use crate::errors::Error;
 
 pub mod cost_query;
+pub mod escrow_query;
 pub mod network_query;
 pub mod status_query;
 
