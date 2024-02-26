@@ -51,7 +51,7 @@ impl ReceiptSigner {
         &self,
         allocation_id: Address,
         fee: &GRT,
-    ) -> Result<TapReceipt, Error> {
+    ) -> Result<ScalarReceipt, Error> {
         let nonce = rand::thread_rng().next_u64();
         let timestamp_ns = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -69,5 +69,24 @@ impl ReceiptSigner {
         EIP712SignedMessage::new(&self.domain, receipt, &wallet)
             .await
             .map_err(|e| Error::ContractError(e.to_string()))
+            .map(ScalarReceipt::TAP)
+    }
+}
+
+pub enum ScalarReceipt {
+    TAP(EIP712SignedMessage<Receipt>),
+}
+
+impl ScalarReceipt {
+    pub fn allocation(&self) -> Address {
+        match self {
+            ScalarReceipt::TAP(receipt) => receipt.message.allocation_id,
+        }
+    }
+
+    pub fn serialize(&self) -> String {
+        match self {
+            ScalarReceipt::TAP(receipt) => serde_json::to_string(&receipt).unwrap(),
+        }
     }
 }

@@ -18,21 +18,18 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-use crate::{config::DownloaderArgs, discover, graphql};
-use crate::{config::OnChainArgs, errors::Error, transaction_manager::TransactionManager};
 use crate::{
+    config::{DownloaderArgs, OnChainArgs},
     discover::{Finder, ServiceEndpoint},
-    download_client::signer::Access,
-};
-use crate::{
-    graphql::escrow_query::escrow_balance,
+    errors::Error,
+    graphql::{allocation_id, escrow_query::escrow_balance},
     manifest::{
         file_hasher::verify_chunk, ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle,
         FileManifestMeta,
     },
+    transaction_manager::TransactionManager,
+    util::build_wallet,
 };
-
-use crate::util::build_wallet;
 
 use self::signer::ReceiptSigner;
 
@@ -303,10 +300,11 @@ impl Downloader {
             PaymentMethod::PaidQuery(signer) => {
                 let receipt = signer
                     .receipt_signer
-                    .create_receipt(graphql::allocation_id(receiver), &discover::Finder::fees())
+                    .create_receipt(allocation_id(receiver), &Finder::fees())
                     .await?;
                 Ok((
-                    HeaderName::from_str("Scalar-Receipt").unwrap(),
+                    // HeaderName::from_str("Scalar-Receipt").unwrap(),
+                    HeaderName::from_str("scalar-receipt").unwrap(),
                     receipt.serialize(),
                 ))
             }
@@ -489,11 +487,10 @@ impl Downloader {
             if (estimated_buying_power_in_bytes as u64) < total_bytes {
                 let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account", estimated_buying_power_in_bytes);
                 return Err(Error::PricingError(msg));
-            } else {
-                tracing::info!("Balance is enough to purchase the file, go ahead to download");
             }
         };
 
+        tracing::info!("Balance is enough to purchase the file, go ahead to download");
         Ok(())
     }
 }
