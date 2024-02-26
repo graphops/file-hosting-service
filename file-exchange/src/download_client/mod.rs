@@ -18,15 +18,18 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-use crate::manifest::{
-    file_hasher::verify_chunk, ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle,
-    FileManifestMeta,
-};
 use crate::{config::DownloaderArgs, discover, graphql};
 use crate::{config::OnChainArgs, errors::Error, transaction_manager::TransactionManager};
 use crate::{
     discover::{Finder, ServiceEndpoint},
     download_client::signer::Access,
+};
+use crate::{
+    graphql::escrow_query::escrow_balance,
+    manifest::{
+        file_hasher::verify_chunk, ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle,
+        FileManifestMeta,
+    },
 };
 
 use crate::util::build_wallet;
@@ -171,7 +174,9 @@ impl Downloader {
         );
 
         // check bundle availability from gateway/indexer_endpoints
-        let _ = self.availbility_check().await;
+        self.availbility_check().await?;
+        // check balance availability if payment is enabled
+        self.escrow_check().await?;
 
         // Loop through file manifests for downloading
         let mut incomplete_files = vec![];
@@ -261,6 +266,7 @@ impl Downloader {
                                 };
                                 tracing::warn!(
                                     err = e.to_string(),
+                                    url,
                                     "File manifest download incomplete"
                                 );
                                 block_list
@@ -316,7 +322,18 @@ impl Downloader {
     ) -> Result<DownloadRangeRequest, Error> {
         let mut rng = rand::thread_rng();
         let query_endpoints = &self.indexer_urls.lock().unwrap();
-        let service = if let Some(service) = query_endpoints.choose(&mut rng).cloned() {
+        let blocklist = self
+            .indexer_blocklist
+            .lock()
+            .map_err(|e| Error::DataUnavailable(format!("Cannot unwrap indexer_blocklist: {}", e)))?
+            .clone();
+        tracing::debug!(blocklist = tracing::field::debug(&blocklist), "blocklist");
+        let filtered_endpoints = query_endpoints
+            .iter()
+            .filter(|url| !blocklist.contains(&url.service_endpoint))
+            .cloned()
+            .collect::<Vec<_>>();
+        let service = if let Some(service) = filtered_endpoints.choose(&mut rng).cloned() {
             tracing::debug!(
                 service = tracing::field::debug(&service),
                 chunk = i,
@@ -408,29 +425,75 @@ impl Downloader {
                     return Err(Error::DataUnavailable(msg));
                 }
             }
-        } else {
+        };
+        Ok(())
+    }
+
+    async fn escrow_check(&self) -> Result<(), Error> {
+        // check balance availability if payment is enabled
+        tracing::debug!("Escrow account checks");
+        if let PaymentMethod::PaidQuery(on_chain) = &self.payment {
+            let mut estimated_buying_power_in_bytes: f64 = 0.0;
             // estimate the cost to download the bundle from each provider
             let _num_files = self.bundle.file_manifests.len();
-            let total_bytes: f32 = self
+            let total_bytes = self
                 .bundle
                 .file_manifests
                 .iter()
                 .map(|f| f.file_manifest.total_bytes)
-                .sum::<u64>() as f32;
+                .sum::<u64>();
 
-            //TODO: add concurrency limit for better calculations
-            for endpoint in indexer_endpoints {
-                let fail_tolerance = 1.5_f32;
-                let _escrow_requirement = endpoint.price_per_byte * total_bytes
-                    / (self.provider_concurrency as f32)
+            let endpoints = self.indexer_urls.lock().unwrap().clone();
+            for endpoint in endpoints {
+                tracing::debug!(
+                    endpoint = tracing::field::debug(&endpoint),
+                    "Check escrow account for indexer"
+                );
+                let fail_tolerance = 1.5_f64;
+                let escrow_requirement = endpoint.price_per_byte * (total_bytes as f64)
+                    / (self.provider_concurrency as f64)
                     * fail_tolerance;
+                let escrow = &on_chain.transaction_manager.args.escrow_subgraph;
+                let sender = on_chain.transaction_manager.public_address()?;
+                let receiver = endpoint.operator;
+                let account = escrow_balance(&self.http_client, escrow, &sender, &receiver).await?;
 
                 // check for escrow balance
+                // let balance: Option<f32> = account.clone().map(|a| a.balance.parse().unwrap());
+                let _ = match account {
+                    None => {
+                        tracing::warn!("Account doesnt exist");
+                        Err(Error::DataUnavailable(
+                            "Escrow account doesn't exist".to_string(),
+                        ))
+                    }
+                    Some(a) if a.lt(&escrow_requirement) => {
+                        // Some(a) if balance.unwrap().lt(&escrow_requirement) => {
+                        let msg = format!(
+                            "Top-up required to make averaged concurrent requests: {} availble, recommend topping up to {}",
+                            a, escrow_requirement
+                        );
+                        tracing::warn!(msg);
+                        // buying power to a specific indexer is (escrow balance / indexer price = number of bytes)
+                        estimated_buying_power_in_bytes += a / endpoint.price_per_byte;
+                        Err(Error::DataUnavailable(msg))
+                    }
+                    Some(a) => {
+                        estimated_buying_power_in_bytes += a / endpoint.price_per_byte;
+                        tracing::debug!("Balance is enough for this account");
+                        Ok(())
+                    }
+                };
             }
-            // indexer_endpoints.iter().map(|e| {
-            //     let total_ask = e.price_per_byte * total_bytes;
-            // })
+
+            if (estimated_buying_power_in_bytes as u64) < total_bytes {
+                let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account", estimated_buying_power_in_bytes);
+                return Err(Error::PricingError(msg));
+            } else {
+                tracing::info!("Balance is enough to purchase the file, go ahead to download");
+            }
         };
+
         Ok(())
     }
 }
@@ -554,7 +617,7 @@ async fn request_chunk(
 
 /// extract base indexer_url from `indexer_url/bundles/id/bundle_id`
 fn extract_base_url(query_endpoint: &str) -> Option<&str> {
-    if let Some(index) = query_endpoint.find("files/id/") {
+    if let Some(index) = query_endpoint.find("/files/id/") {
         Some(&query_endpoint[..index])
     } else {
         None

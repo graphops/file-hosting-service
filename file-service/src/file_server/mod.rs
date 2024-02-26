@@ -12,12 +12,12 @@ use indexer_common::indexer_service::http::{IndexerServiceImpl, IndexerServiceRe
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+use crate::{config::Config, database};
 use file_exchange::errors::Error;
 use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
 };
-
-use crate::{config::Config, database, file_server::util::public_key};
+use file_exchange::util::public_key;
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;

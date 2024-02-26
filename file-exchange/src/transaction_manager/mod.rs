@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::config::OnChainArgs;
 use crate::errors::Error;
 use crate::transaction_manager::{escrow::Escrow, graph_token::L2GraphToken, staking::L2Staking};
-use crate::util::build_wallet;
+use crate::util::{build_wallet, public_key};
 
 pub mod escrow;
 pub mod graph_token;
@@ -65,6 +65,10 @@ impl TransactionManager {
             token_contract,
             args,
         })
+    }
+
+    pub fn public_address(&self) -> Result<String, Error> {
+        public_key(&self.args.mnemonic)
     }
 }
 

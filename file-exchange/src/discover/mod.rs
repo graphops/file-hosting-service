@@ -26,7 +26,7 @@ pub struct ServiceEndpoint {
     pub operator: String,
     pub service_endpoint: String,
     pub deployment: String,
-    pub price_per_byte: f32,
+    pub price_per_byte: f64,
 }
 // Pair HashMap< FileManifestIPFS, HashMap< Service URL, Vec< MatchedManifestIPFS > > >
 pub type FileAvailbilityMap = Arc<Mutex<HashMap<String, Arc<Mutex<HashMap<String, Vec<String>>>>>>>;

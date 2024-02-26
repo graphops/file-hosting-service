@@ -9,7 +9,7 @@ use super::{graphql_query, Query};
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct GraphQlCostModel {
-    pub price_per_byte: f32,
+    pub price_per_byte: f64,
 }
 
 // Types for deserializing the file statuses response
@@ -23,7 +23,7 @@ pub async fn indexer_bundle_cost(
     client: &reqwest::Client,
     url: &str,
     deployment: &str,
-) -> Result<Option<f32>, Error> {
+) -> Result<Option<f64>, Error> {
     let cost_endpoint = format!("{}/files-cost", url);
     let query =
         r#"query cost($deployment: String!){costModel(deployment: $deployment){pricePerByte}}"#;
