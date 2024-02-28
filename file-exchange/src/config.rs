@@ -216,6 +216,14 @@ pub struct DownloaderArgs {
         help = "Configure maximum concurrency limit for downloading the bundle from; affects cost estimation for escrow accounts, transfer speed performance, failure rate"
     )]
     pub provider_concurrency: u64,
+    #[arg(
+        long,
+        value_name = "MAXIMUM_AUTO_DEPOSIT",
+        default_value = "0",
+        env = "MAXIMUM_AUTO_DEPOSIT",
+        help = "Maximum GRT configured for automatic deposit (Used for GraphToken approval to Escrow contract and across Escrow accounts"
+    )]
+    pub max_auto_deposit: f64,
 }
 
 /// Publisher takes the files, generate bundle manifest, and publish to IPFS

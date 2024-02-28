@@ -1,38 +1,34 @@
-use alloy_primitives::{Address, U256};
-use bytes::Bytes;
+use alloy_primitives::Address;
 
 use ethers::providers::{Http, Middleware, Provider};
 
+use ethers_core::types::{H160, U256};
 use rand::seq::SliceRandom;
-use reqwest::{
-    header::{HeaderName, AUTHORIZATION, CONTENT_RANGE},
-    Client,
-};
+use reqwest::header::{HeaderName, AUTHORIZATION};
 use secp256k1::SecretKey;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{Seek, SeekFrom, Write};
+
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::Duration;
+
 use tokio::sync::Mutex;
 
 use crate::{
     config::{DownloaderArgs, OnChainArgs},
     discover::{Finder, ServiceEndpoint},
+    download_client::range_request::download_chunk_and_write_to_file,
     errors::Error,
     graphql::{allocation_id, escrow_query::escrow_balance},
-    manifest::{
-        file_hasher::verify_chunk, ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle,
-        FileManifestMeta,
-    },
+    manifest::{ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle, FileManifestMeta},
     transaction_manager::TransactionManager,
     util::build_wallet,
 };
 
-use self::signer::ReceiptSigner;
+use self::{range_request::DownloadRangeRequest, signer::ReceiptSigner};
 
+pub mod range_request;
 pub mod signer;
 
 pub struct Downloader {
@@ -48,6 +44,7 @@ pub struct Downloader {
     target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     chunk_max_retry: u64,
     provider_concurrency: u64,
+    max_auto_deposit: f64,
     bundle_finder: Finder,
     payment: PaymentMethod,
 }
@@ -85,7 +82,7 @@ impl Downloader {
             let provider =
                 Provider::<Http>::try_from(&provider_link).expect("Connect to the provider");
             //TODO: migrate ethers type to alloy
-            let chain_id = U256::from(
+            let chain_id = alloy_primitives::U256::from(
                 provider
                     .get_chainid()
                     .await
@@ -129,6 +126,7 @@ impl Downloader {
             target_chunks: Arc::new(StdMutex::new(HashMap::new())),
             chunk_max_retry: args.max_retry,
             provider_concurrency: args.provider_concurrency,
+            max_auto_deposit: args.max_auto_deposit,
             bundle_finder: Finder::new(ipfs_client),
             payment,
         }
@@ -434,7 +432,9 @@ impl Downloader {
         // check balance availability if payment is enabled
         tracing::trace!("Escrow account checks");
         if let PaymentMethod::PaidQuery(on_chain) = &self.payment {
-            let mut estimated_buying_power_in_bytes: f64 = 0.0;
+            let fail_tolerance = 1.2_f64;
+
+            let mut total_buying_power_in_bytes: f64 = 0.0;
             // estimate the cost to download the bundle from each provider
             let total_bytes = self
                 .bundle
@@ -442,29 +442,27 @@ impl Downloader {
                 .iter()
                 .map(|f| f.file_manifest.total_bytes)
                 .sum::<u64>();
+            let multiplier =
+                (total_bytes as f64) / (self.provider_concurrency as f64) * fail_tolerance;
 
             let endpoints = self.indexer_urls.lock().unwrap().clone();
+            let mut insufficient_balances = vec![];
             for endpoint in endpoints {
                 tracing::trace!(
                     endpoint = tracing::field::debug(&endpoint),
                     "Check escrow account for indexer"
                 );
-                let fail_tolerance = 1.2_f64;
-                let escrow_requirement = endpoint.price_per_byte * (total_bytes as f64)
-                    / (self.provider_concurrency as f64)
-                    * fail_tolerance;
+                let escrow_requirement = endpoint.price_per_byte * multiplier;
                 let escrow = &on_chain.transaction_manager.args.escrow_subgraph;
                 let sender = on_chain.transaction_manager.public_address()?;
                 let receiver = endpoint.operator;
                 let account = escrow_balance(&self.http_client, escrow, &sender, &receiver).await?;
 
                 // check for escrow balance
-                let _ = match account {
+                let missing = match account {
                     None => {
                         tracing::warn!("Escrow account doesn't exist, make deposits");
-                        Err(Error::DataUnavailable(
-                            "Escrow account doesn't exist".to_string(),
-                        ))
+                        escrow_requirement
                     }
                     Some(a) if a.lt(&escrow_requirement) => {
                         let msg = format!(
@@ -473,142 +471,53 @@ impl Downloader {
                         );
                         tracing::warn!(msg);
                         // buying power to a specific indexer is (escrow balance / indexer price = number of bytes)
-                        estimated_buying_power_in_bytes += a / endpoint.price_per_byte;
-                        Err(Error::DataUnavailable(msg))
+                        total_buying_power_in_bytes += a / endpoint.price_per_byte;
+                        escrow_requirement - a
                     }
                     Some(a) => {
-                        estimated_buying_power_in_bytes += a / endpoint.price_per_byte;
+                        total_buying_power_in_bytes += a / endpoint.price_per_byte;
                         tracing::trace!("Balance is enough for this account");
-                        Ok(())
+                        0.0
                     }
                 };
+                insufficient_balances.push((receiver.clone(), missing));
             }
 
-            if (estimated_buying_power_in_bytes as u64) < total_bytes {
-                let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account", estimated_buying_power_in_bytes);
+            if (total_buying_power_in_bytes as u64) >= total_bytes {
+                tracing::info!("Balance is enough to purchase the file, go ahead to download");
+            } else if insufficient_balances.iter().map(|(_, v)| v).sum::<f64>()
+                <= self.max_auto_deposit
+            {
+                tracing::info!("Downloader is allowed to automatically deposit sufficient balance for complete download, now depositing");
+
+                let deficits: Vec<(String, f64)> = insufficient_balances
+                    .into_iter()
+                    .filter(|&(_, amount)| amount != 0.0)
+                    .collect();
+                let (receivers, amounts): (Vec<String>, Vec<f64>) = deficits.into_iter().unzip();
+                let _ = on_chain
+                    .transaction_manager
+                    .deposit_many(
+                        receivers
+                            .into_iter()
+                            .map(|s| H160::from_str(&s).expect("Operator not address"))
+                            .collect(),
+                        amounts
+                            .into_iter()
+                            .map(|f| {
+                                U256::from_dec_str(&f.to_string()).expect("Amount not parseable")
+                            })
+                            .collect(),
+                    )
+                    .await;
+                // Downloader might handle approval as well?
+            } else {
+                let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account", total_buying_power_in_bytes);
                 return Err(Error::PricingError(msg));
             }
         };
 
-        tracing::info!("Balance is enough to purchase the file, go ahead to download");
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DownloadRangeRequest {
-    receiver: String,
-    query_endpoint: String,
-    file_hash: String,
-    start: u64,
-    end: u64,
-    chunk_hash: String,
-    file: Arc<Mutex<File>>,
-    max_retry: u64,
-}
-
-/// Make request to download a chunk and write it to the file in position
-async fn download_chunk_and_write_to_file(
-    http_client: &Client,
-    request: DownloadRangeRequest,
-    auth_header: (HeaderName, String),
-) -> Result<Arc<Mutex<File>>, Error> {
-    let mut attempts = 0;
-
-    tracing::debug!(
-        request = tracing::field::debug(&request),
-        "Making a range request"
-    );
-    loop {
-        // Make the range request to download the chunk
-        match request_chunk(
-            http_client,
-            &request.query_endpoint,
-            auth_header.clone(),
-            &request.file_hash,
-            request.start,
-            request.end,
-        )
-        .await
-        {
-            Ok(data) => {
-                if verify_chunk(&data, &request.chunk_hash) {
-                    // Lock the file for writing
-                    let mut file_lock = request.file.lock().await;
-                    file_lock
-                        .seek(SeekFrom::Start(request.start))
-                        .map_err(Error::FileIOError)?;
-                    file_lock.write_all(&data).map_err(Error::FileIOError)?;
-                    drop(file_lock);
-                    return Ok(request.file); // Successfully written the chunk, exit loop
-                } else {
-                    // Immediately return and blacklist the indexer when a chunk received is invalid
-                    let msg = format!(
-                        "Failed to validate received chunk: {}",
-                        &request.query_endpoint
-                    );
-                    tracing::warn!(msg);
-                    return Err(Error::ChunkInvalid(msg));
-                }
-            }
-            Err(e) => tracing::error!("Chunk download error: {:?}", e),
-        }
-
-        attempts += 1;
-        if attempts >= request.max_retry {
-            return Err(Error::DataUnavailable(
-                "Max retry attempts reached for chunk download".to_string(),
-            ));
-        }
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-}
-
-/// Make range request for a file to the bundle server
-async fn request_chunk(
-    http_client: &Client,
-    query_endpoint: &str,
-    auth_header: (HeaderName, String),
-    file_hash: &str,
-    start: u64,
-    end: u64,
-) -> Result<Bytes, Error> {
-    let range = format!("bytes={}-{}", start, end);
-
-    // indexer framework enforced that only authorization header is effective.
-    // we move file_hash and content-range to body, but consider requesting indexer-framework to be more flexible
-
-    let req_body = serde_json::json!({
-        "file-hash": file_hash,
-        "content-range": range,
-    }
-    );
-
-    tracing::debug!(query_endpoint, range, "Make range request");
-    let response = http_client
-        .post(query_endpoint)
-        .header(auth_header.0, auth_header.1)
-        .json(&req_body)
-        .send()
-        .await
-        .map_err(Error::Request)?;
-
-    // Check if the server supports range requests
-    if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
-        Ok(response.bytes().await.map_err(Error::Request)?)
-    } else {
-        let err_msg = format!(
-            "Server does not support range requests or the request failed: {:#?}",
-            tracing::field::debug(&response.status()),
-        );
-        tracing::error!(
-            status = tracing::field::debug(&response.status()),
-            headers = tracing::field::debug(&response.headers()),
-            chunk = tracing::field::debug(&response),
-            "Server does not support range requests or the request failed"
-        );
-        Err(Error::InvalidRange(err_msg))
     }
 }
 
