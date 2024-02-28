@@ -1,5 +1,6 @@
-use ethers::contract::abigen;
+use std::str::FromStr;
 
+use ethers::contract::abigen;
 use ethers_core::types::{TransactionReceipt, H160, U256};
 
 use crate::errors::Error;
@@ -26,8 +27,24 @@ impl TransactionManager {
         Ok(value)
     }
 
+    /// Query wallet owner's allowance of GRT tokens to Escrow contract
+    pub async fn escrow_allowance(&self) -> Result<U256, Error> {
+        let owner = H160::from_str(&self.public_address().expect("Wallet address"))
+            .map_err(|e| Error::ContractError(e.to_string()))?;
+        let spender = self
+            .contract_addresses
+            .get("Escrow")
+            .expect("Escrow address");
+        let value = self
+            .token_contract
+            .allowance(owner, *spender)
+            .call()
+            .await
+            .map_err(|e| Error::ContractError(e.to_string()))?;
+        Ok(value)
+    }
+
     // Approve spender and amount
-    /// call staking contract allocate function
     pub async fn approve_escrow(
         &self,
         amount: &U256,

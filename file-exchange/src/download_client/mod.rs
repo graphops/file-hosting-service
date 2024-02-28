@@ -9,6 +9,7 @@ use secp256k1::SecretKey;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
+use std::ops::Sub;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex as StdMutex};
@@ -442,10 +443,11 @@ impl Downloader {
                 .iter()
                 .map(|f| f.file_manifest.total_bytes)
                 .sum::<u64>();
-            let multiplier =
-                (total_bytes as f64) / (self.provider_concurrency as f64) * fail_tolerance;
 
             let endpoints = self.indexer_urls.lock().unwrap().clone();
+            let multiplier = (total_bytes as f64)
+                / ((self.provider_concurrency).min(endpoints.len().try_into().unwrap()) as f64)
+                * fail_tolerance;
             let mut insufficient_balances = vec![];
             for endpoint in endpoints {
                 tracing::trace!(
@@ -476,26 +478,51 @@ impl Downloader {
                     }
                     Some(a) => {
                         total_buying_power_in_bytes += a / endpoint.price_per_byte;
-                        tracing::trace!("Balance is enough for this account");
+                        tracing::trace!(
+                            balance = a,
+                            price_per_byte = endpoint.price_per_byte,
+                            total_bytes,
+                            buying_power_in_bytes = a / endpoint.price_per_byte,
+                            "Balance is enough for this account"
+                        );
                         0.0
                     }
                 };
                 insufficient_balances.push((receiver.clone(), missing));
             }
 
+            let total_deficit = insufficient_balances.iter().map(|(_, v)| v).sum::<f64>();
             if (total_buying_power_in_bytes as u64) >= total_bytes {
                 tracing::info!("Balance is enough to purchase the file, go ahead to download");
-            } else if insufficient_balances.iter().map(|(_, v)| v).sum::<f64>()
-                <= self.max_auto_deposit
-            {
+            } else if total_deficit <= self.max_auto_deposit {
                 tracing::info!("Downloader is allowed to automatically deposit sufficient balance for complete download, now depositing");
+                let escrow_allowance = f64::from_str(
+                    &on_chain
+                        .transaction_manager
+                        .escrow_allowance()
+                        .await?
+                        .to_string(),
+                )
+                .map_err(|e| Error::ContractError(e.to_string()))?;
+                if total_deficit.gt(&escrow_allowance) {
+                    let missing_allowance = U256::from_dec_str(
+                        &total_deficit
+                            .sub(total_deficit.sub(escrow_allowance))
+                            .to_string(),
+                    )
+                    .map_err(|e| Error::ContractError(e.to_string()))?;
+                    let _ = on_chain
+                        .transaction_manager
+                        .approve_escrow(&missing_allowance)
+                        .await?;
+                };
 
                 let deficits: Vec<(String, f64)> = insufficient_balances
                     .into_iter()
                     .filter(|&(_, amount)| amount != 0.0)
                     .collect();
                 let (receivers, amounts): (Vec<String>, Vec<f64>) = deficits.into_iter().unzip();
-                let _ = on_chain
+                let tx_res = on_chain
                     .transaction_manager
                     .deposit_many(
                         receivers
@@ -505,14 +532,24 @@ impl Downloader {
                         amounts
                             .into_iter()
                             .map(|f| {
-                                U256::from_dec_str(&f.to_string()).expect("Amount not parseable")
+                                tracing::info!(
+                                    amount = &f.ceil().to_string().to_string(),
+                                    "amount"
+                                );
+                                U256::from_dec_str(&f.ceil().to_string())
+                                    .expect("Amount not parseable")
                             })
                             .collect(),
                     )
                     .await;
-                // Downloader might handle approval as well?
+                if let Err(e) = tx_res {
+                    tracing::warn!(error = e.to_string(), "Failed to submit Escrow deposit, might need to approve Escrow contract as a GRT spender");
+
+                    return Err(Error::ContractError(e.to_string()));
+                };
+                tracing::info!("Finished Escrow deposit, okay to initiate download");
             } else {
-                let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account", total_buying_power_in_bytes);
+                let msg = format!("Balance is not enough to purchase {} bytes, look at the error message to see top-up recommendations for each account, or configure maximum automatic deposit threshold to be greater than the deficit amount of {}", total_bytes, total_deficit);
                 return Err(Error::PricingError(msg));
             }
         };

@@ -33,7 +33,9 @@ $ file-exchange downloader \
    --verifier 0xfC24cE7a4428A6B89B52645243662A02BA734ECF \
    --provider "arbitrum-sepolia-rpc-endpoint" \
    --network-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia \
-   --escrow-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia
+   --escrow-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia \
+   --provider-concurrency 2 \
+   --max-auto-deposit 500
 ```
 
 ### Requirements
@@ -51,7 +53,7 @@ To use the client effectively, you will need:
 1. Download and install the source code.
 2. Gather configurations: Identify the CID of the desired Bundle, registered indexer endpoints, a local path for storing the downloaded files, private key (or mnemonics) of a wallet valid for Escrow payments, (optional) Obtain a free query auth token for limited access, the preference to concurrent providers for downloading.
 3. Use the CLI commands to download files.
-4. Before downloading, the client will check the status and price of the providers. If the download can be achived by availablility and price at the time of initiation, then download will proceed. If there is no availability, the client will suggest alternative bundles that overlaps with the target bundle and the corresponding providers. If there is not enough balance, the client will suggest Escrow top-up amounts for the Escrow accounts.  
+4. Before downloading, the client will check the status and price of the providers. If the download can be achived by availablility and price at the time of initiation, then download will proceed. If there is no availability, the client will suggest alternative bundles that overlaps with the target bundle and the corresponding providers. If there is not enough balance, the client will suggest Escrow top-up amounts for the Escrow accounts. With a configured on-chain deposit, the downloader might send GraphToken approval transaction to approve Escrow spending and deposit required amounts to the providers.  
 
 Enjoy seamless access to a vast world of data!
 

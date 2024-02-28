@@ -9,7 +9,7 @@ use crate::file_server::ServerContext;
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct GraphQlCostModel {
     pub deployment: String,
-    pub price_per_byte: f32,
+    pub price_per_byte: f64,
 }
 
 #[derive(Default)]
@@ -23,7 +23,7 @@ impl Query {
         ctx: &Context<'_>,
         deployments: Vec<String>,
     ) -> Result<Vec<GraphQlCostModel>, anyhow::Error> {
-        let price: f32 = ctx
+        let price: f64 = ctx
             .data_unchecked::<ServerContext>()
             .state
             .config
@@ -54,7 +54,7 @@ impl Query {
             .get(&deployment)
             .cloned();
         let res = bundle.map(|_b| {
-            let price: f32 = ctx
+            let price: f64 = ctx
                 .data_unchecked::<ServerContext>()
                 .state
                 .config

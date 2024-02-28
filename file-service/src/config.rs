@@ -78,7 +78,7 @@ pub struct ServerArgs {
         env = "PRICE_PER_BYTE",
         help = "Price per byte in GRT"
     )]
-    pub price_per_byte: f32,
+    pub price_per_byte: f64,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]
