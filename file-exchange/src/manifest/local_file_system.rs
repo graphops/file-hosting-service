@@ -5,7 +5,7 @@ use object_store::{ObjectMeta, PutResult};
 use object_store::local::LocalFileSystem;
 use tokio::io::AsyncWriteExt;
 
-use std::fs;
+use std::fs::{self, File};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -16,9 +16,9 @@ use crate::manifest::Error;
 use super::file_hasher::hash_chunk;
 use super::FileManifest;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Store {
-    local_file_system: Arc<LocalFileSystem>,
+    local_file_system: Arc<Box<dyn ObjectStore>>,
     read_concurrency: usize,
     write_concurrency: usize,
 }
@@ -38,7 +38,7 @@ impl Store {
         // As long as the provided path is correct, the following should never panic
         Ok(Store {
             local_file_system: Arc::new(
-                LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?,
+                Box::new(LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?),
             ),
             //TODO: Make configurable
             read_concurrency: 16,
@@ -73,6 +73,23 @@ impl Store {
             .unwrap())
     }
 
+    pub async fn read(
+        &self,
+        location: &str,
+    ) -> Result<File, Error> {
+        let result = match self
+            .local_file_system
+            .get(&Path::from(location))
+            .await
+            .unwrap().payload
+            {
+                object_store::GetResultPayload::File(f, p) => {f},
+                object_store::GetResultPayload::Stream(_) => {return Err(Error::DataUnavailable("Currently data streams are not supported".to_string()))},
+            };
+        
+        Ok(result)
+    }
+    
     pub async fn multipart_read(
         &self,
         location: &str,
@@ -257,5 +274,20 @@ mod tests {
 
         // Delete
         assert!(object_store.delete(new_file_name).await.is_ok());
+    }
+    
+    // file_name: 
+    // , file_prefix: Path { raw: "%2E/example-file" }, start_byte: 1048576, end_byte: 1052736
+    #[tokio::test]
+    async fn test_find_example_file() {
+        let main_directory = "../example-file";
+        let file_prefix = Path::from("");
+        let file_name = "example-create-17686085.dbin";
+        let store = Store::new(main_directory).unwrap();
+        // let metadata = store.find_object(file_name, None).await;
+        let metadata = store.find_object(file_name, Some(&file_prefix)).await;
+
+        println!("store: {store:?}, metadata: {metadata:?}");
+        assert!(metadata.is_some())
     }
 }

@@ -34,7 +34,7 @@ pub struct ServerArgs {
         value_name = "BUNDLES",
         env = "BUNDLES",
         value_delimiter = ',',
-        help = "Comma separated list of IPFS hashes and local location of the bundles to serve upon start-up; format: [ipfs_hash:local_path]"
+        help = "Comma separated list of IPFS hashes and shared prefix of files in the bundles (empty if just in main_directory) to serve upon start-up; format: [ipfs_hash:prefix]"
     )]
     pub bundles: Vec<String>,
     #[clap(
@@ -61,6 +61,14 @@ pub struct ServerArgs {
         help = "IPFS gateway to interact with"
     )]
     pub ipfs_gateway: String,
+     #[arg(
+        long,
+        value_name = "main_directory",
+        default_value = "../example-file",
+        env = "MAIN_DIRECTORY",
+        help = "Main (common) directory of the files being served"
+    )]
+    pub main_directory: String,
     #[arg(
         long,
         value_name = "LOG_FORMAT",

@@ -121,7 +121,8 @@ impl StatusQuery {
             .lock()
             .await
             .values()
-            .cloned()
+            .map(|b| b.bundle.clone())
+            // .cloned()
             .collect();
         let file_metas: Vec<FileManifestMeta> = bundles
             .iter()
@@ -155,7 +156,8 @@ impl StatusQuery {
             .lock()
             .await
             .values()
-            .cloned()
+            .map(|b| b.bundle.clone())
+            // .cloned()
             .collect();
         let file_metas: Vec<FileManifestMeta> = bundles
             .iter()
@@ -192,14 +194,14 @@ impl StatusQuery {
             all_bundles
                 .values()
                 .cloned()
-                .map(GraphQlBundle::from)
+                .map(|b| GraphQlBundle::from(b.bundle))
                 .collect()
         } else {
             let ids = deployments.unwrap();
             ids.iter()
                 .filter_map(|key| all_bundles.get(key))
                 .cloned()
-                .map(GraphQlBundle::from)
+                .map(|b| GraphQlBundle::from(b.bundle))
                 .collect()
         };
         tracing::debug!(bundles = tracing::field::debug(&bundles), "queried bundles");
@@ -220,7 +222,7 @@ impl StatusQuery {
             .lock()
             .await
             .get(&deployment)
-            .cloned();
+            .map(|b| b.bundle.clone());
 
         Ok(bundle.map(GraphQlBundle::from))
     }

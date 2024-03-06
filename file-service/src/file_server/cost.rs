@@ -52,7 +52,8 @@ impl Query {
             .lock()
             .await
             .get(&deployment)
-            .cloned();
+            .cloned()
+            .map(|b| b.bundle);
         let res = bundle.map(|_b| {
             let price: f64 = ctx
                 .data_unchecked::<ServerContext>()

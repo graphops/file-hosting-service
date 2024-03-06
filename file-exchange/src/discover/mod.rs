@@ -119,7 +119,7 @@ impl Finder {
         bundle_hash: &str,
         endpoint_checklist: &[String],
     ) -> Result<FileAvailbilityMap, Error> {
-        let bundle = read_bundle(&self.ipfs_client, bundle_hash, PathBuf::new()).await?;
+        let bundle = read_bundle(&self.ipfs_client, bundle_hash).await?;
         // To fill in availability for each file, get a vector of (ServiceEndpoint, ManifestIPFS) that serves the file
         let target_hashes: FileAvailbilityMap = Arc::new(Mutex::new(
             bundle

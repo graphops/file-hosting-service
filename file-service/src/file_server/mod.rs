@@ -3,6 +3,7 @@ use axum::{
     async_trait,
     response::{IntoResponse, Response},
 };
+use object_store::path::Path;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::{collections::HashMap, string::FromUtf8Error};
@@ -13,9 +14,9 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::{config::Config, database};
-use file_exchange::errors::Error;
+use file_exchange::{errors::Error, manifest::local_file_system::Store};
 use file_exchange::manifest::{
-    ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle,
+    ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle, LocalBundle,
 };
 use file_exchange::util::public_key;
 // #![cfg(feature = "acceptor")]
@@ -32,12 +33,13 @@ pub mod util;
 pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
-    pub bundles: Arc<Mutex<HashMap<String, Bundle>>>, // Keyed by IPFS hash
+    pub bundles: Arc<Mutex<HashMap<String, LocalBundle>>>, // Keyed by IPFS hash, valued by Bundle and Local path
     pub admin_auth_token: Option<String>,             // Add bearer prefix
     pub config: Config,
     pub database: PgPool,
     pub cost_schema: crate::file_server::cost::CostSchema,
     pub status_schema: crate::file_server::status::StatusSchema,
+    pub store: Store,
 }
 
 #[derive(Clone)]
@@ -66,7 +68,7 @@ impl IndexerServiceImpl for ServerContext {
         //TODO: consider routing through file level IPFS
         // path if path.starts_with("/bundles/id/") => {
         // }
-        tracing::trace!("do file service");
+        tracing::info!("do file service");
         let body = service::file_service(deployment, &request, self)
             .await
             .map_err(FileServiceError::QueryForwardingError)?;
@@ -112,18 +114,20 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         database: database::connect(&config.common.database.postgres_url).await,
         cost_schema: cost::build_schema().await,
         status_schema: status::build_schema().await,
+        store: Store::new(&config.server.main_directory).expect("Storage system"),
     };
 
     // Fetch the file using IPFS client
     for (ipfs_hash, local_path) in bundle_entries {
-        let bundle = read_bundle(&server_state.client, &ipfs_hash, local_path).await?;
-        let _ = bundle.validate_local_bundle();
+        let bundle = read_bundle(&server_state.client, &ipfs_hash).await?;
+        // let bundle = read_bundle(&server_state.client, &ipfs_hash, local_path).await?;
+        // let _ = bundle.validate_local_bundle();
 
         server_state
             .bundles
             .lock()
             .await
-            .insert(bundle.ipfs_hash.clone(), bundle);
+            .insert(bundle.ipfs_hash.clone(), LocalBundle {bundle, local_path: local_path});
     }
 
     // Return the server state wrapped in an Arc for thread safety

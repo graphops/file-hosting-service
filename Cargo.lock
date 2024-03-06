@@ -2451,6 +2451,7 @@ dependencies = [
  "ipfs-api-backend-hyper",
  "ipfs-api-prelude",
  "merkle-cbt",
+ "object_store",
  "prometheus",
  "rand 0.8.5",
  "reqwest",
@@ -3302,7 +3303,6 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 [[package]]
 name = "indexer-common"
 version = "0.1.0"
-source = "git+https://github.com/graphprotocol/indexer-rs?rev=b13bd8a#b13bd8ab7400f2cc3a59b364a198ae95fc7a57f2"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -3323,7 +3323,6 @@ dependencies = [
  "lazy_static",
  "lru",
  "once_cell",
- "open-fastrlp",
  "prometheus",
  "regex",
  "reqwest",

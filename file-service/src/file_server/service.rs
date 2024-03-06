@@ -24,7 +24,7 @@ pub async fn file_service(
         "Received file range request"
     );
 
-    let requested_bundle = match context.state.bundles.lock().await.get(&id.to_string()) {
+    let local_bundle = match context.state.bundles.lock().await.get(&id.to_string()) {
         Some(s) => s.clone(),
         None => {
             return Ok(Response::builder()
@@ -36,8 +36,9 @@ pub async fn file_service(
 
     match req.get("file-hash") {
         Some(hash) if hash.as_str().is_some() => {
-            let mut file_path = requested_bundle.local_path.clone();
-            let file_manifest = match requested_bundle
+            // let mut file_path = requested_bundle.local_path.clone();
+            let mut file_path = context.state.config.server.main_directory.clone();
+            let file_manifest = match local_bundle.bundle
                 .file_manifests
                 .iter()
                 .find(|file| file.meta_info.hash == hash.as_str().unwrap())
@@ -50,15 +51,15 @@ pub async fn file_service(
                         .unwrap())
                 }
             };
-            file_path.push(file_manifest.meta_info.name.clone());
+            // file_path.push(file_manifest.meta_info.name.clone());
             // Parse the range header to get the start and end bytes
             match req.get("content-range") {
                 Some(r) => {
                     let range = parse_range_header(r)?;
                     //TODO: validate receipt
-                    serve_file_range(&file_path, range).await
+                    serve_file_range(context.state.store.clone(), &file_manifest.meta_info.name, &local_bundle.local_path, range).await
                 }
-                None => serve_file(&file_path).await,
+                None => serve_file(context.state.store.clone(), &file_manifest.meta_info.name, &local_bundle.local_path).await,
             }
         }
         _ => Ok(Response::builder()

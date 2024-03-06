@@ -86,7 +86,7 @@ pub async fn fetch_file_manifest_from_ipfs(
 pub async fn read_bundle(
     client: &IpfsClient,
     ipfs: &str,
-    local_path: PathBuf,
+    // local_path: PathBuf,
 ) -> Result<Bundle, Error> {
     let manifest = fetch_bundle_from_ipfs(client, ipfs).await?;
 
@@ -103,7 +103,7 @@ pub async fn read_bundle(
 
     Ok(Bundle {
         ipfs_hash: ipfs.to_string(),
-        local_path,
+        // local_path,
         manifest,
         file_manifests,
     })

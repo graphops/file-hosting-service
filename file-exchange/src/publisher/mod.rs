@@ -23,7 +23,7 @@ impl ManifestPublisher {
 
     /// Takes file_path, create file_manifest, build merkle tree, publish, write to output
     pub async fn hash_and_publish_file(&self, file_name: &str) -> Result<AddResponse, Error> {
-        let yaml_str = self.write_file_manifest(file_name)?;
+        let yaml_str = self.write_file_manifest(file_name).await?;
 
         let added: AddResponse = self
             .ipfs_client
@@ -108,26 +108,27 @@ impl ManifestPublisher {
         }
     }
 
-    pub fn write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
-        let file_manifest =
-            FileManifest::new(&self.config.read_dir, file_name, self.config.chunk_size)?;
-        // let merkle_tree = build_merkle_tree(chunks);
-        // let file_manifest = create_file_manifest(&merkle_tree);
+    // pub fn write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
+    //     let file_manifest =
+    //         FileManifest::new(&self.config.read_dir, file_name, self.config.chunk_size)?;
+    //     // let merkle_tree = build_merkle_tree(chunks);
+    //     // let file_manifest = create_file_manifest(&merkle_tree);
 
-        tracing::trace!(
-            file = tracing::field::debug(&file_manifest),
-            "Created file manifest"
-        );
+    //     tracing::trace!(
+    //         file = tracing::field::debug(&file_manifest),
+    //         "Created file manifest"
+    //     );
 
-        let yaml = to_string(&file_manifest).map_err(Error::YamlError)?;
-        // TODO: consider storing a local copy
-        // let mut output_file = File::create(file_path)?;
-        // output_file.write_all(yaml.as_bytes())?;
+    //     let yaml = to_string(&file_manifest).map_err(Error::YamlError)?;
+    //     // TODO: consider storing a local copy
+    //     // let mut output_file = File::create(file_path)?;
+    //     // output_file.write_all(yaml.as_bytes())?;
 
-        Ok(yaml)
-    }
+    //     Ok(yaml)
+    // }
 
-    pub async fn object_store_write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
+    // pub async fn object_store_write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
+    pub async fn write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
         let store = Store::new(&self.config.read_dir)?;
         let file_manifest = store
             .file_manifest(file_name, Some(self.config.chunk_size as usize))
@@ -147,26 +148,26 @@ impl ManifestPublisher {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_write_file_manifest() {
-        let client = IpfsClient::localhost();
-        let args = PublisherArgs {
-            read_dir: String::from("../example-file"),
-            chunk_size: 1048576,
-            ..Default::default()
-        };
-        let publisher = ManifestPublisher::new(client, args);
-        let name = "example-create-17686085.dbin";
+    // #[tokio::test]
+    // async fn test_write_file_manifest() {
+    //     let client = IpfsClient::localhost();
+    //     let args = PublisherArgs {
+    //         read_dir: String::from("../example-file"),
+    //         chunk_size: 1048576,
+    //         ..Default::default()
+    //     };
+    //     let publisher = ManifestPublisher::new(client, args);
+    //     let name = "example-create-17686085.dbin";
 
-        // Hash and publish a single file
-        let file_manifest_yaml = publisher.write_file_manifest(name).unwrap();
-        let file_manifest_yaml2 = publisher
-            .object_store_write_file_manifest(name)
-            .await
-            .unwrap();
+    //     // Hash and publish a single file
+    //     let file_manifest_yaml = publisher.write_file_manifest(name).unwrap();
+    //     let file_manifest_yaml2 = publisher
+    //         .object_store_write_file_manifest(name)
+    //         .await
+    //         .unwrap();
 
-        assert_eq!(file_manifest_yaml, file_manifest_yaml2);
-    }
+    //     assert_eq!(file_manifest_yaml, file_manifest_yaml2);
+    // }
 
     #[tokio::test]
     #[ignore] // Run when there is a localhost IPFS node

@@ -67,7 +67,7 @@ impl Downloader {
         let bundle = read_bundle(
             &ipfs_client,
             &args.ipfs_hash,
-            args.output_dir.clone().into(),
+            // args.output_dir.clone().into(),
         )
         .await
         .expect("Read bundle");
@@ -284,6 +284,8 @@ impl Downloader {
             }
         }
 
+        // write to object storage if configured
+        
         tracing::info!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
             file_info = tracing::field::debug(&meta.meta_info),

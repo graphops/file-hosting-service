@@ -1,17 +1,18 @@
+use file_exchange::manifest::local_file_system::Store;
 // #![cfg(feature = "acceptor")]
 use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE};
 use hyper::{Body, Response, StatusCode};
 
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
+use object_store::path::Path;
 
 use serde_json::Value;
-use std::path::Path;
 
 use file_exchange::errors::{Error, ServerError};
 
 // Function to parse the Range header and return the start and end bytes
-pub fn parse_range_header(range_header: &Value) -> Result<(u64, u64), Error> {
+pub fn parse_range_header(range_header: &Value) -> Result<(usize, usize), Error> {
     let range_str = range_header
         .as_str()
         .ok_or(Error::InvalidRange("Range header Not found".to_string()))?;
@@ -30,45 +31,37 @@ pub fn parse_range_header(range_header: &Value) -> Result<(u64, u64), Error> {
     }
 
     let start = ranges[0]
-        .parse::<u64>()
+        .parse::<usize>()
         .map_err(|e| Error::InvalidRange(format!("Invalid start range: {}", e)))?;
     let end = ranges[1]
-        .parse::<u64>()
+        .parse::<usize>()
         .map_err(|e| Error::InvalidRange(format!("Invalid end range: {}", e)))?;
 
     Ok((start, end))
 }
 
 pub async fn serve_file_range(
-    file_path: &Path,
-    (start, end): (u64, u64),
+    store: Store,
+    file_name: &str,
+    file_prefix: &Path,
+    (start, end): (usize, usize),
 ) -> Result<Response<Body>, Error> {
     tracing::debug!(
-        file_path = tracing::field::debug(&file_path),
+        file_name = tracing::field::debug(&file_name),
+        file_prefix = tracing::field::debug(&file_prefix),
         start_byte = tracing::field::debug(&start),
         end_byte = tracing::field::debug(&end),
         "Serve file range"
     );
-    //TODO: Map the manifest_id to a file path, use server state for the file_map
-    let mut file = match File::open(file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(format!("Cannot access file: {:#?}", e.to_string()).into())
-                .unwrap());
-        }
-    };
 
-    let file_size = match file.metadata() {
-        Ok(metadata) => metadata.len(),
-        Err(e) => {
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(format!("Cannot get file metadata: {:#?}", e.to_string()).into())
-                .unwrap())
-        }
-    };
+    let metadata = store.find_object(file_name, Some(file_prefix)).await.ok_or(Error::DataUnavailable(format!("Cannot find object {} with prefix {}", file_name, file_prefix)))?;
+
+    let file_size = metadata.size;
+    tracing::debug!(
+        metadata = tracing::field::debug(&metadata),
+        file_size = tracing::field::debug(&file_size),
+        "Serve file range"
+    );
 
     tracing::trace!(start, end, file_size, "Range validity check");
     if start >= file_size || end >= file_size {
@@ -85,29 +78,8 @@ pub async fn serve_file_range(
     }
 
     let length = end - start + 1;
-
-    match file.seek(SeekFrom::Start(start)) {
-        Ok(_) => {
-            tracing::trace!("File seek to start at {:#?}", start)
-        }
-        Err(e) => {
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(format!("Failed to seek file start: {:#?}", e.to_string()).into())
-                .unwrap())
-        }
-    }
-
-    let mut buffer = vec![0; length as usize];
-    match file.read_exact(&mut buffer) {
-        Ok(_) => {}
-        Err(e) => {
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(format!("Failed to react exact bytes: {:#?}", e.to_string()).into())
-                .unwrap())
-        }
-    }
+    let range = std::ops::Range { start, end: start + length };
+    let content = store.range_read(file_name, range).await?;
 
     Response::builder()
         .status(StatusCode::PARTIAL_CONTENT)
@@ -117,27 +89,20 @@ pub async fn serve_file_range(
                 "bytes {}-{}/{}",
                 start,
                 end,
-                file.metadata().map_err(Error::FileIOError)?.len()
+                length
             ),
         )
         .header(CONTENT_LENGTH, length.to_string())
-        .body(Body::from(buffer))
+        .body(Body::from(content))
         .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
-pub async fn serve_file(file_path: &Path) -> Result<Response<Body>, Error> {
+pub async fn serve_file(store: Store, file_name: &str, file_path: &Path) -> Result<Response<Body>, Error> {
     // If no Range header is present, serve the entire file
-    let file = match fs::read(file_path) {
-        Ok(f) => f,
-        Err(_) => {
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Cannot read file".into())
-                .unwrap())
-        }
-    };
-
+    let mut file = store.read(file_name).await?;
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents).map_err(|e| Error::FileIOError(e))?;
     Response::builder()
-        .body(Body::from(file))
+        .body(Body::from(contents))
         .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }

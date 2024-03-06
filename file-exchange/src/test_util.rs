@@ -96,7 +96,6 @@ pub fn simple_bundle() -> Bundle {
     };
     Bundle {
         ipfs_hash: "QmUqx9seQqAuCRi3uEPfa1rcS61rKhM7JxtraL81jvY6dZ".to_string(),
-        local_path: "../example-file/".into(),
         manifest: BundleManifest {
             files: [meta_info.clone()].to_vec(),
             file_type: "flatfiles".to_string(),

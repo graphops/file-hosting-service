@@ -13,14 +13,14 @@ use crate::file_server::{FileServiceError, ServerContext};
 use file_exchange::{
     errors::{Error, ServerError},
     manifest::{
-        ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_and_location, Bundle,
+        ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_and_location, Bundle, LocalBundle,
     },
 };
 
 #[derive(Clone)]
 pub struct AdminState {
     pub client: IpfsClient,
-    pub bundles: Arc<Mutex<HashMap<String, Bundle>>>,
+    pub bundles: Arc<Mutex<HashMap<String, LocalBundle>>>,
     pub admin_auth_token: Option<String>,
     pub admin_schema: AdminSchema,
 }
@@ -128,23 +128,23 @@ impl StatusMutation {
         let bundle = match read_bundle(
             &ctx.data_unchecked::<AdminContext>().state.client,
             &hash,
-            loc,
+            // loc,
         )
         .await
         {
             Ok(s) => s,
             Err(e) => return Err(anyhow::anyhow!(e.to_string(),)),
         };
-        if let Err(e) = bundle.validate_local_bundle() {
-            return Err(anyhow::anyhow!(e.to_string(),));
-        };
+        // if let Err(e) = bundle.validate_local_bundle() {
+        //     return Err(anyhow::anyhow!(e.to_string(),));
+        // };
 
         ctx.data_unchecked::<AdminContext>()
             .state
             .bundles
             .lock()
             .await
-            .insert(bundle.ipfs_hash.clone(), bundle.clone());
+            .insert(bundle.ipfs_hash.clone(),   LocalBundle{bundle: bundle.clone(), local_path: loc});
 
         Ok(GraphQlBundle::from(bundle))
     }
@@ -180,19 +180,21 @@ impl StatusMutation {
                     let (hash, loc) = validate_bundle_and_location(deployment, &location)
                         .map_err(|e| anyhow::anyhow!("Invalid input: {}", e))?;
 
-                    let bundle = read_bundle(&client.clone(), &hash, loc)
+                    // let bundle = read_bundle(&client.clone(), &hash, loc)
+                    let bundle = read_bundle(&client.clone(), &hash,)
                         .await
                         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-                    bundle
-                        .validate_local_bundle()
-                        .map_err(|e| anyhow::anyhow!("{}", e))?;
+                    // bundle
+                    //     .validate_local_bundle()
+                    //     .map_err(|e| anyhow::anyhow!("{}", e))?;
 
                     bundle_ref
                         .clone()
                         .lock()
                         .await
-                        .insert(bundle.ipfs_hash.clone(), bundle.clone());
+                        .insert(bundle.ipfs_hash.clone(), LocalBundle{bundle: bundle.clone(), local_path: loc});
+                        // .insert(bundle.ipfs_hash.clone(), bundle.clone());
 
                     Ok::<_, anyhow::Error>(GraphQlBundle::from(bundle))
                 }
@@ -228,7 +230,7 @@ impl StatusMutation {
             .lock()
             .await
             .remove(&deployment)
-            .map(GraphQlBundle::from);
+            .map(|b| GraphQlBundle::from(b.bundle));
 
         Ok(bundle)
     }
@@ -257,7 +259,7 @@ impl StatusMutation {
                     .lock()
                     .await
                     .remove(deployment)
-                    .map(GraphQlBundle::from)
+                    .map(|b| GraphQlBundle::from(b.bundle))
                     .ok_or(anyhow::anyhow!(format!(
                         "Deployment not found: {}",
                         deployment
