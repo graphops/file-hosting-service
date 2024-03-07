@@ -24,6 +24,9 @@ The client operates through a command-line interface (CLI) for simplicity and ea
 After determining the Bundle CID, client should supply a local path for writing the Bundle corresponding files, a wallet for payments or a free query auth token, and a list of indexer endpoints (this should be handled by gateway or a scraping client).
 
 ### CLI example
+
+Download into local file system
+
 ```
 $ file-exchange downloader \
    --ipfs-hash QmHash \
@@ -35,7 +38,29 @@ $ file-exchange downloader \
    --network-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia \
    --escrow-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia \
    --provider-concurrency 2 \
-   --max-auto-deposit 500
+   --max-auto-deposit 500 \
+   local-files --output-dir "../example-download"
+```
+
+Download into remote object storage bucket
+
+```
+$ file-exchange downloader \
+   --ipfs-hash QmHash \
+   --indexer-endpoints http://localhost:5678,http://localhost:5677 \
+   --free-query-auth-token 'Bearer auth_token' \
+   --mnemonic "seed phrase" \
+   --verifier 0xfC24cE7a4428A6B89B52645243662A02BA734ECF \
+   --provider "arbitrum-sepolia-rpc-endpoint" \
+   --network-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia \
+   --escrow-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia \
+   --provider-concurrency 2 \
+   --max-auto-deposit 500 \
+   object-storage --region ams3 \
+   --bucket "contain-texture-dragon" \
+   --access-key-id "DO000000000000000000" \
+   --secret-key "secretttttttttttt" \
+   --endpoint "https://ams3.digitaloceanspaces.com"
 ```
 
 ### Requirements

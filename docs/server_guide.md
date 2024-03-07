@@ -13,11 +13,20 @@ The server utilizes HTTP2 with TLS for secure and efficient file transfer. This 
 
 ## Access Control
 
+### Payments 
+
 The server offers
 
 - Free queries: Server will always respond to queries about their operator info, software versioning, server health, and file availability.
 - Free Query Auth Token: Users can obtain a free query auth token for limited access to files. This token allows them to download small files.
 - Receipts: Users need to provide TAP receipts in the HTTP header. These receipts serve as proof of payment and grant access to the requested resources.
+
+### Memory access
+
+The server can serve data stored as files or objects
+
+- Local file system: Provided with a directory path, the server can read files from the directory directly by configuring file's relative path to the directory.
+- Remote Object storage:  Provided with an S3 bucket configuration, the server can find and read objects from the bucket by configuring object's name and prefix relative to the bucket.
 
 ## Server Management
 
@@ -104,7 +113,7 @@ with configuration
 ```
 {"authorization": "Bearer admin-token"}
 ```
-(`-H 'authorization: Bearer admin-token'` in curl.)
+(Correspondingly add header `-H 'authorization: Bearer admin-token'` in curl.)
 
 
 4. (TODO) Register the server endpoint on the smart contract. Currently we assume the service endpoint has been registered with indexer-agent (for subgraphs). 

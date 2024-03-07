@@ -14,17 +14,32 @@ Publisher must have read access to all files contained in the Bundle. The publis
 
 
 ### CLI example
+
+Publishing files stored in the local file system
 ```
 $ file-exchange publisher \
-  --read-dir ./example-file/ \
   --bundle-name "blah" \
   --file-names example0017686312.dbin,example-create-17686085.dbin \
   --file-type flatfiles \
   --file-version 0.0.0 \
   --description "random flatfiles" \
-  --chain-id 1
+  local-files --output-dir ./example-file/
 ```
 
+Publishing files/objects stored in a remote s3 bucket
+```
+$ file-exchange publisher \
+  --bundle-name "blah" \
+  --file-names example0017686312.dbin,example-create-17686085.dbin \
+  --file-type flatfiles \
+  --file-version 0.0.0 \
+  --description "random flatfiles" \
+  object-storage --region ams3 \
+   --bucket "contain-texture-dragon" \
+   --access-key-id "DO0000000000000000" \
+   --secret-key "secretttttttttt" \
+   --endpoint "https://ams3.digitaloceanspaces.com" 
+```
 For more information 
 ```
 $ file-exchange --help
