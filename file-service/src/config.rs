@@ -32,12 +32,12 @@ pub struct ServerArgs {
     // Taking from config right now, later can read from DB table for managing server states
     #[arg(
         long,
-        value_name = "BUNDLES",
-        env = "BUNDLES",
+        value_name = "initial-bundles",
+        env = "INITIAL_BUNDLES",
         value_delimiter = ',',
-        help = "Comma separated list of IPFS hashes and shared prefix of files in the bundles (empty if just in main_directory) to serve upon start-up; format: [ipfs_hash:prefix]"
+        help = "Comma separated list of IPFS hashes and shared prefix of files in the bundles (empty if just in main_directory) to serve upon start-up; the list can be managed through the /admin API without service restart.\nformat: [ipfs_hash:prefix]"
     )]
-    pub bundles: Vec<String>,
+    pub initial_bundles: Vec<String>,
     #[clap(
         long,
         value_name = "admin-auth-token",
@@ -48,7 +48,7 @@ pub struct ServerArgs {
     //TODO: More complex price management
     #[arg(
         long,
-        value_name = "ADMIN_ADDR",
+        value_name = "admin-addr",
         default_value = "0.0.0.0/6700",
         env = "ADMIN_ADDR",
         help = "Expost Admin service at address with both host and port"
@@ -56,7 +56,7 @@ pub struct ServerArgs {
     pub admin_host_and_port: SocketAddr,
     #[arg(
         long,
-        value_name = "IPFS_GATEWAY_URL",
+        value_name = "ipfs-gateway-url",
         default_value = "https://ipfs.network.thegraph.com",
         env = "IPFS_GATEWAY_URL",
         help = "IPFS gateway to interact with"
@@ -66,7 +66,7 @@ pub struct ServerArgs {
     pub storage_method: StorageMethod,
     #[arg(
         long,
-        value_name = "LOG_FORMAT",
+        value_name = "log-format",
         env = "LOG_FORMAT",
         help = "Support logging formats: pretty, json, full, compact",
         long_help = "pretty: verbose and human readable; json: not verbose and parsable; compact:  not verbose and not parsable; full: verbose and not parsible",
@@ -76,12 +76,12 @@ pub struct ServerArgs {
     //TODO: More complex price management
     #[arg(
         long,
-        value_name = "PRICE_PER_BYTE",
+        value_name = "default-price-per-byte",
         default_value = "1",
-        env = "PRICE_PER_BYTE",
-        help = "Price per byte in GRT"
+        env = "DEFAULT_PRICE_PER_BYTE",
+        help = "Default price per byte in GRT"
     )]
-    pub price_per_byte: f64,
+    pub default_price_per_byte: f64,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, Serialize, Deserialize, Default)]

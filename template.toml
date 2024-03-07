@@ -39,8 +39,8 @@ chain_id = 421614
 receipts_verifier_address = "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"
 
 [server]
-bundles = ["QmHash00:./example-file/","QmHash01:BUNDLE_PATH"]
+initial_bundles = ["QmHash00:./example-file/","QmHash01:BUNDLE_PATH"]
 admin_auth_token = "kueen"
-price_per_byte = 1
+default_price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Pretty"

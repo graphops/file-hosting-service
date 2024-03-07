@@ -28,7 +28,7 @@ impl Query {
             .state
             .config
             .server
-            .price_per_byte;
+            .default_price_per_byte;
         let cost_models = deployments
             .into_iter()
             .map(|s| GraphQlCostModel {
@@ -60,7 +60,7 @@ impl Query {
                 .state
                 .config
                 .server
-                .price_per_byte;
+                .default_price_per_byte;
             GraphQlCostModel {
                 deployment,
                 price_per_byte: price,
