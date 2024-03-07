@@ -100,5 +100,5 @@ name = "new_file_manifest"
 harness = false
 
 [[bench]]
-name = "verify_chunk"
+name = "hash_chunk"
 harness = false
