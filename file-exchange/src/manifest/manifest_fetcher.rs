@@ -83,11 +83,7 @@ pub async fn fetch_file_manifest_from_ipfs(
 }
 
 /// Read bundle from IPFS, build a version relative to local access
-pub async fn read_bundle(
-    client: &IpfsClient,
-    ipfs: &str,
-    // local_path: PathBuf,
-) -> Result<Bundle, Error> {
+pub async fn read_bundle(client: &IpfsClient, ipfs: &str) -> Result<Bundle, Error> {
     let manifest = fetch_bundle_from_ipfs(client, ipfs).await?;
 
     // Get and Parse the YAML file to get chunk hashes
@@ -103,7 +99,6 @@ pub async fn read_bundle(
 
     Ok(Bundle {
         ipfs_hash: ipfs.to_string(),
-        // local_path,
         manifest,
         file_manifests,
     })

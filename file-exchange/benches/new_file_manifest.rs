@@ -1,10 +1,19 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use file_exchange::{manifest::store::Store, test_util::CHUNK_SIZE};
+use file_exchange::{
+    config::{LocalDirectory, StorageMethod},
+    manifest::store::Store,
+    test_util::CHUNK_SIZE,
+};
 
 fn new_file_manifest_benchmark_object_store(c: &mut Criterion) {
-    let store = black_box(Store::new("../example-file").unwrap());
+    let store = black_box(
+        Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: "../example-file".to_string(),
+        }))
+        .unwrap(),
+    );
     let file_name = black_box("0017234600.dbin.zst");
     let file_size = black_box(Some(CHUNK_SIZE as usize));
 

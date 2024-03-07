@@ -49,6 +49,7 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::{LocalDirectory, StorageMethod};
     use crate::manifest::store::Store;
     use crate::test_util::*;
     use std::path::Path;
@@ -66,11 +67,13 @@ mod tests {
         let path1 = Path::new(&temp_path1);
         let path2 = Path::new(&temp_path2);
         let readdir1 = path1.parent().unwrap().to_str().unwrap();
-        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
         let file_name1 = path1.file_name().unwrap().to_str().unwrap();
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-        let store = Store::new(readdir1).unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: readdir1.to_string(),
+        }))
+        .unwrap();
         // produce the same file manifest
         let file_manifest1 = store
             .file_manifest(file_name1, None, Some(CHUNK_SIZE as usize))
@@ -98,12 +101,14 @@ mod tests {
         let path1 = Path::new(&temp_path1);
         let path2 = Path::new(&temp_path2);
         let readdir1 = path1.parent().unwrap().to_str().unwrap();
-        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
         let file_name1 = path1.file_name().unwrap().to_str().unwrap();
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce different file manifest
-        let store = Store::new(readdir1).unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: readdir1.to_string(),
+        }))
+        .unwrap();
         let file_manifest1 = store
             .file_manifest(file_name1, None, Some(CHUNK_SIZE as usize))
             .await
@@ -130,7 +135,10 @@ mod tests {
         let file_name = path.file_name().unwrap().to_str().unwrap();
 
         // produce the same file manifest
-        let store = Store::new(readdir).unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: readdir.to_string(),
+        }))
+        .unwrap();
         let file_manifest1 = store
             .file_manifest(file_name, None, Some(CHUNK_SIZE as usize))
             .await
@@ -155,7 +163,10 @@ mod tests {
         let readdir1 = path1.parent().unwrap().to_str().unwrap();
         let file_name1 = path1.file_name().unwrap().to_str().unwrap();
 
-        let store = Store::new(readdir1).unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: readdir1.to_string(),
+        }))
+        .unwrap();
         let bytes_vec = store
             .multipart_read(file_name1, None, Some(CHUNK_SIZE as usize))
             .await
@@ -168,7 +179,6 @@ mod tests {
 
         let (temp_file2, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
         let path2 = Path::new(&temp_path2);
-        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
         let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
         // produce different file manifest

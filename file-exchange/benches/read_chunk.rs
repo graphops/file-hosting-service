@@ -1,8 +1,10 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use file_exchange::manifest::store::Store;
-use file_exchange::test_util::simple_bundle;
+use file_exchange::{
+    config::{LocalDirectory, StorageMethod},
+    manifest::store::Store,
+};
 use rand::Rng;
 use std::{fs::File, ops::Range, path::PathBuf};
 
@@ -15,8 +17,12 @@ fn random_file_range(file_size: usize) -> Range<usize> {
 
 fn read_chunk_benchmark(c: &mut Criterion) {
     let file_path = black_box(PathBuf::from("../example-file/0017234600.dbin.zst"));
-    let store = black_box(Store::new("../example-file").unwrap());
-    let _bundle = black_box(simple_bundle());
+    let store = black_box(
+        Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: "../example-file".to_string(),
+        }))
+        .unwrap(),
+    );
     let file_name = black_box("0017234600.dbin.zst");
     let file = black_box(File::open(file_path).unwrap());
     let file_size: usize = black_box(

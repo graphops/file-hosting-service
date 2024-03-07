@@ -122,7 +122,6 @@ impl StatusQuery {
             .await
             .values()
             .map(|b| b.bundle.clone())
-            // .cloned()
             .collect();
         let file_metas: Vec<FileManifestMeta> = bundles
             .iter()
@@ -157,7 +156,6 @@ impl StatusQuery {
             .await
             .values()
             .map(|b| b.bundle.clone())
-            // .cloned()
             .collect();
         let file_metas: Vec<FileManifestMeta> = bundles
             .iter()

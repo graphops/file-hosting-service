@@ -99,12 +99,12 @@ impl Default for StorageMethod {
 pub struct LocalDirectory {
     #[clap(
         long,
-        value_name = "output_dir",
-        env = "OUTPUT_DIR",
+        value_name = "main_dir",
+        env = "MAIN_DIR",
         default_value = "./example-download",
         help = "Output directory for the downloaded files"
     )]
-    pub output_dir: String,
+    pub main_dir: String,
 }
 
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]

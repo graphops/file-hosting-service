@@ -125,19 +125,11 @@ impl StatusMutation {
             Ok(s) => s,
             Err(e) => return Err(anyhow::anyhow!("Invalid input: {}", e.to_string())),
         };
-        let bundle = match read_bundle(
-            &ctx.data_unchecked::<AdminContext>().state.client,
-            &hash,
-            // loc,
-        )
-        .await
-        {
-            Ok(s) => s,
-            Err(e) => return Err(anyhow::anyhow!(e.to_string(),)),
-        };
-        // if let Err(e) = bundle.validate_local_bundle() {
-        //     return Err(anyhow::anyhow!(e.to_string(),));
-        // };
+        let bundle =
+            match read_bundle(&ctx.data_unchecked::<AdminContext>().state.client, &hash).await {
+                Ok(s) => s,
+                Err(e) => return Err(anyhow::anyhow!(e.to_string(),)),
+            };
 
         ctx.data_unchecked::<AdminContext>()
             .state
@@ -186,14 +178,9 @@ impl StatusMutation {
                     let (hash, loc) = validate_bundle_and_location(deployment, &location)
                         .map_err(|e| anyhow::anyhow!("Invalid input: {}", e))?;
 
-                    // let bundle = read_bundle(&client.clone(), &hash, loc)
                     let bundle = read_bundle(&client.clone(), &hash)
                         .await
                         .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-                    // bundle
-                    //     .validate_local_bundle()
-                    //     .map_err(|e| anyhow::anyhow!("{}", e))?;
 
                     bundle_ref.clone().lock().await.insert(
                         bundle.ipfs_hash.clone(),
@@ -202,7 +189,6 @@ impl StatusMutation {
                             local_path: loc,
                         },
                     );
-                    // .insert(bundle.ipfs_hash.clone(), bundle.clone());
 
                     Ok::<_, anyhow::Error>(GraphQlBundle::from(bundle))
                 }

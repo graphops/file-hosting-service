@@ -5,13 +5,20 @@ use criterion::async_executor::FuturesExecutor;
 use criterion::{criterion_group, criterion_main};
 use object_store::path::Path;
 
-use file_exchange::manifest::{store::Store, LocalBundle};
 use file_exchange::test_util::simple_bundle;
+use file_exchange::{
+    config::{LocalDirectory, StorageMethod},
+    manifest::{store::Store, LocalBundle},
+};
 
 fn validate_local_bundle_benchmark(c: &mut Criterion) {
-    let store = black_box(Store::new("../example-file").unwrap());
+    let store = black_box(
+        Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: "../example-file".to_string(),
+        }))
+        .unwrap(),
+    );
     let bundle = black_box(simple_bundle());
-    let _file_name = black_box("0017234600.dbin.zst");
     let local_path = black_box(Path::from(""));
     let bundle = black_box(LocalBundle { bundle, local_path });
 

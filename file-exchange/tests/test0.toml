@@ -6,7 +6,7 @@ price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Full"
 [server.storage_method.LocalFiles]
-output_dir = "./../example-file"
+main_dir = "./../example-file"
 
 [common]
 [common.indexer]

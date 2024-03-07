@@ -68,13 +68,9 @@ pub struct OnChainSigner {
 
 impl Downloader {
     pub async fn new(ipfs_client: IpfsClient, args: DownloaderArgs) -> Self {
-        let bundle = read_bundle(
-            &ipfs_client,
-            &args.ipfs_hash,
-            // args.output_dir.clone().into(),
-        )
-        .await
-        .expect("Read bundle");
+        let bundle = read_bundle(&ipfs_client, &args.ipfs_hash)
+            .await
+            .expect("Read bundle");
 
         let payment = if let Some(token) = &args.free_query_auth_token {
             PaymentMethod::FreeQuery(token.clone())
@@ -119,16 +115,7 @@ impl Downloader {
             panic!("No payment wallet nor free query token provided");
         };
 
-        let store = match args.storage_method {
-            StorageMethod::LocalFiles(directory) => Store::new(&directory.output_dir)
-                .expect("Failed to creat store for local filesystem"),
-            StorageMethod::ObjectStorage(store_args) => {
-                fs::create_dir_all("tmp/".to_owned() + &store_args.bucket)
-                    .expect("Failed to create temporary directory at /tmp");
-                Store::new_with_object(&store_args)
-                    .expect("Failed to create store for remote object storage")
-            }
-        };
+        let store = Store::new(&args.storage_method).expect("Create store");
 
         Downloader {
             http_client: reqwest::Client::new(),
@@ -235,12 +222,12 @@ impl Downloader {
         let file = match &self.store.storage_method {
             StorageMethod::LocalFiles(directory) => {
                 let file = File::create(Path::new(
-                    &(directory.output_dir.clone() + "/" + &meta.meta_info.name),
+                    &(directory.main_dir.clone() + "/" + &meta.meta_info.name),
                 ))
                 .unwrap_or_else(|_| {
                     panic!(
                         "Cannot create file for writing the output at directory {}",
-                        &directory.output_dir
+                        &directory.main_dir
                     )
                 });
 
@@ -617,7 +604,6 @@ fn extract_base_url(query_endpoint: &str) -> Option<&str> {
 }
 
 async fn read_file_contents(file: &str) -> Result<Vec<u8>, Error> {
-    // let mut file = File::open(file.lock().await.metadata().).map_err(Error::FileIOError)?;
     let mut file = File::open(Path::new(file))
         .unwrap_or_else(|_| panic!("Cannot open file {} to transfer to object store", file));
     let mut contents = Vec::new();

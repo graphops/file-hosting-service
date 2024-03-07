@@ -5,9 +5,7 @@ pub mod file_hasher;
 pub mod file_reader;
 pub mod ipfs;
 pub mod manifest_fetcher;
-pub mod remote_object_store;
 pub mod store;
-// pub mod subfile_reader;
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +46,7 @@ pub struct FileManifest {
     pub chunk_hashes: Vec<String>,
 }
 
+// #[allow(dead_code)]
 // impl FileManifest {
 //     pub fn new(read_dir: &str, file_name: &str, chunk_size: u64) -> Result<FileManifest, Error> {
 //         let file_path = format_path(read_dir, file_name);
@@ -75,8 +74,6 @@ pub struct FileManifestMeta {
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct Bundle {
     pub ipfs_hash: String,
-    // #[graphql(skip)] // require admin for this field
-    // pub local_path: PathBuf,
     pub manifest: BundleManifest,
     /// IPFS hash, File manifest spec
     pub file_manifests: Vec<FileManifestMeta>,

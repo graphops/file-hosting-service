@@ -35,11 +35,11 @@ mod tests {
 
         // 2. Setup downloader
         let temp_dir = tempdir().unwrap();
-        let output_dir = temp_dir.path().to_path_buf();
+        let main_dir = temp_dir.path().to_path_buf();
 
         let downloader_args = DownloaderArgs {
             storage_method: file_exchange::config::StorageMethod::LocalFiles(LocalDirectory {
-                output_dir: output_dir.to_str().unwrap().to_string(),
+                main_dir: main_dir.to_str().unwrap().to_string(),
             }),
             ipfs_hash: target_bundle,
             indexer_endpoints: [

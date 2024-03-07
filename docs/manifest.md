@@ -58,7 +58,7 @@ erDiagram
     Client {
         String supfile_hash
         VecString server_endpoints
-        String output_dir
+        String main_dir
         OptionString free_query_auth_token
         u64 max_retry
     }

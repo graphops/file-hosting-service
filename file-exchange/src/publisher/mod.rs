@@ -1,4 +1,4 @@
-use crate::config::{PublisherArgs, StorageMethod};
+use crate::config::PublisherArgs;
 use crate::errors::Error;
 use crate::manifest::store::Store;
 use crate::manifest::{
@@ -7,7 +7,6 @@ use crate::manifest::{
 };
 use object_store::path::Path;
 use serde_yaml::to_string;
-use std::fs;
 
 pub struct ManifestPublisher {
     ipfs_client: IpfsClient,
@@ -17,16 +16,7 @@ pub struct ManifestPublisher {
 
 impl ManifestPublisher {
     pub fn new(ipfs_client: IpfsClient, config: PublisherArgs) -> Self {
-        let store = match &config.storage_method {
-            StorageMethod::LocalFiles(directory) => Store::new(&directory.output_dir)
-                .expect("Failed to creat store for local filesystem"),
-            StorageMethod::ObjectStorage(store_args) => {
-                fs::create_dir_all("tmp/".to_owned() + &store_args.bucket)
-                    .expect("Failed to create temporary directory at /tmp");
-                Store::new_with_object(store_args)
-                    .expect("Failed to create store for remote object storage")
-            }
-        };
+        let store = Store::new(&config.storage_method).expect("Create store");
 
         ManifestPublisher {
             ipfs_client,
@@ -154,14 +144,14 @@ impl ManifestPublisher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::LocalDirectory;
+    use crate::config::{LocalDirectory, StorageMethod};
 
     #[tokio::test]
     async fn test_write_file_manifest() {
         let client = IpfsClient::localhost();
         let args = PublisherArgs {
             storage_method: StorageMethod::LocalFiles(LocalDirectory {
-                output_dir: String::from("../example-file"),
+                main_dir: String::from("../example-file"),
             }),
             chunk_size: 1048576,
             ..Default::default()
@@ -170,7 +160,6 @@ mod tests {
         let name = "example-create-17686085.dbin";
 
         // Hash and publish a single file
-        // let file_manifest_yaml = publisher.write_file_manifest(name).unwrap();
         let file_manifest_yaml = publisher.write_file_manifest(name, None).await;
 
         assert!(file_manifest_yaml.is_ok());
@@ -182,13 +171,12 @@ mod tests {
         let client = IpfsClient::localhost();
         let args = PublisherArgs {
             storage_method: StorageMethod::LocalFiles(LocalDirectory {
-                output_dir: String::from("../example-file"),
+                main_dir: String::from("../example-file"),
             }),
             ..Default::default()
         };
         let builder = ManifestPublisher::new(client, args);
         let name = "example-create-17686085.dbin";
-        // let chunks1 = file_manifest(Path::new(&path))?;
 
         // Hash and publish a single file
         let hash = builder

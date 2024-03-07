@@ -1,7 +1,8 @@
 use bytes::Bytes;
 use object_store::local::LocalFileSystem;
-use object_store::{path::Path, ObjectStore};
+use object_store::{parse_url_opts, path::Path, ObjectStore};
 use object_store::{ObjectMeta, PutResult};
+use reqwest::Url;
 use tokio::io::AsyncWriteExt;
 
 use std::fs::{self, File};
@@ -10,11 +11,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::config::{LocalDirectory, ObjectStoreArgs, StorageMethod};
+use crate::config::{ObjectStoreArgs, StorageMethod};
 use crate::manifest::{verify_chunk, Error, FileManifestMeta, LocalBundle};
 
 use super::file_hasher::hash_chunk;
-use super::remote_object_store::s3_store;
 use super::FileManifest;
 
 #[derive(Debug, Clone)]
@@ -26,9 +26,29 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(output_dir: &str) -> Result<Self, Error> {
-        let path =
-            PathBuf::from_str(output_dir).map_err(|e| Error::InvalidConfig(e.to_string()))?;
+    /// Create a new store
+    pub fn new(storage_args: &StorageMethod) -> Result<Self, Error> {
+        let store = match &storage_args {
+            StorageMethod::LocalFiles(directory) => Store::local_store(&directory.main_dir),
+            StorageMethod::ObjectStorage(store_args) => {
+                fs::create_dir_all("tmp/".to_owned() + &store_args.bucket)
+                    .expect("Failed to create temporary directory at /tmp");
+                Store::s3_store(store_args)
+            }
+        }?;
+
+        Ok(Store {
+            store,
+            storage_method: storage_args.clone(),
+            //TODO: Make configurable
+            read_concurrency: 16,
+            write_concurrency: 8,
+        })
+    }
+
+    /// Create a local store at the directory
+    pub fn local_store(dir: &str) -> Result<Arc<Box<dyn ObjectStore>>, Error> {
+        let path = PathBuf::from_str(dir).map_err(|e| Error::InvalidConfig(e.to_string()))?;
         if !path.exists() || !path.is_dir() {
             tracing::debug!("Store path doesn't exist or is not a directory, creating a directory at configured path");
             fs::create_dir_all(&path).map_err(|e| {
@@ -39,36 +59,31 @@ impl Store {
             })?
         }
         // As long as the provided path is correct, the following should never panic
-        Ok(Store {
-            store: Arc::new(Box::new(
-                LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?,
-            )),
-            storage_method: StorageMethod::LocalFiles(LocalDirectory {
-                output_dir: output_dir.to_string(),
-            }),
-            //TODO: Make configurable
-            read_concurrency: 16,
-            write_concurrency: 8,
-        })
+        Ok(Arc::new(Box::new(
+            LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?,
+        )))
     }
 
-    pub fn new_with_object(store_config: &ObjectStoreArgs) -> Result<Self, Error> {
-        let (store, _) = s3_store(
-            &("s3://".to_string() + &store_config.bucket),
-            &store_config.region,
-            &store_config.endpoint,
-            &store_config.bucket,
-            &store_config.access_key_id,
-            &store_config.secret_key,
-        )?;
+    /// Create a store connected to user's S3 bucket
+    pub fn s3_store(store_config: &ObjectStoreArgs) -> Result<Arc<Box<dyn ObjectStore>>, Error> {
+        let endpoint = "s3://".to_string() + &store_config.bucket;
+        let url = Url::parse(&endpoint).unwrap();
         // As long as the provided path is correct, the following should never panic
-        Ok(Store {
-            store,
-            storage_method: StorageMethod::ObjectStorage(store_config.clone()),
-            read_concurrency: 16,
-            write_concurrency: 8,
-        })
+        let (store, _): (Arc<Box<dyn ObjectStore>>, Path) = parse_url_opts(
+            &url,
+            vec![
+                ("region", &store_config.region),
+                ("endpoint", &store_config.endpoint),
+                ("bucket", &store_config.bucket),
+                ("aws_access_key_id", &store_config.access_key_id),
+                ("aws_secret_access_key", &store_config.secret_key),
+            ],
+        )
+        .map_err(Error::ObjectStoreError)
+        .map(|(s, p)| (Arc::new(s), p))?;
+        Ok(store)
     }
+
     /// List out all files in the path, optionally filtered by a prefix to the filesystem
     pub async fn list(&self, prefix: Option<&Path>) -> Result<Vec<ObjectMeta>, Error> {
         Ok(self
@@ -306,11 +321,14 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use rand::{distributions::DistString, thread_rng};
+    use std::env;
 
     use crate::{
+        config::LocalDirectory,
         manifest::store::*,
-        test_util::{create_random_temp_file, simple_bundle, CHUNK_SIZE},
+        test_util::{create_random_temp_file, random_bytes, simple_bundle, CHUNK_SIZE},
     };
+    use object_store::path::Path;
 
     #[tokio::test]
     async fn test_local_list() {
@@ -321,8 +339,11 @@ mod tests {
         let readdir = path.parent().unwrap().to_str().unwrap();
         let file_name = path.file_name().unwrap().to_str().unwrap();
 
-        let object_store = Store::new(readdir).unwrap();
-        let res = object_store.list(None).await.unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: readdir.to_string(),
+        }))
+        .unwrap();
+        let res = store.list(None).await.unwrap();
         let found_obj = res
             .iter()
             .find(|obj| obj.location.to_string() == file_name)
@@ -344,7 +365,10 @@ mod tests {
         let directory = directory_pathbuf.to_str().unwrap();
 
         // Write with adjusted concurrency
-        let object_store = Store::new(directory).unwrap();
+        let object_store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: directory.to_string(),
+        }))
+        .unwrap();
         let new_file_name = "tempfile";
         let test_bytes = test_string.as_bytes();
         let write_res = object_store
@@ -361,7 +385,10 @@ mod tests {
         assert!(flattened_vec.as_slice() == test_bytes);
 
         // Write with fixed concurrency
-        let object_store = Store::new(directory).unwrap();
+        let object_store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: directory.to_string(),
+        }))
+        .unwrap();
         let new_file_name = "tempfile";
         let test_bytes = test_string.as_bytes();
         let write_res = object_store
@@ -386,7 +413,10 @@ mod tests {
         let main_directory = "../example-file";
         let file_prefix = Path::from("");
         let file_name = "example-create-17686085.dbin";
-        let store = Store::new(main_directory).unwrap();
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: main_directory.to_string(),
+        }))
+        .unwrap();
         let metadata = store.find_object(file_name, Some(&file_prefix)).await;
 
         println!("store: {store:?}, metadata: {metadata:?}");
@@ -395,7 +425,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_and_validate_file() {
-        let store = Store::new("../example-file").unwrap();
+        let main_directory = "../example-file";
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: main_directory.to_string(),
+        }))
+        .unwrap();
         let mut bundle = simple_bundle();
         let file_meta = bundle.file_manifests.first().unwrap();
         let path = Path::from("");
@@ -416,7 +450,11 @@ mod tests {
     #[tokio::test]
     async fn test_validate_local_bundle() {
         let mut bundle = simple_bundle();
-        let store = Store::new("../example-file").unwrap();
+        let main_directory = "../example-file";
+        let store = Store::new(&StorageMethod::LocalFiles(LocalDirectory {
+            main_dir: main_directory.to_string(),
+        }))
+        .unwrap();
         let _local_path = Path::from("");
         let local = LocalBundle {
             bundle: bundle.clone(),
@@ -438,5 +476,67 @@ mod tests {
         };
         let res = store.validate_local_bundle(&local).await;
         assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_list_file() {
+        let region = env::var("REGION").expect("Region env var");
+        let bucket = env::var("BUCKET").expect("Bucket env var");
+        let access_key_id = env::var("ACCESS_KEY_ID").expect("Access key id env var");
+        let secret_key = env::var("SECRET_ACCESS_KEY").expect("Secret access key env var");
+        let _endpoint = "s3://".to_string() + &bucket;
+        let s3_endpoint = env::var("S3_URL").expect("S3 URL env var");
+
+        let store_config = ObjectStoreArgs {
+            region,
+            bucket,
+            access_key_id,
+            secret_key,
+            endpoint: s3_endpoint,
+        };
+
+        let store = Store::new(&StorageMethod::ObjectStorage(store_config)).unwrap();
+
+        let res = store.list(None).await;
+        println!("{:#?}", res);
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_write_file() {
+        let file_size = CHUNK_SIZE * 25;
+        let bytes = random_bytes(file_size.try_into().unwrap());
+        let region = env::var("REGION").expect("Region env var");
+        let bucket = env::var("BUCKET").expect("Bucket env var");
+        let access_key_id = env::var("ACCESS_KEY_ID").expect("Access key id env var");
+        let secret_key = env::var("SECRET_ACCESS_KEY").expect("Secret access key env var");
+        let _endpoint = "s3://".to_string() + &bucket;
+        let s3_endpoint = env::var("S3_URL").expect("S3 URL env var");
+
+        let store_config = ObjectStoreArgs {
+            region,
+            bucket,
+            access_key_id,
+            secret_key,
+            endpoint: s3_endpoint,
+        };
+
+        let _main_directory = "../example-file";
+        let store = Store::new(&StorageMethod::ObjectStorage(store_config)).unwrap();
+
+        let location = "test_upload_file.txt";
+        let res = store.write(location, &bytes).await;
+        assert!(res.is_ok());
+        let res = store.delete(location).await;
+        assert!(res.is_ok());
+        let bytes = random_bytes(file_size.try_into().unwrap());
+        let res = store.multipart_write(location, &bytes, None).await;
+        assert!(res.is_ok());
+        let res = store.delete(location).await;
+        assert!(res.is_ok());
+        let res = store.list(None).await;
+        assert!(res.is_ok());
     }
 }

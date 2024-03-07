@@ -50,7 +50,6 @@ pub async fn file_service(
                         .unwrap())
                 }
             };
-            // file_path.push(file_manifest.meta_info.name.clone());
             // Parse the range header to get the start and end bytes
             match req.get("content-range") {
                 Some(r) => {
