@@ -3303,6 +3303,7 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 [[package]]
 name = "indexer-common"
 version = "0.1.0"
+source = "git+https://github.com/graphprotocol/indexer-rs?rev=8c97d04#8c97d0460d61d81fe8c73b10e0759c4c33cf69f6"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",

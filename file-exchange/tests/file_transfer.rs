@@ -5,7 +5,9 @@ mod tests {
     use tokio::fs;
 
     use file_exchange::{
-        config::DownloaderArgs, download_client::Downloader, manifest::ipfs::IpfsClient,
+        config::{DownloaderArgs, LocalDirectory},
+        download_client::Downloader,
+        manifest::ipfs::IpfsClient,
         test_util::server_ready,
     };
 
@@ -36,7 +38,9 @@ mod tests {
         let output_dir = temp_dir.path().to_path_buf();
 
         let downloader_args = DownloaderArgs {
-            output_dir: output_dir.to_str().unwrap().to_string(),
+            storage_method: file_exchange::config::StorageMethod::LocalFiles(LocalDirectory {
+                output_dir: output_dir.to_str().unwrap().to_string(),
+            }),
             ipfs_hash: target_bundle,
             indexer_endpoints: [
                 "http://localhost:5679".to_string(),

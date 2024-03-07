@@ -1,10 +1,12 @@
 [server]
-bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:./../example-file/"]
+bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:"]
 admin_auth_token = "slayyy"
 admin_host_and_port = "0.0.0.0:5664"
 price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Full"
+[server.storage_method.LocalFiles]
+output_dir = "./../example-file"
 
 [common]
 [common.indexer]
