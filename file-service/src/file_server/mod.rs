@@ -5,6 +5,7 @@ use axum::{
 };
 
 use sqlx::PgPool;
+use std::fs;
 use std::sync::Arc;
 use std::{collections::HashMap, string::FromUtf8Error};
 use thegraph::types::{Attestation, DeploymentId};
@@ -14,6 +15,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::{config::Config, database};
+use file_exchange::config::StorageMethod;
 use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, LocalBundle,
 };
@@ -95,6 +97,17 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         "Validated bundle entries"
     );
 
+    let store = match &config.server.storage_method {
+        StorageMethod::LocalFiles(directory) => {
+            Store::new(&directory.output_dir).expect("Failed to creat store for local filesystem")
+        }
+        StorageMethod::ObjectStorage(store_args) => {
+            fs::create_dir_all("./tmp").expect("Failed to create temporary directory at /tmp");
+            Store::new_with_object(store_args)
+                .expect("Failed to create store for remote object storage")
+        }
+    };
+
     let admin_auth_token = config
         .server
         .admin_auth_token
@@ -114,7 +127,7 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         database: database::connect(&config.common.database.postgres_url).await,
         cost_schema: cost::build_schema().await,
         status_schema: status::build_schema().await,
-        store: Store::new(&config.server.main_directory).expect("Storage system"),
+        store,
     };
 
     // Fetch the file using IPFS client

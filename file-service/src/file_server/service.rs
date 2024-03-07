@@ -36,8 +36,6 @@ pub async fn file_service(
 
     match req.get("file-hash") {
         Some(hash) if hash.as_str().is_some() => {
-            // let mut file_path = requested_bundle.local_path.clone();
-            let _file_path = context.state.config.server.main_directory.clone();
             let file_manifest = match local_bundle
                 .bundle
                 .file_manifests

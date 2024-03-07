@@ -84,73 +84,55 @@ pub async fn multipart_write(
 }
 
 #[cfg(test)]
-
 mod tests {
-
-    use crate::test_util::{random_bytes, CHUNK_SIZE};
-
     use super::*;
+    use crate::test_util::{random_bytes, CHUNK_SIZE};
+    use std::env;
 
     #[tokio::test]
-
-    // #[ignore]
-
+    #[ignore]
     async fn test_list_file() {
-        let region = "";
-
-        let bucket = "";
-
-        let access_key_id = "";
-
-        let secret_key = "";
-
-        let endpoint = "s3://";
-
-        let s3_endpoint = "";
+        let region = env::var("REGION").expect("Region env var");
+        let bucket = env::var("BUCKET").expect("Bucket env var");
+        let access_key_id = env::var("ACCESS_KEY_ID").expect("Access key id env var");
+        let secret_key = env::var("SECRET_ACCESS_KEY").expect("Secret access key env var");
+        let endpoint = "s3://".to_string() + &bucket;
+        let s3_endpoint = env::var("S3_URL").expect("S3 URL env var");
 
         let (store, _) = s3_store(
-            endpoint,
-            region,
-            s3_endpoint,
-            bucket,
-            access_key_id,
-            secret_key,
+            &endpoint,
+            &region,
+            &s3_endpoint,
+            &bucket,
+            &access_key_id,
+            &secret_key,
         )
         .unwrap();
 
-        println!("test list file: {store:?}");
-
         let res = list(store).await;
-
         println!("{:#?}", res);
-
         assert!(res.is_ok());
     }
 
     #[tokio::test]
-
+    #[ignore]
     async fn test_write_file() {
         let file_size = CHUNK_SIZE * 25;
         let bytes = random_bytes(file_size.try_into().unwrap());
-        let region = "";
-
-        let bucket = "";
-
-        let access_key_id = "";
-
-        let secret_key = "";
-
-        let endpoint = "s3://";
-
-        let s3_endpoint = "";
+        let region = env::var("REGION").expect("Region env var");
+        let bucket = env::var("BUCKET").expect("Bucket env var");
+        let access_key_id = env::var("ACCESS_KEY_ID").expect("Access key id env var");
+        let secret_key = env::var("SECRET_ACCESS_KEY").expect("Secret access key env var");
+        let endpoint = "s3://".to_string() + &bucket;
+        let s3_endpoint = env::var("S3_URL").expect("S3 URL env var");
 
         let (store, _) = s3_store(
-            endpoint,
-            region,
-            s3_endpoint,
-            bucket,
-            access_key_id,
-            secret_key,
+            &endpoint,
+            &region,
+            &s3_endpoint,
+            &bucket,
+            &access_key_id,
+            &secret_key,
         )
         .unwrap();
 

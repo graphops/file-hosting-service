@@ -1,9 +1,6 @@
 use bytes::Bytes;
 
-use reqwest::{
-    header::{HeaderName, CONTENT_RANGE},
-    Client,
-};
+use reqwest::{header::HeaderName, Client};
 
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
@@ -114,7 +111,7 @@ pub async fn request_chunk(
         .map_err(Error::Request)?;
 
     // Check if the server supports range requests
-    if response.status().is_success() && response.headers().contains_key(CONTENT_RANGE) {
+    if response.status().is_success() {
         Ok(response.bytes().await.map_err(Error::Request)?)
     } else {
         let err_msg = format!(

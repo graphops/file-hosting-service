@@ -1,8 +1,7 @@
 use bytes::Bytes;
+use object_store::local::LocalFileSystem;
 use object_store::{path::Path, ObjectStore};
 use object_store::{ObjectMeta, PutResult};
-
-use object_store::local::LocalFileSystem;
 use tokio::io::AsyncWriteExt;
 
 use std::fs::{self, File};
@@ -11,21 +10,25 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::config::{LocalDirectory, ObjectStoreArgs, StorageMethod};
 use crate::manifest::{verify_chunk, Error, FileManifestMeta, LocalBundle};
 
 use super::file_hasher::hash_chunk;
+use super::remote_object_store::s3_store;
 use super::FileManifest;
 
 #[derive(Debug, Clone)]
 pub struct Store {
-    local_file_system: Arc<Box<dyn ObjectStore>>,
-    read_concurrency: usize,
-    write_concurrency: usize,
+    store: Arc<Box<dyn ObjectStore>>,
+    pub storage_method: StorageMethod,
+    pub read_concurrency: usize,
+    pub write_concurrency: usize,
 }
 
 impl Store {
-    pub fn new(path: &str) -> Result<Self, Error> {
-        let path = PathBuf::from_str(path).map_err(|e| Error::InvalidConfig(e.to_string()))?;
+    pub fn new(output_dir: &str) -> Result<Self, Error> {
+        let path =
+            PathBuf::from_str(output_dir).map_err(|e| Error::InvalidConfig(e.to_string()))?;
         if !path.exists() || !path.is_dir() {
             tracing::debug!("Store path doesn't exist or is not a directory, creating a directory at configured path");
             fs::create_dir_all(&path).map_err(|e| {
@@ -37,19 +40,39 @@ impl Store {
         }
         // As long as the provided path is correct, the following should never panic
         Ok(Store {
-            local_file_system: Arc::new(Box::new(
+            store: Arc::new(Box::new(
                 LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?,
             )),
+            storage_method: StorageMethod::LocalFiles(LocalDirectory {
+                output_dir: output_dir.to_string(),
+            }),
             //TODO: Make configurable
             read_concurrency: 16,
             write_concurrency: 8,
         })
     }
 
+    pub fn new_with_object(store_config: &ObjectStoreArgs) -> Result<Self, Error> {
+        let (store, _) = s3_store(
+            &("s3://".to_string() + &store_config.bucket),
+            &store_config.region,
+            &store_config.endpoint,
+            &store_config.bucket,
+            &store_config.access_key_id,
+            &store_config.secret_key,
+        )?;
+        // As long as the provided path is correct, the following should never panic
+        Ok(Store {
+            store,
+            storage_method: StorageMethod::ObjectStorage(store_config.clone()),
+            read_concurrency: 16,
+            write_concurrency: 8,
+        })
+    }
     /// List out all files in the path, optionally filtered by a prefix to the filesystem
     pub async fn list(&self, prefix: Option<&Path>) -> Result<Vec<ObjectMeta>, Error> {
         Ok(self
-            .local_file_system
+            .store
             .list_with_delimiter(prefix)
             .await
             .map_err(Error::ObjectStoreError)?
@@ -67,20 +90,14 @@ impl Store {
 
     pub async fn range_read(&self, file_name: &str, range: &Range<usize>) -> Result<Bytes, Error> {
         Ok(self
-            .local_file_system
+            .store
             .get_range(&Path::from(file_name), range.to_owned())
             .await
             .unwrap())
     }
 
     pub async fn read(&self, location: &str) -> Result<File, Error> {
-        let result = match self
-            .local_file_system
-            .get(&Path::from(location))
-            .await
-            .unwrap()
-            .payload
-        {
+        let result = match self.store.get(&Path::from(location)).await.unwrap().payload {
             object_store::GetResultPayload::File(f, _p) => f,
             object_store::GetResultPayload::Stream(_) => {
                 return Err(Error::DataUnavailable(
@@ -125,7 +142,7 @@ impl Store {
             Path::from(file_name)
         };
         let result = self
-            .local_file_system
+            .store
             .get_ranges(&location, ranges.as_slice())
             .await
             .unwrap();
@@ -141,7 +158,7 @@ impl Store {
         chunk_size: Option<usize>,
     ) -> Result<String, Error> {
         let (write_id, mut write) = self
-            .local_file_system
+            .store
             .put_multipart(&Path::from(location))
             .await
             .unwrap();
@@ -167,7 +184,7 @@ impl Store {
 
     /// Single write at a location path
     pub async fn write(&self, location: &str, bytes: &[u8]) -> Result<PutResult, Error> {
-        self.local_file_system
+        self.store
             .put(&Path::from(location), bytes.to_vec().into())
             .await
             .map_err(Error::ObjectStoreError)
@@ -175,7 +192,7 @@ impl Store {
 
     /// Delete the file if exists
     pub async fn delete(&self, location: &str) -> Result<(), Error> {
-        self.local_file_system
+        self.store
             .delete(&Path::from(location))
             .await
             .map_err(Error::ObjectStoreError)

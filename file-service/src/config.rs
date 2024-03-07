@@ -3,6 +3,7 @@ use figment::{
     providers::{Format, Toml},
     Figment,
 };
+use file_exchange::config::StorageMethod;
 use indexer_common::indexer_service::http::IndexerServiceConfig;
 use serde::{Deserialize, Serialize};
 use std::{fmt, net::SocketAddr, path::PathBuf};
@@ -61,14 +62,8 @@ pub struct ServerArgs {
         help = "IPFS gateway to interact with"
     )]
     pub ipfs_gateway: String,
-    #[arg(
-        long,
-        value_name = "main_directory",
-        default_value = "../example-file",
-        env = "MAIN_DIRECTORY",
-        help = "Main (common) directory of the files being served"
-    )]
-    pub main_directory: String,
+    #[clap(subcommand)]
+    pub storage_method: StorageMethod,
     #[arg(
         long,
         value_name = "LOG_FORMAT",

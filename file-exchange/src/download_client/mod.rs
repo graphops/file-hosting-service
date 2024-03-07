@@ -9,6 +9,8 @@ use secp256k1::SecretKey;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
+use std::fs;
+use std::io::Read;
 use std::ops::Sub;
 use std::path::Path;
 use std::str::FromStr;
@@ -17,12 +19,15 @@ use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
 use crate::{
-    config::{DownloaderArgs, OnChainArgs},
+    config::{DownloaderArgs, OnChainArgs, StorageMethod},
     discover::{Finder, ServiceEndpoint},
     download_client::range_request::download_chunk_and_write_to_file,
     errors::Error,
     graphql::{allocation_id, escrow_query::escrow_balance},
-    manifest::{ipfs::IpfsClient, manifest_fetcher::read_bundle, Bundle, FileManifestMeta},
+    manifest::{
+        ipfs::IpfsClient, local_file_system::Store, manifest_fetcher::read_bundle, Bundle,
+        FileManifestMeta,
+    },
     transaction_manager::TransactionManager,
     util::build_wallet,
 };
@@ -38,7 +43,6 @@ pub struct Downloader {
     bundle: Bundle,
     _gateway_url: Option<String>,
     static_endpoints: Vec<String>,
-    output_dir: String,
     indexer_urls: Arc<StdMutex<Vec<ServiceEndpoint>>>,
     indexer_blocklist: Arc<StdMutex<HashSet<String>>>,
     // key is the file manifest identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
@@ -48,6 +52,7 @@ pub struct Downloader {
     max_auto_deposit: f64,
     bundle_finder: Finder,
     payment: PaymentMethod,
+    store: Store,
 }
 
 /// A downloader can either provide a free query auth token or receipt signer
@@ -115,13 +120,23 @@ impl Downloader {
             panic!("No payment wallet nor free query token provided");
         };
 
+        let store = match args.storage_method {
+            StorageMethod::LocalFiles(directory) => Store::new(&directory.output_dir)
+                .expect("Failed to creat store for local filesystem"),
+            StorageMethod::ObjectStorage(store_args) => {
+                fs::create_dir_all("tmp/".to_owned() + &store_args.bucket)
+                    .expect("Failed to create temporary directory at /tmp");
+                Store::new_with_object(&store_args)
+                    .expect("Failed to create store for remote object storage")
+            }
+        };
+
         Downloader {
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
             bundle,
             _gateway_url: args.gateway_url,
             static_endpoints: args.indexer_endpoints,
-            output_dir: args.output_dir,
             indexer_urls: Arc::new(StdMutex::new(Vec::new())),
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
             target_chunks: Arc::new(StdMutex::new(HashMap::new())),
@@ -130,6 +145,7 @@ impl Downloader {
             max_auto_deposit: args.max_auto_deposit,
             bundle_finder: Finder::new(ipfs_client),
             payment,
+            store,
         }
     }
 
@@ -214,17 +230,37 @@ impl Downloader {
             "Download file manifest"
         );
 
+        // If storage method is the local file system, directly write the ranges
+        // If remote object storage, first write ranges to a tmp file to complete the object
         // Open the output file
-        let file = File::create(Path::new(
-            &(self.output_dir.clone() + "/" + &meta.meta_info.name),
-        ))
-        .unwrap_or_else(|_| {
-            panic!(
-                "Cannot create file for writing the output at directory {}",
-                &self.output_dir
-            )
-        });
-        let file = Arc::new(Mutex::new(file));
+        let file = match &self.store.storage_method {
+            StorageMethod::LocalFiles(directory) => {
+                let file = File::create(Path::new(
+                    &(directory.output_dir.clone() + "/" + &meta.meta_info.name),
+                ))
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Cannot create file for writing the output at directory {}",
+                        &directory.output_dir
+                    )
+                });
+
+                Arc::new(Mutex::new(file))
+            }
+            StorageMethod::ObjectStorage(store) => {
+                let file = File::create(Path::new(
+                    &("tmp/".to_owned() + &store.bucket + "/" + &meta.meta_info.name),
+                ))
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Cannot create file for writing the output at tmp/{}",
+                        &store.bucket.clone()
+                    )
+                });
+                tracing::debug!("Created tmp directory");
+                Arc::new(Mutex::new(file))
+            }
+        };
 
         while !self.remaining_chunks(&meta.meta_info.hash).is_empty() {
             // Wait for all chunk tasks to complete and collect the results
@@ -291,6 +327,18 @@ impl Downloader {
             file_info = tracing::field::debug(&meta.meta_info),
             "File finished"
         );
+        // If remote storage is configured, write to remote store and clean temp
+        if let StorageMethod::ObjectStorage(store) = &self.store.storage_method {
+            let file_path = &("tmp/".to_owned() + &store.bucket + "/" + &meta.meta_info.name);
+            let bytes = read_file_contents(file_path).await?;
+            let write_id = self
+                .store
+                .multipart_write(&meta.meta_info.name, &bytes, None)
+                .await;
+
+            tracing::debug!("Wrote with id {write_id:?}; delete tmp file");
+            fs::remove_file(file_path).map_err(Error::FileIOError)?;
+        };
         Ok(())
     }
 
@@ -567,4 +615,14 @@ fn extract_base_url(query_endpoint: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+async fn read_file_contents(file: &str) -> Result<Vec<u8>, Error> {
+    // let mut file = File::open(file.lock().await.metadata().).map_err(Error::FileIOError)?;
+    let mut file = File::open(Path::new(file))
+        .unwrap_or_else(|_| panic!("Cannot open file {} to transfer to object store", file));
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents)
+        .map_err(Error::FileIOError)?;
+    Ok(contents)
 }
