@@ -1,12 +1,12 @@
 [server]
-bundles = [
+initial_bundles = [
     "QmVPPWWaraEvoc4LCrYXtMbL13WPNbnuXV2yo7W8zexFGq:",
     "QmeD3dRVV6Gs84TRwiNj3tLt9mBEMVqy3GoWm7WN8oDzGz:",
     "QmTSwj1BGkkmVSnhw6uEGkcxGZvP5nq4pDhzHjwJvsQC2Z:"
 ]
 admin_auth_token = "kueen"
 admin_host_and_port = "0.0.0.0:5665"
-price_per_byte = 1
+default_price_per_byte = 1
 ipfs_gateway = "https://ipfs.network.thegraph.com"
 log_format = "Pretty"
 [server.storage_method.LocalFiles]

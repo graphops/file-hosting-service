@@ -91,7 +91,7 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
     } else {
         IpfsClient::localhost()
     };
-    let bundle_entries = validate_bundle_entries(config.server.bundles.clone())?;
+    let bundle_entries = validate_bundle_entries(config.server.initial_bundles.clone())?;
     tracing::debug!(
         entries = tracing::field::debug(&bundle_entries),
         "Validated bundle entries"
