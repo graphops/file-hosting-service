@@ -1,7 +1,7 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use file_exchange::{manifest::local_file_system::Store, test_util::CHUNK_SIZE};
+use file_exchange::{manifest::store::Store, test_util::CHUNK_SIZE};
 
 fn new_file_manifest_benchmark_object_store(c: &mut Criterion) {
     let store = black_box(Store::new("../example-file").unwrap());

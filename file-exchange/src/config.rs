@@ -303,13 +303,8 @@ pub struct PublisherArgs {
     )]
     pub yaml_store: String,
 
-    #[arg(
-        long,
-        value_name = "READ_DIR",
-        env = "READ_DIR",
-        help = "Path to the file for publishing (perhaps change to a regex or a vec later)"
-    )]
-    pub read_dir: String,
+    #[clap(subcommand)]
+    pub storage_method: StorageMethod,
 
     #[arg(
         long,

@@ -308,7 +308,7 @@ mod tests {
     use rand::{distributions::DistString, thread_rng};
 
     use crate::{
-        manifest::local_file_system::*,
+        manifest::store::*,
         test_util::{create_random_temp_file, simple_bundle, CHUNK_SIZE},
     };
 

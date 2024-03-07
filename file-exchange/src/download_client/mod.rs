@@ -25,8 +25,7 @@ use crate::{
     errors::Error,
     graphql::{allocation_id, escrow_query::escrow_balance},
     manifest::{
-        ipfs::IpfsClient, local_file_system::Store, manifest_fetcher::read_bundle, Bundle,
-        FileManifestMeta,
+        ipfs::IpfsClient, manifest_fetcher::read_bundle, store::Store, Bundle, FileManifestMeta,
     },
     transaction_manager::TransactionManager,
     util::build_wallet,

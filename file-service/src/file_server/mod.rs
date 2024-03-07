@@ -20,7 +20,7 @@ use file_exchange::manifest::{
     ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, LocalBundle,
 };
 use file_exchange::util::public_key;
-use file_exchange::{errors::Error, manifest::local_file_system::Store};
+use file_exchange::{errors::Error, manifest::store::Store};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;

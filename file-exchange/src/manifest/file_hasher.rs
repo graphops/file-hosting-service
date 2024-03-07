@@ -49,7 +49,7 @@ pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::manifest::local_file_system::Store;
+    use crate::manifest::store::Store;
     use crate::test_util::*;
     use std::path::Path;
 

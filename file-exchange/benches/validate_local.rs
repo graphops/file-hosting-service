@@ -5,7 +5,7 @@ use criterion::async_executor::FuturesExecutor;
 use criterion::{criterion_group, criterion_main};
 use object_store::path::Path;
 
-use file_exchange::manifest::{local_file_system::Store, LocalBundle};
+use file_exchange::manifest::{store::Store, LocalBundle};
 use file_exchange::test_util::simple_bundle;
 
 fn validate_local_bundle_benchmark(c: &mut Criterion) {

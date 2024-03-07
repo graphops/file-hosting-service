@@ -4,9 +4,9 @@ use object_store::path::Path;
 pub mod file_hasher;
 pub mod file_reader;
 pub mod ipfs;
-pub mod local_file_system;
 pub mod manifest_fetcher;
 pub mod remote_object_store;
+pub mod store;
 // pub mod subfile_reader;
 
 use serde::{Deserialize, Serialize};

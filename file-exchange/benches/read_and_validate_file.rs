@@ -1,7 +1,7 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use file_exchange::manifest::local_file_system::Store;
+use file_exchange::manifest::store::Store;
 use file_exchange::test_util::simple_bundle;
 use object_store::path::Path;
 

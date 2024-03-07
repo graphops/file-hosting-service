@@ -1,4 +1,4 @@
-use file_exchange::manifest::local_file_system::Store;
+use file_exchange::manifest::store::Store;
 // #![cfg(feature = "acceptor")]
 use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE};
 use hyper::{Body, Response, StatusCode};

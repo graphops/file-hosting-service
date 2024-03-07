@@ -1,22 +1,36 @@
-use crate::config::PublisherArgs;
+use crate::config::{PublisherArgs, StorageMethod};
 use crate::errors::Error;
-use crate::manifest::local_file_system::Store;
+use crate::manifest::store::Store;
 use crate::manifest::{
     ipfs::{AddResponse, IpfsClient},
     BlockRange, BundleManifest, FileMetaInfo,
 };
 use object_store::path::Path;
 use serde_yaml::to_string;
+use std::fs;
 
 pub struct ManifestPublisher {
     ipfs_client: IpfsClient,
+    store: Store,
     config: PublisherArgs,
 }
 
 impl ManifestPublisher {
     pub fn new(ipfs_client: IpfsClient, config: PublisherArgs) -> Self {
+        let store = match &config.storage_method {
+            StorageMethod::LocalFiles(directory) => Store::new(&directory.output_dir)
+                .expect("Failed to creat store for local filesystem"),
+            StorageMethod::ObjectStorage(store_args) => {
+                fs::create_dir_all("tmp/".to_owned() + &store_args.bucket)
+                    .expect("Failed to create temporary directory at /tmp");
+                Store::new_with_object(store_args)
+                    .expect("Failed to create store for remote object storage")
+            }
+        };
+
         ManifestPublisher {
             ipfs_client,
+            store,
             config,
         }
     }
@@ -118,8 +132,8 @@ impl ManifestPublisher {
         file_name: &str,
         file_prefix: Option<&Path>,
     ) -> Result<String, Error> {
-        let store = Store::new(&self.config.read_dir)?;
-        let file_manifest = store
+        let file_manifest = self
+            .store
             .file_manifest(
                 file_name,
                 file_prefix,
@@ -140,12 +154,15 @@ impl ManifestPublisher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::LocalDirectory;
 
     #[tokio::test]
     async fn test_write_file_manifest() {
         let client = IpfsClient::localhost();
         let args = PublisherArgs {
-            read_dir: String::from("../example-file"),
+            storage_method: StorageMethod::LocalFiles(LocalDirectory {
+                output_dir: String::from("../example-file"),
+            }),
             chunk_size: 1048576,
             ..Default::default()
         };
@@ -164,7 +181,9 @@ mod tests {
     async fn test_publish() {
         let client = IpfsClient::localhost();
         let args = PublisherArgs {
-            read_dir: String::from("../example-file"),
+            storage_method: StorageMethod::LocalFiles(LocalDirectory {
+                output_dir: String::from("../example-file"),
+            }),
             ..Default::default()
         };
         let builder = ManifestPublisher::new(client, args);
