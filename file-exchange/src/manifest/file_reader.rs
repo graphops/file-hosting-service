@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 use crate::errors::Error;

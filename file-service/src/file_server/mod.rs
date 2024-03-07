@@ -3,7 +3,7 @@ use axum::{
     async_trait,
     response::{IntoResponse, Response},
 };
-use object_store::path::Path;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::{collections::HashMap, string::FromUtf8Error};
@@ -14,11 +14,11 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::{config::Config, database};
-use file_exchange::{errors::Error, manifest::local_file_system::Store};
 use file_exchange::manifest::{
-    ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, Bundle, LocalBundle,
+    ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_entries, LocalBundle,
 };
 use file_exchange::util::public_key;
+use file_exchange::{errors::Error, manifest::local_file_system::Store};
 // #![cfg(feature = "acceptor")]
 // use hyper_rustls::TlsAcceptor;
 use hyper::StatusCode;
@@ -34,7 +34,7 @@ pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
     pub bundles: Arc<Mutex<HashMap<String, LocalBundle>>>, // Keyed by IPFS hash, valued by Bundle and Local path
-    pub admin_auth_token: Option<String>,             // Add bearer prefix
+    pub admin_auth_token: Option<String>,                  // Add bearer prefix
     pub config: Config,
     pub database: PgPool,
     pub cost_schema: crate::file_server::cost::CostSchema,
@@ -127,7 +127,7 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
             .bundles
             .lock()
             .await
-            .insert(bundle.ipfs_hash.clone(), LocalBundle {bundle, local_path: local_path});
+            .insert(bundle.ipfs_hash.clone(), LocalBundle { bundle, local_path });
     }
 
     // Return the server state wrapped in an Arc for thread safety

@@ -285,7 +285,7 @@ impl Downloader {
         }
 
         // write to object storage if configured
-        
+
         tracing::info!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
             file_info = tracing::field::debug(&meta.meta_info),

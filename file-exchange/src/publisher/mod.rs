@@ -1,12 +1,12 @@
-use serde_yaml::to_string;
-
 use crate::config::PublisherArgs;
 use crate::errors::Error;
 use crate::manifest::local_file_system::Store;
 use crate::manifest::{
     ipfs::{AddResponse, IpfsClient},
-    BlockRange, BundleManifest, FileManifest, FileMetaInfo,
+    BlockRange, BundleManifest, FileMetaInfo,
 };
+use object_store::path::Path;
+use serde_yaml::to_string;
 
 pub struct ManifestPublisher {
     ipfs_client: IpfsClient,
@@ -22,8 +22,12 @@ impl ManifestPublisher {
     }
 
     /// Takes file_path, create file_manifest, build merkle tree, publish, write to output
-    pub async fn hash_and_publish_file(&self, file_name: &str) -> Result<AddResponse, Error> {
-        let yaml_str = self.write_file_manifest(file_name).await?;
+    pub async fn hash_and_publish_file(
+        &self,
+        file_name: &str,
+        file_prefix: Option<&Path>,
+    ) -> Result<AddResponse, Error> {
+        let yaml_str = self.write_file_manifest(file_name, file_prefix).await?;
 
         let added: AddResponse = self
             .ipfs_client
@@ -48,7 +52,7 @@ impl ManifestPublisher {
         );
 
         for file_name in file_names {
-            let ipfs_hash = self.hash_and_publish_file(file_name).await?.hash;
+            let ipfs_hash = self.hash_and_publish_file(file_name, None).await?.hash;
             root_hashes.push(FileMetaInfo {
                 name: file_name.to_string(),
                 hash: ipfs_hash,
@@ -108,30 +112,19 @@ impl ManifestPublisher {
         }
     }
 
-    // pub fn write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
-    //     let file_manifest =
-    //         FileManifest::new(&self.config.read_dir, file_name, self.config.chunk_size)?;
-    //     // let merkle_tree = build_merkle_tree(chunks);
-    //     // let file_manifest = create_file_manifest(&merkle_tree);
-
-    //     tracing::trace!(
-    //         file = tracing::field::debug(&file_manifest),
-    //         "Created file manifest"
-    //     );
-
-    //     let yaml = to_string(&file_manifest).map_err(Error::YamlError)?;
-    //     // TODO: consider storing a local copy
-    //     // let mut output_file = File::create(file_path)?;
-    //     // output_file.write_all(yaml.as_bytes())?;
-
-    //     Ok(yaml)
-    // }
-
     // pub async fn object_store_write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
-    pub async fn write_file_manifest(&self, file_name: &str) -> Result<String, Error> {
+    pub async fn write_file_manifest(
+        &self,
+        file_name: &str,
+        file_prefix: Option<&Path>,
+    ) -> Result<String, Error> {
         let store = Store::new(&self.config.read_dir)?;
         let file_manifest = store
-            .file_manifest(file_name, Some(self.config.chunk_size as usize))
+            .file_manifest(
+                file_name,
+                file_prefix,
+                Some(self.config.chunk_size as usize),
+            )
             .await?;
 
         tracing::trace!(
@@ -148,26 +141,23 @@ impl ManifestPublisher {
 mod tests {
     use super::*;
 
-    // #[tokio::test]
-    // async fn test_write_file_manifest() {
-    //     let client = IpfsClient::localhost();
-    //     let args = PublisherArgs {
-    //         read_dir: String::from("../example-file"),
-    //         chunk_size: 1048576,
-    //         ..Default::default()
-    //     };
-    //     let publisher = ManifestPublisher::new(client, args);
-    //     let name = "example-create-17686085.dbin";
+    #[tokio::test]
+    async fn test_write_file_manifest() {
+        let client = IpfsClient::localhost();
+        let args = PublisherArgs {
+            read_dir: String::from("../example-file"),
+            chunk_size: 1048576,
+            ..Default::default()
+        };
+        let publisher = ManifestPublisher::new(client, args);
+        let name = "example-create-17686085.dbin";
 
-    //     // Hash and publish a single file
-    //     let file_manifest_yaml = publisher.write_file_manifest(name).unwrap();
-    //     let file_manifest_yaml2 = publisher
-    //         .object_store_write_file_manifest(name)
-    //         .await
-    //         .unwrap();
+        // Hash and publish a single file
+        // let file_manifest_yaml = publisher.write_file_manifest(name).unwrap();
+        let file_manifest_yaml = publisher.write_file_manifest(name, None).await;
 
-    //     assert_eq!(file_manifest_yaml, file_manifest_yaml2);
-    // }
+        assert!(file_manifest_yaml.is_ok());
+    }
 
     #[tokio::test]
     #[ignore] // Run when there is a localhost IPFS node
@@ -182,7 +172,11 @@ mod tests {
         // let chunks1 = file_manifest(Path::new(&path))?;
 
         // Hash and publish a single file
-        let hash = builder.hash_and_publish_file(name).await.unwrap().hash;
+        let hash = builder
+            .hash_and_publish_file(name, None)
+            .await
+            .unwrap()
+            .hash;
 
         // Construct and publish a bundle manifest
         let meta_info = vec![FileMetaInfo {

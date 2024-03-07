@@ -3,9 +3,8 @@ use file_exchange::manifest::local_file_system::Store;
 use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE};
 use hyper::{Body, Response, StatusCode};
 
-use std::fs::{self, File};
-use std::io::{Read, Seek, SeekFrom};
 use object_store::path::Path;
+use std::io::Read;
 
 use serde_json::Value;
 
@@ -54,7 +53,13 @@ pub async fn serve_file_range(
         "Serve file range"
     );
 
-    let metadata = store.find_object(file_name, Some(file_prefix)).await.ok_or(Error::DataUnavailable(format!("Cannot find object {} with prefix {}", file_name, file_prefix)))?;
+    let metadata = store
+        .find_object(file_name, Some(file_prefix))
+        .await
+        .ok_or(Error::DataUnavailable(format!(
+            "Cannot find object {} with prefix {}",
+            file_name, file_prefix
+        )))?;
 
     let file_size = metadata.size;
     tracing::debug!(
@@ -78,30 +83,30 @@ pub async fn serve_file_range(
     }
 
     let length = end - start + 1;
-    let range = std::ops::Range { start, end: start + length };
-    let content = store.range_read(file_name, range).await?;
+    let range = std::ops::Range {
+        start,
+        end: start + length,
+    };
+    let content = store.range_read(file_name, &range).await?;
 
     Response::builder()
         .status(StatusCode::PARTIAL_CONTENT)
-        .header(
-            CONTENT_RANGE,
-            format!(
-                "bytes {}-{}/{}",
-                start,
-                end,
-                length
-            ),
-        )
+        .header(CONTENT_RANGE, format!("bytes {}-{}/{}", start, end, length))
         .header(CONTENT_LENGTH, length.to_string())
         .body(Body::from(content))
         .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))
 }
 
-pub async fn serve_file(store: Store, file_name: &str, file_path: &Path) -> Result<Response<Body>, Error> {
+pub async fn serve_file(
+    store: Store,
+    file_name: &str,
+    _file_path: &Path,
+) -> Result<Response<Body>, Error> {
     // If no Range header is present, serve the entire file
     let mut file = store.read(file_name).await?;
     let mut contents = Vec::new();
-    file.read_to_end(&mut contents).map_err(|e| Error::FileIOError(e))?;
+    file.read_to_end(&mut contents)
+        .map_err(Error::FileIOError)?;
     Response::builder()
         .body(Body::from(contents))
         .map_err(|e| Error::ServerError(ServerError::BuildResponseError(e.to_string())))

@@ -37,8 +37,9 @@ pub async fn file_service(
     match req.get("file-hash") {
         Some(hash) if hash.as_str().is_some() => {
             // let mut file_path = requested_bundle.local_path.clone();
-            let mut file_path = context.state.config.server.main_directory.clone();
-            let file_manifest = match local_bundle.bundle
+            let _file_path = context.state.config.server.main_directory.clone();
+            let file_manifest = match local_bundle
+                .bundle
                 .file_manifests
                 .iter()
                 .find(|file| file.meta_info.hash == hash.as_str().unwrap())
@@ -57,9 +58,22 @@ pub async fn file_service(
                 Some(r) => {
                     let range = parse_range_header(r)?;
                     //TODO: validate receipt
-                    serve_file_range(context.state.store.clone(), &file_manifest.meta_info.name, &local_bundle.local_path, range).await
+                    serve_file_range(
+                        context.state.store.clone(),
+                        &file_manifest.meta_info.name,
+                        &local_bundle.local_path,
+                        range,
+                    )
+                    .await
                 }
-                None => serve_file(context.state.store.clone(), &file_manifest.meta_info.name, &local_bundle.local_path).await,
+                None => {
+                    serve_file(
+                        context.state.store.clone(),
+                        &file_manifest.meta_info.name,
+                        &local_bundle.local_path,
+                    )
+                    .await
+                }
             }
         }
         _ => Ok(Response::builder()

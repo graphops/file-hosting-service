@@ -44,115 +44,147 @@ pub fn build_merkle_proof(leaves: &[Vec<u8>], indices: &[u32]) -> Option<MerkleP
 /// Verify a vector of Bytes against a canonical hash
 pub fn verify_chunk(data: &Bytes, chunk_hash: &str) -> bool {
     let downloaded_chunk_hash = hash_chunk(data);
-    println!("downloaded hash: {downloaded_chunk_hash:?} vs hash chunk: {chunk_hash:?}");
     downloaded_chunk_hash == chunk_hash
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{manifest::FileManifest, test_util::*};
-    // use crate::{manifest::file_reader::chunk_file, manifest::FileManifest, test_util::*};
+    use crate::manifest::local_file_system::Store;
+    use crate::test_util::*;
     use std::path::Path;
 
-    // #[test]
-    // fn test_same_files_produce_same_hash() {
-    //     let content = b"Hello, world!";
-    //     let (temp_file1, temp_path1) = create_temp_file(content).unwrap();
-    //     let (temp_file2, temp_path2) = create_temp_file(content).unwrap();
+    #[tokio::test]
+    async fn test_same_files_produce_same_hash() {
+        let content = b"Hello, world!";
+        let (temp_file1, temp_path1) = create_temp_file(content).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(content).unwrap();
 
-    //     // let merkle_tree1 = build_merkle_tree(chunks1);
-    //     // let merkle_tree2 = build_merkle_tree(chunks2);
+        // let merkle_tree1 = build_merkle_tree(chunks1);
+        // let merkle_tree2 = build_merkle_tree(chunks2);
 
-    //     // assert_eq!(merkle_tree1.root(), merkle_tree2.root());
-    //     let path1 = Path::new(&temp_path1);
-    //     let path2 = Path::new(&temp_path2);
-    //     let readdir1 = path1.parent().unwrap().to_str().unwrap();
-    //     let readdir2 = path2.parent().unwrap().to_str().unwrap();
-    //     let file_name1 = path1.file_name().unwrap().to_str().unwrap();
-    //     let file_name2 = path2.file_name().unwrap().to_str().unwrap();
+        // assert_eq!(merkle_tree1.root(), merkle_tree2.root());
+        let path1 = Path::new(&temp_path1);
+        let path2 = Path::new(&temp_path2);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-    //     // produce the same file manifest
-    //     let file_manifest1 = FileManifest::new(readdir1, file_name1, CHUNK_SIZE).unwrap();
-    //     let file_manifest2 = FileManifest::new(readdir2, file_name2, CHUNK_SIZE).unwrap();
+        let store = Store::new(readdir1).unwrap();
+        // produce the same file manifest
+        let file_manifest1 = store
+            .file_manifest(file_name1, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
+        let file_manifest2 = store
+            .file_manifest(file_name2, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
 
-    //     assert_eq!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
+        assert_eq!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
 
-    //     // Clean up
-    //     drop(temp_file1);
-    //     drop(temp_file2);
-    // }
+        // Clean up
+        drop(temp_file1);
+        drop(temp_file2);
+    }
 
-    // #[test]
-    // fn test_different_files_produce_different_hash() {
-    //     let content1 = b"Hello, world!";
-    //     let content2 = b"Goodbye, world!";
-    //     let (temp_file1, temp_path1) = create_temp_file(content1).unwrap();
-    //     let (temp_file2, temp_path2) = create_temp_file(content2).unwrap();
+    #[tokio::test]
+    async fn test_different_files_produce_different_hash() {
+        let content1 = b"Hello, world!";
+        let content2 = b"Goodbye, world!";
+        let (temp_file1, temp_path1) = create_temp_file(content1).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(content2).unwrap();
 
-    //     let path1 = Path::new(&temp_path1);
-    //     let path2 = Path::new(&temp_path2);
-    //     let readdir1 = path1.parent().unwrap().to_str().unwrap();
-    //     let readdir2 = path2.parent().unwrap().to_str().unwrap();
-    //     let file_name1 = path1.file_name().unwrap().to_str().unwrap();
-    //     let file_name2 = path2.file_name().unwrap().to_str().unwrap();
+        let path1 = Path::new(&temp_path1);
+        let path2 = Path::new(&temp_path2);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-    //     // produce different file manifest
-    //     let file_manifest1 = FileManifest::new(readdir1, file_name1, CHUNK_SIZE).unwrap();
-    //     let file_manifest2 = FileManifest::new(readdir2, file_name2, CHUNK_SIZE).unwrap();
+        // produce different file manifest
+        let store = Store::new(readdir1).unwrap();
+        let file_manifest1 = store
+            .file_manifest(file_name1, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
+        let file_manifest2 = store
+            .file_manifest(file_name2, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
 
-    //     assert_ne!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
+        assert_ne!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
 
-    //     // Clean up
-    //     drop(temp_file1);
-    //     drop(temp_file2);
-    // }
+        // Clean up
+        drop(temp_file1);
+        drop(temp_file2);
+    }
 
-    // #[test]
-    // fn test_big_size_same_file() {
-    //     let file_size = CHUNK_SIZE * 25;
-    //     let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
+    #[tokio::test]
+    async fn test_big_size_same_file() {
+        let file_size = CHUNK_SIZE * 25;
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
 
-    //     let path = Path::new(&temp_path1);
-    //     let readdir = path.parent().unwrap().to_str().unwrap();
-    //     let file_name = path.file_name().unwrap().to_str().unwrap();
+        let path = Path::new(&temp_path1);
+        let readdir = path.parent().unwrap().to_str().unwrap();
+        let file_name = path.file_name().unwrap().to_str().unwrap();
 
-    //     // produce the same file manifest
-    //     let file_manifest1 = FileManifest::new(readdir, file_name, file_size).unwrap();
-    //     let file_manifest2 = FileManifest::new(readdir, file_name, file_size).unwrap();
+        // produce the same file manifest
+        let store = Store::new(readdir).unwrap();
+        let file_manifest1 = store
+            .file_manifest(file_name, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
+        let file_manifest2 = store
+            .file_manifest(file_name, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
 
-    //     assert_eq!(file_manifest1, file_manifest2);
+        assert_eq!(file_manifest1, file_manifest2);
 
-    //     // Clean up
-    //     drop(temp_file1);
-    // }
+        // Clean up
+        drop(temp_file1);
+    }
 
-    // #[test]
-    // fn test_big_size_different_file() {
-    //     let file_size = CHUNK_SIZE * 25;
-    //     let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
+    #[tokio::test]
+    async fn test_big_size_different_file() {
+        let file_size = CHUNK_SIZE * 25;
+        let (temp_file1, temp_path1) = create_random_temp_file(file_size as usize).unwrap();
 
-    //     let path1 = Path::new(&temp_path1);
-    //     let readdir1 = path1.parent().unwrap().to_str().unwrap();
-    //     let file_name1 = path1.file_name().unwrap().to_str().unwrap();
+        let path1 = Path::new(&temp_path1);
+        let readdir1 = path1.parent().unwrap().to_str().unwrap();
+        let file_name1 = path1.file_name().unwrap().to_str().unwrap();
 
-    //     let (_, chunks1) = chunk_file(Path::new(&temp_path1), file_size).unwrap();
-    //     // Modify a byte at an arbitrary postiion
-    //     let chunks2 = modify_random_element(&mut chunks1.clone());
-    //     assert_ne!(chunks2, chunks1);
+        let store = Store::new(readdir1).unwrap();
+        let bytes_vec = store
+            .multipart_read(file_name1, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
+        let chunks1: Vec<Vec<u8>> = bytes_vec.into_iter().map(|bytes| bytes.to_vec()).collect();
 
-    //     let (temp_file2, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
-    //     let path2 = Path::new(&temp_path2);
-    //     let readdir2 = path2.parent().unwrap().to_str().unwrap();
-    //     let file_name2 = path2.file_name().unwrap().to_str().unwrap();
+        // Modify a byte at an arbitrary postiion
+        let chunks2 = modify_random_element(&mut chunks1.clone());
+        assert_ne!(chunks2, chunks1);
 
-    //     // produce different file manifest
-    //     let file_manifest1 = FileManifest::new(readdir1, file_name1, file_size).unwrap();
-    //     let file_manifest2 = FileManifest::new(readdir2, file_name2, file_size).unwrap();
+        let (temp_file2, temp_path2) = create_temp_file(&chunks2.concat()).unwrap();
+        let path2 = Path::new(&temp_path2);
+        let _readdir2 = path2.parent().unwrap().to_str().unwrap();
+        let file_name2 = path2.file_name().unwrap().to_str().unwrap();
 
-    //     assert_ne!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
+        // produce different file manifest
+        let file_manifest1 = store
+            .file_manifest(file_name1, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
+        let file_manifest2 = store
+            .file_manifest(file_name2, None, Some(CHUNK_SIZE as usize))
+            .await
+            .unwrap();
 
-    //     // Clean up
-    //     drop(temp_file1);
-    //     drop(temp_file2);
-    // }
+        assert_ne!(file_manifest1.chunk_hashes, file_manifest2.chunk_hashes);
+
+        // Clean up
+        drop(temp_file1);
+        drop(temp_file2);
+    }
 }

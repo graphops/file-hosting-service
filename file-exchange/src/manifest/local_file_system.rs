@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::manifest::Error;
+use crate::manifest::{verify_chunk, Error, FileManifestMeta, LocalBundle};
 
 use super::file_hasher::hash_chunk;
 use super::FileManifest;
@@ -37,9 +37,9 @@ impl Store {
         }
         // As long as the provided path is correct, the following should never panic
         Ok(Store {
-            local_file_system: Arc::new(
-                Box::new(LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?),
-            ),
+            local_file_system: Arc::new(Box::new(
+                LocalFileSystem::new_with_prefix(path).map_err(Error::ObjectStoreError)?,
+            )),
             //TODO: Make configurable
             read_concurrency: 16,
             write_concurrency: 8,
@@ -65,43 +65,46 @@ impl Store {
             .cloned()
     }
 
-    pub async fn range_read(&self, file_name: &str, range: Range<usize>) -> Result<Bytes, Error> {
+    pub async fn range_read(&self, file_name: &str, range: &Range<usize>) -> Result<Bytes, Error> {
         Ok(self
             .local_file_system
-            .get_range(&Path::from(file_name), range)
+            .get_range(&Path::from(file_name), range.to_owned())
             .await
             .unwrap())
     }
 
-    pub async fn read(
-        &self,
-        location: &str,
-    ) -> Result<File, Error> {
+    pub async fn read(&self, location: &str) -> Result<File, Error> {
         let result = match self
             .local_file_system
             .get(&Path::from(location))
             .await
-            .unwrap().payload
-            {
-                object_store::GetResultPayload::File(f, p) => {f},
-                object_store::GetResultPayload::Stream(_) => {return Err(Error::DataUnavailable("Currently data streams are not supported".to_string()))},
-            };
-        
+            .unwrap()
+            .payload
+        {
+            object_store::GetResultPayload::File(f, _p) => f,
+            object_store::GetResultPayload::Stream(_) => {
+                return Err(Error::DataUnavailable(
+                    "Currently data streams are not supported".to_string(),
+                ))
+            }
+        };
+
         Ok(result)
     }
-    
+
     pub async fn multipart_read(
         &self,
-        location: &str,
+        file_name: &str,
+        file_path: Option<&Path>,
         chunk_size: Option<usize>,
     ) -> Result<Vec<Bytes>, Error> {
-        let object_meta = self
-            .find_object(location, None)
-            .await
-            .ok_or(Error::DataUnavailable(format!(
-                "Did not find file {}",
-                location
-            )))?;
+        let object_meta =
+            self.find_object(file_name, file_path)
+                .await
+                .ok_or(Error::DataUnavailable(format!(
+                    "Did not find object {:?}",
+                    file_path,
+                )))?;
         let step = chunk_size.unwrap_or({
             let s = object_meta.size / self.read_concurrency;
             if s > 0 {
@@ -116,10 +119,14 @@ impl Store {
                 end: ((i + 1) * step).min(object_meta.size),
             })
             .collect::<Vec<std::ops::Range<usize>>>();
-
+        let location: Path = if let Some(prefix) = file_path {
+            prefix.child(file_name)
+        } else {
+            Path::from(file_name)
+        };
         let result = self
             .local_file_system
-            .get_ranges(&Path::from(location), ranges.as_slice())
+            .get_ranges(&location, ranges.as_slice())
             .await
             .unwrap();
 
@@ -176,16 +183,17 @@ impl Store {
 
     pub async fn file_manifest(
         &self,
-        location: &str,
+        file_name: &str,
+        prefix: Option<&Path>,
         chunk_size: Option<usize>,
     ) -> Result<FileManifest, Error> {
-        let parts = self.multipart_read(location, chunk_size).await?;
+        let parts = self.multipart_read(file_name, prefix, chunk_size).await?;
         let total_bytes = parts.iter().map(|b| b.len() as u64).sum();
         let byte_size_used = parts
             .first()
             .ok_or(Error::ChunkInvalid(format!(
-                "No chunk produced from object store {}, with chunk size config of {:#?}",
-                location, chunk_size
+                "No chunk produced from object store {} with prefix {:#?}, with chunk size config of {:#?}",
+                file_name, prefix, chunk_size
             )))?
             .len();
         let chunk_hashes = parts.iter().map(|c| hash_chunk(c)).collect();
@@ -196,6 +204,86 @@ impl Store {
             chunk_hashes,
         })
     }
+
+    /// Validate the local files against a given bundle specification
+    pub async fn validate_local_bundle(&self, local: &LocalBundle) -> Result<&Self, Error> {
+        tracing::trace!(
+            bundle = tracing::field::debug(&local),
+            "Read and verify bundle. This may cause a long initialization time."
+        );
+
+        // Read all files in bundle to verify locally. This may cause a long initialization time
+        //TODO: allow for concurrent validation of files
+        for file_meta in &local.bundle.file_manifests {
+            self.read_and_validate_file(file_meta, &local.local_path)
+                .await?;
+        }
+
+        tracing::trace!("Successfully verified the local serving files");
+        Ok(self)
+    }
+
+    /// Read and validate file
+    pub async fn read_and_validate_file(
+        &self,
+        file: &FileManifestMeta,
+        prefix: &Path,
+    ) -> Result<(), Error> {
+        // read file by file_manifest.file_name
+        let meta_info = &file.meta_info;
+        let file_manifest = &file.file_manifest;
+        // let mut file_path = self.local_path.clone();
+        // file_path.push(meta_info.name.clone());
+        tracing::trace!(
+            // file_path = tracing::field::debug(&file_path),
+            file_prefix = tracing::field::debug(&prefix),
+            file_manifest = tracing::field::debug(&file_manifest),
+            "Verify file"
+        );
+
+        // loop through file manifest byte range
+        //multipart read/ vectorized read
+        for i in 0..(file_manifest.total_bytes / file_manifest.chunk_size + 1) {
+            // read range
+            let start = i * file_manifest.chunk_size;
+            let end: usize =
+                (u64::min(start + file_manifest.chunk_size, file_manifest.total_bytes) - 1)
+                    .try_into()
+                    .unwrap();
+            tracing::trace!(
+                i,
+                start_byte = tracing::field::debug(&start),
+                end_byte = tracing::field::debug(&end),
+                "Verify chunk index"
+            );
+            let chunk_hash = file_manifest.chunk_hashes[i as usize].clone();
+
+            // read chunk
+            // let chunk_data = read_chunk(&file_path, (start, end))?;
+            let start: usize = start.try_into().unwrap();
+            // let length: usize = end - start + 1;
+            let range = std::ops::Range {
+                start,
+                end: end + 1,
+            };
+            let file_name = meta_info.name.clone();
+            let chunk_data = self.range_read(&file_name, &range).await?;
+            // verify chunk
+            if !verify_chunk(&chunk_data, &chunk_hash) {
+                tracing::error!(
+                    file = tracing::field::debug(&file_name),
+                    chunk_index = tracing::field::debug(&i),
+                    chunk_hash = tracing::field::debug(&chunk_hash),
+                    "Cannot locally verify the serving file"
+                );
+                return Err(Error::InvalidConfig(format!(
+                    "Failed to validate the local version of file {}",
+                    meta_info.hash
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -204,7 +292,7 @@ mod tests {
 
     use crate::{
         manifest::local_file_system::*,
-        test_util::{create_random_temp_file, CHUNK_SIZE},
+        test_util::{create_random_temp_file, simple_bundle, CHUNK_SIZE},
     };
 
     #[tokio::test]
@@ -249,7 +337,7 @@ mod tests {
 
         // Read with fixed concurrency
         let read_res: Vec<Bytes> = object_store
-            .multipart_read(new_file_name, Some(CHUNK_SIZE.try_into().unwrap()))
+            .multipart_read(new_file_name, None, Some(CHUNK_SIZE.try_into().unwrap()))
             .await
             .unwrap();
         let flattened_vec: Vec<u8> = read_res.into_iter().flat_map(|b| b.to_vec()).collect();
@@ -266,7 +354,7 @@ mod tests {
 
         // Read with adjusted concurrency
         let read_res: Vec<Bytes> = object_store
-            .multipart_read(new_file_name, None)
+            .multipart_read(new_file_name, None, None)
             .await
             .unwrap();
         let flattened_vec: Vec<u8> = read_res.into_iter().flat_map(|b| b.to_vec()).collect();
@@ -275,19 +363,63 @@ mod tests {
         // Delete
         assert!(object_store.delete(new_file_name).await.is_ok());
     }
-    
-    // file_name: 
-    // , file_prefix: Path { raw: "%2E/example-file" }, start_byte: 1048576, end_byte: 1052736
+
     #[tokio::test]
     async fn test_find_example_file() {
         let main_directory = "../example-file";
         let file_prefix = Path::from("");
         let file_name = "example-create-17686085.dbin";
         let store = Store::new(main_directory).unwrap();
-        // let metadata = store.find_object(file_name, None).await;
         let metadata = store.find_object(file_name, Some(&file_prefix)).await;
 
         println!("store: {store:?}, metadata: {metadata:?}");
         assert!(metadata.is_some())
+    }
+
+    #[tokio::test]
+    async fn test_read_and_validate_file() {
+        let store = Store::new("../example-file").unwrap();
+        let mut bundle = simple_bundle();
+        let file_meta = bundle.file_manifests.first().unwrap();
+        let path = Path::from("");
+        let res = store.read_and_validate_file(file_meta, &path).await;
+        assert!(res.is_ok());
+
+        // Add tests for failure cases
+        if let Some(file_meta) = bundle.file_manifests.first_mut() {
+            if let Some(first_hash) = file_meta.file_manifest.chunk_hashes.first_mut() {
+                *first_hash += "1";
+            }
+        }
+        let file_meta = bundle.file_manifests.first().unwrap();
+        let res = store.read_and_validate_file(file_meta, &path).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_local_bundle() {
+        let mut bundle = simple_bundle();
+        let store = Store::new("../example-file").unwrap();
+        let _local_path = Path::from("");
+        let local = LocalBundle {
+            bundle: bundle.clone(),
+            local_path: Path::from(""),
+        };
+        let res = store.validate_local_bundle(&local).await;
+
+        assert!(res.is_ok());
+
+        // Add tests for failure cases
+        if let Some(file_meta) = bundle.file_manifests.first_mut() {
+            if let Some(first_hash) = file_meta.file_manifest.chunk_hashes.first_mut() {
+                *first_hash += "1";
+            }
+        }
+        let local = LocalBundle {
+            bundle,
+            local_path: Path::from(""),
+        };
+        let res = store.validate_local_bundle(&local).await;
+        assert!(res.is_err());
     }
 }

@@ -61,7 +61,7 @@ pub struct ServerArgs {
         help = "IPFS gateway to interact with"
     )]
     pub ipfs_gateway: String,
-     #[arg(
+    #[arg(
         long,
         value_name = "main_directory",
         default_value = "../example-file",

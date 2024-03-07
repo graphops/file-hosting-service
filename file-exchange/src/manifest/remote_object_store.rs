@@ -87,14 +87,7 @@ pub async fn multipart_write(
 
 mod tests {
 
-    use std::{
-        fs::File,
-        io::{BufReader, Read},
-    };
-
-    use bytes::Buf;
-
-    use crate::test_util::{create_random_temp_file, random_bytes, CHUNK_SIZE};
+    use crate::test_util::{random_bytes, CHUNK_SIZE};
 
     use super::*;
 

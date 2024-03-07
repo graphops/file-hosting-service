@@ -13,7 +13,7 @@ use crate::file_server::{FileServiceError, ServerContext};
 use file_exchange::{
     errors::{Error, ServerError},
     manifest::{
-        ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_and_location, Bundle, LocalBundle,
+        ipfs::IpfsClient, manifest_fetcher::read_bundle, validate_bundle_and_location, LocalBundle,
     },
 };
 
@@ -144,7 +144,13 @@ impl StatusMutation {
             .bundles
             .lock()
             .await
-            .insert(bundle.ipfs_hash.clone(),   LocalBundle{bundle: bundle.clone(), local_path: loc});
+            .insert(
+                bundle.ipfs_hash.clone(),
+                LocalBundle {
+                    bundle: bundle.clone(),
+                    local_path: loc,
+                },
+            );
 
         Ok(GraphQlBundle::from(bundle))
     }
@@ -181,7 +187,7 @@ impl StatusMutation {
                         .map_err(|e| anyhow::anyhow!("Invalid input: {}", e))?;
 
                     // let bundle = read_bundle(&client.clone(), &hash, loc)
-                    let bundle = read_bundle(&client.clone(), &hash,)
+                    let bundle = read_bundle(&client.clone(), &hash)
                         .await
                         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -189,12 +195,14 @@ impl StatusMutation {
                     //     .validate_local_bundle()
                     //     .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-                    bundle_ref
-                        .clone()
-                        .lock()
-                        .await
-                        .insert(bundle.ipfs_hash.clone(), LocalBundle{bundle: bundle.clone(), local_path: loc});
-                        // .insert(bundle.ipfs_hash.clone(), bundle.clone());
+                    bundle_ref.clone().lock().await.insert(
+                        bundle.ipfs_hash.clone(),
+                        LocalBundle {
+                            bundle: bundle.clone(),
+                            local_path: loc,
+                        },
+                    );
+                    // .insert(bundle.ipfs_hash.clone(), bundle.clone());
 
                     Ok::<_, anyhow::Error>(GraphQlBundle::from(bundle))
                 }

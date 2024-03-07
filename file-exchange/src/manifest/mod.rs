@@ -9,20 +9,11 @@ pub mod manifest_fetcher;
 pub mod remote_object_store;
 // pub mod subfile_reader;
 
-use std::{
-    path::{PathBuf},
-    str::FromStr,
-};
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::Error,
-    manifest::{
-        file_hasher::{hash_chunk, verify_chunk},
-        file_reader::{format_path, read_chunk},
-        ipfs::is_valid_ipfs_hash,
-    },
+    manifest::{file_hasher::verify_chunk, ipfs::is_valid_ipfs_hash},
 };
 
 /* Public Manifests */
@@ -122,69 +113,6 @@ pub struct BlockRange {
 //     }
 // }
 
-// impl Bundle {
-//     /// Validate the local files against a given bundle specification
-//     pub fn validate_local_bundle(&self, local: &str) -> Result<&Self, Error> {
-//         tracing::trace!(
-//             bundle = tracing::field::debug(self),
-//             "Read and verify bundle. This may cause a long initialization time."
-//         );
-
-//         // Read all files in bundle to verify locally. This may cause a long initialization time
-//         for file_meta in &self.file_manifests {
-//             self.read_and_validate_file(file_meta, )?;
-//         }
-
-//         tracing::trace!("Successfully verified the local serving files");
-//         Ok(self)
-//     }
-
-//     /// Read and validate file
-//     pub fn read_and_validate_file(&self, file: &FileManifestMeta, read_path: &str) -> Result<(), Error> {
-//         // read file by file_manifest.file_name
-//         let meta_info = &file.meta_info;
-//         let file_manifest = &file.file_manifest;
-//         let mut file_path = self.local_path.clone();
-//         file_path.push(meta_info.name.clone());
-//         tracing::trace!(
-//             file_path = tracing::field::debug(&file_path),
-//             file_manifest = tracing::field::debug(&file_manifest),
-//             "Verify file"
-//         );
-
-//         // loop through file manifest byte range
-//         for i in 0..(file_manifest.total_bytes / file_manifest.chunk_size + 1) {
-//             // read range
-//             let start = i * file_manifest.chunk_size;
-//             let end = u64::min(start + file_manifest.chunk_size, file_manifest.total_bytes) - 1;
-//             tracing::trace!(
-//                 i,
-//                 start_byte = tracing::field::debug(&start),
-//                 end_byte = tracing::field::debug(&end),
-//                 "Verify chunk index"
-//             );
-//             let chunk_hash = file_manifest.chunk_hashes[i as usize].clone();
-
-//             // read chunk
-//             let chunk_data = read_chunk(&file_path, (start, end))?;
-//             // verify chunk
-//             if !verify_chunk(&chunk_data, &chunk_hash) {
-//                 tracing::error!(
-//                     file = tracing::field::debug(&file_path),
-//                     chunk_index = tracing::field::debug(&i),
-//                     chunk_hash = tracing::field::debug(&chunk_hash),
-//                     "Cannot locally verify the serving file"
-//                 );
-//                 return Err(Error::InvalidConfig(format!(
-//                     "Failed to validate the local version of file {}",
-//                     meta_info.hash
-//                 )));
-//             }
-//         }
-//         Ok(())
-//     }
-// }
-
 /// Validate the bundle configurations at initialization
 pub fn validate_bundle_entries(entries: Vec<String>) -> Result<Vec<(String, Path)>, Error> {
     let mut results = Vec::new();
@@ -224,53 +152,6 @@ pub fn validate_bundle_and_location(
     }
 
     // Validate local path
-    let path = Path::from(local_path);
-    // let path = PathBuf::from_str(local_path).map_err(|e| Error::InvalidConfig(e.to_string()))?;
-    // if !path.exists() {
-    //     return Err(Error::InvalidConfig(format!(
-    //         "Path do not exist: {}",
-    //         local_path
-    //     )));
-    // }
 
-    Ok((ipfs_hash.to_string(), path))
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_util::simple_bundle;
-
-    // #[test]
-    // fn test_read_and_validate_file() {
-    //     let mut bundle = simple_bundle();
-    //     let file_meta = bundle.file_manifests.first().unwrap();
-    //     let result = bundle.read_and_validate_file(file_meta);
-    //     assert!(result.is_ok());
-
-    //     // Add tests for failure cases
-    //     if let Some(file_meta) = bundle.file_manifests.first_mut() {
-    //         if let Some(first_hash) = file_meta.file_manifest.chunk_hashes.first_mut() {
-    //             *first_hash += "1";
-    //         }
-    //     }
-    //     let file_meta = bundle.file_manifests.first().unwrap();
-    //     let result = bundle.read_and_validate_file(file_meta);
-    //     assert!(result.is_err());
-    // }
-
-    // #[test]
-    // fn test_validate_local_bundle() {
-    //     let mut bundle = simple_bundle();
-    //     let result = bundle.validate_local_bundle();
-    //     assert!(result.is_ok());
-
-    //     // Add tests for failure cases
-    //     if let Some(file_meta) = bundle.file_manifests.first_mut() {
-    //         if let Some(first_hash) = file_meta.file_manifest.chunk_hashes.first_mut() {
-    //             *first_hash += "1";
-    //         }
-    //     }
-    //     let result = bundle.validate_local_bundle();
-    //     assert!(result.is_err());
-    // }
+    Ok((ipfs_hash.to_string(), Path::from(local_path)))
 }
