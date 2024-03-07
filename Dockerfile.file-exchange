@@ -1,12 +1,46 @@
-FROM rust:1.74-bookworm as build
-WORKDIR /root
-COPY . .
-RUN cargo build --release --bin file-exchange
+FROM rust:1-bullseye AS build-image
 
-########################################################################################
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+# Update and install necessary packages, including libc6-dev for libresolv
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        wget \
+        curl \
+        libpq-dev \
+        pkg-config \
+        libssl-dev \
+        clang \
+        build-essential \
+        libc6-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=build /root/target/release/file-exchange /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/file-exchange"]
+
+# Ensure CA certificates are installed
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
+
+# Copy project files to the container
+COPY . /file-exchange
+WORKDIR /file-exchange
+
+# Set Rust flags to link against libresolv
+ENV RUSTFLAGS="-C link-arg=-lresolv"
+
+# Build the Rust project
+RUN cargo build --release -p file-exchange
+
+# Setup the runtime environment
+FROM alpine:3.17.3 as alpine
+RUN set -x \
+    && apk update \
+    && apk add --no-cache upx dumb-init
+COPY --from=build-image /file-exchange/target/release/file-exchange /file-exchange/target/release/file-exchange
+RUN upx --overlay=strip --best /file-exchange/target/release/file-exchange
+
+FROM gcr.io/distroless/cc AS runtime
+COPY --from=build-image /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=build-image /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build-image /etc/passwd /etc/passwd
+COPY --from=build-image /etc/group /etc/group
+COPY --from=alpine /usr/bin/dumb-init /usr/bin/dumb-init
+COPY --from=alpine "/file-exchange/target/release/file-exchange" "/usr/local/bin/file-exchange"
+COPY --from=busybox:1.35.0-uclibc /bin/sh /bin/sh
+ENTRYPOINT [ "/usr/bin/dumb-init", "--", "/usr/local/bin/file-exchange" ]
