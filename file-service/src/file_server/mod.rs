@@ -71,9 +71,13 @@ impl IndexerServiceImpl for ServerContext {
         // path if path.starts_with("/bundles/id/") => {
         // }
         tracing::trace!("Process file service {deployment:?}");
+        let query_duration_timer = crate::metrics::RESPONSE_TIME
+            .with_label_values(&[&deployment.to_string()])
+            .start_timer();
         let body = service::file_service(deployment, &request, self)
             .await
             .map_err(FileServiceError::QueryForwardingError)?;
+        query_duration_timer.observe_duration();
         let response = FileServiceResponse { inner: body };
         Ok((request, response))
     }

@@ -4,7 +4,7 @@ use clap::Parser;
 use file_service::file_server::{
     cost::cost, initialize_server_context, status::status, util::graphql_playground,
 };
-use file_service::{admin, config};
+use file_service::{admin, config, metrics};
 use indexer_common::indexer_service::http::{
     IndexerService, IndexerServiceOptions, IndexerServiceRelease,
 };
@@ -39,6 +39,7 @@ async fn main() -> Result<(), Error> {
         .await
         .expect("Failed to initiate bundle server");
     admin::serve_admin(state.clone());
+    metrics::serve_metrics(&config.server);
 
     IndexerService::run(IndexerServiceOptions {
         release,
