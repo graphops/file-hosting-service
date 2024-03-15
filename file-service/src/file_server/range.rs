@@ -1,4 +1,3 @@
-use file_exchange::manifest::store::Store;
 // #![cfg(feature = "acceptor")]
 use hyper::header::{CONTENT_LENGTH, CONTENT_RANGE};
 use hyper::{Body, Response, StatusCode};
@@ -8,7 +7,10 @@ use std::io::Read;
 
 use serde_json::Value;
 
-use file_exchange::errors::{Error, ServerError};
+use file_exchange::{
+    errors::{Error, ServerError},
+    manifest::store::Store,
+};
 
 // Function to parse the Range header and return the start and end bytes
 pub fn parse_range_header(range_header: &Value) -> Result<(usize, usize), Error> {
@@ -89,6 +91,8 @@ pub async fn serve_file_range(
     };
     let content = store.range_read(file_name, &range).await?;
 
+    let transferred_bytes = crate::metrics::TRANSFERRED_BYTES.with_label_values(&[file_name]);
+    transferred_bytes.set(length.try_into().unwrap());
     Response::builder()
         .status(StatusCode::PARTIAL_CONTENT)
         .header(CONTENT_RANGE, format!("bytes {}-{}/{}", start, end, length))

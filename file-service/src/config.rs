@@ -45,7 +45,6 @@ pub struct ServerArgs {
         help = "Admin Auth token for server management"
     )]
     pub admin_auth_token: Option<String>,
-    //TODO: More complex price management
     #[arg(
         long,
         value_name = "admin-addr",
@@ -54,6 +53,14 @@ pub struct ServerArgs {
         help = "Expost Admin service at address with both host and port"
     )]
     pub admin_host_and_port: SocketAddr,
+    #[arg(
+        long,
+        value_name = "metric-addr",
+        default_value = "0.0.0.0/5000",
+        env = "FILE_METRICS_HOST_AND_PORT",
+        help = "Expost Metrics service at address with both host and port"
+    )]
+    pub metrics_host_and_port: Option<SocketAddr>,
     #[arg(
         long,
         value_name = "ipfs-gateway-url",

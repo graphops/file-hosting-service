@@ -122,6 +122,10 @@ with configuration
 
 You are open for business!
 
+### Performance and Monitoring
+
+Basic service metrics are hosted at the address configued by `common.server.metrics_host_and_port`, default at "0.0.0.0:7601". Optionally separate metrics are tracked specifically for file service performances at `server.metrics_host_and_port`. The metrics are minimal and please submit feedback for additional specific measurements.
+
 ### Security Considerations
 
 The server enforces various security measures to protect user data and system integrity. These measures include:
