@@ -8,12 +8,18 @@ To start, you would need to provide several configurations
 
 ### Requirements
 
-Publisher must have read access to all files contained in the Bundle. The publisher publish 1 Bundle at a time and is not responsible for hosting the file after publishing. The publisher should chunk all the files in the package and generate a hash for all the chunks. Then the publisher will build a hierarchy with the hashes. Currently, the Publisher simply put chunk hashes in a list for each individual file, publish individual file manifests, then they build a Bundle that contains a list of the file manifest addresses. 
+Publisher must have read access to all files contained in the Bundle. The publisher publish 1 Bundle at a time and is not responsible for hosting the file after publishing. 
 
-> More exploration for hashing/packaging architecture
+**Expectations**
+1. For each file in the bundle, the publisher chunk the files into specified sizes and generate a hash for all the chunks. 
+2. The publisher creates a file manifest containing information on the total number of bytes, chunk sizes, and an ordered list of chunk hashes. 
+3. The publisher publishs individual file manifests, 
+4. The publisher creates a bundle manifest containing information on the file names, file manfiest addresses, file types, and other meta descriptions.
 
 
-### CLI example
+### CLI usage
+
+The publisher must provide a name for the bundle, filenames, file type, version, and path for read-access of the files.
 
 Publishing files stored in the local file system
 ```
