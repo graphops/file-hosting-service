@@ -1,34 +1,36 @@
 # File Discovery
 
-With various packaging methods, types of files, and other types of combinations, we stay focused on discovering and matching file CIDs on/off-chain.
+This document describe the expectation of discovering and matching file CIDs on/off-chain between servers and clients.
 
-## Off-chain approach
+## Off-chain approach (Current)
 
-Indexers serve `/status` endpoint that provides a list of Manifest IPFS hashes, representing the list of available lists the local indexer is serving. This is sufficient for matching specific manifests for bundles, later on we will allow matching for single file manifests.
+Indexers share their server endpoint to potential consumers. This process is currently manual, off-chain, and p2p. With Horizon introducing new contract interfaces, indexers should be able to register their URL on-chain for automatic discovery. 
 
-On both **Bundle/File** level, the discovery is relatively straightforward for the client, given that they have choosen a Manifest IPFS hash to download (`target_manifest`).
+Indexers serve `/status` GraphQL endpoint that provides their serving statuses, including Manifest object, File hashes, descriptions, etc. This is sufficient for a client to match specific manifests to the files they are looking for.
 
-1. Client provide a status list of `indexer_endpoints`. Later on, we can add an automatic mode of grabbing all registered indexer service url from the registery contract.
+As described in the limitations of the protocol, clients are responsible for choosing Manifest IPFS hash to download (`target_manifest`). 
 
-2. Client pings `/operator` and `/status` endpoint for all indexer endpoints. `/operator` will provide the indexer operator and `/status` endpoint will provide the indexer's available manifests.
+1. Client is provided with a list of `indexer_endpoints`. Later on, we can add an automatic mode of grabbing all registered indexer service url from the registery contract.
+
+2. Client pings `/operator` and `/status` endpoint for all indexer endpoints. `/operator` will provide the indexer operator information and `/status` endpoint will provide the indexer's available manifests.
 
     a. if `target_manifest` is in the available manifests, collect indexer operator and endpoint as an available service
 
-3. Collect a list of available services. Returns early if the list is empty.
+3. Collect a list of available services. 
 
-If discovery is matching on a `Bundle` level, we further consider matching files across bundle manifests so that consumers can be prompted with alternatives if the `target_manifest` is unavailable. This increases file availability by decreasing the criteria for matching a bundle.
+If discovery is matching on a `Bundle` level and `target_manifest` is unavailable, we further consider matching files across bundle manifests so that consumers can be prompted with alternatives by matching lower level file manfests. This increases file availability by decreasing the criteria for matching the exact bundle.
 
-Imagine a server serving $bundle_a = {file_x, file_y, file_z}$. Client requests $bundle_b = {file_x}$. The Bundle IPFS hash check will determine that $bundle_a\neq bundle_b$. We add an additional check to resolve $bundle_a$ and $bundle_b$ to file manifest hashes for matching. 
+Imagine a server serving $bundle_a = {file_x, file_y, file_z}$. Client requests $bundle_b = {file_x}$. The Bundle IPFS hash check will determine that $bundle_a\neq bundle_b$. We add an additional check to resolve $bundle_a$ and $bundle_b$ to file manifest hashes. 
 
-1. Query the content of `target_bundle` for its vector of file manifest hashes
+1. Query the content of `target_manifest` for its vector of file manifest hashes
 
 2. Query the content of bundles served by indexers, create a nested map of indexer to bundles to files: `Map<Indexer, Map<Bundle, Files>>`.
 
-3. For each `target_bundle` file manifest, check if there is an indexer serving a bundle that contains the target file. Record the indexer and bundle hash, indexed by the file hash.
+3. Taking `target_manifest`'s vector of file manifest hashes, for each file manifest, check if there is an indexer serving a bundle that contains the file. Record the indexer and bundle hash, valued by the file hash.
 
 4. if there is a target file unavailable from all indexers, immediately return unavailability as the `target_manifest` cannot be completed.
 
-5. return the recorded map of file to queriable `indexer_endpoint` and manifest hash for the user evaluation
+5. return the recorded map of file to queriable `indexer_endpoint` and manifest hash for the user evaluation.
 
 Later on, we may generate a summary of which manifest has the highest percentage of compatibility. The further automated approach will consist of client taking the recorded availability map and construct range download requests based on the corresponding indexer_endpoint, server manifest, and file hash.
 
@@ -58,7 +60,7 @@ graph LR
     E -->|respond| C
 ```  
 
-## On-chain approach (unrealized)
+## On-chain approach (alternative)
 
 
 **On-chain portion**
@@ -135,7 +137,7 @@ graph TD
 As we keep the diagram simple, it is possible to have indexer serve/host schema files as part of indexer service and become independent of IPFS gateway
 
 
-## Trade-off
+## High level Trade-off
 
 First assume that on-chain allocation does not bring significant economic guarantee to FHS (no rational slashing).
 

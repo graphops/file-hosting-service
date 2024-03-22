@@ -1,4 +1,14 @@
-# On-Chain Subcommand Documentation
+# On-chain Interactions
+
+## Contract specification
+
+Contract artifacts are generated from https://github.com/graphprotocol/contracts at commit a667f7aba10d558af6485d34cf857204321e343c. (location: `/build/abis`). Contract address book (`addresses.jon`) is copy and pasted from the same commit.
+
+> In theory, contract ABIs can be imported with a path using Etherscan or npmjs, with "online" / "abigen_online" feature. But having issues to connect with this method. The current manual solution is only temporary.
+
+## Available CLI commands
+
+[On-Chain Guide](onchain_guide.md)
 
 The subcommand `wallet` is designed to facilitate various on-chain actions through a command-line interface. This guide focuses on how users can perform wallet transactions on the blockchain.
 
@@ -7,11 +17,15 @@ The subcommand `wallet` is designed to facilitate various on-chain actions throu
 Before starting, ensure you have set up the following:
 
 - **Mnemonic**: A secret phrase (mnemonic) for accessing your wallet.
-- **Provider URL**: The endpoint URL of your blockchain provider.
+- **Provider URL**: The endpoint URL of your blockchain provider. This is limited to an Ethereum mainnet provider, Arbitrum-One provider, or an Arbitrum Sepolia provider. 
 
 ## Usage
 
-To use the Wallet CLI, the following subcommands and options are available:
+You are not required to use this command. 
+- Downloader client can handle automatic deposits by configuring the `max-auto-deposit` parameter.
+- Server will not need to create an explicit allocation for free query services at the moment. We expect to add automatic allocation management in relation to payments system later on. 
+
+For manual on-chain interactions, the following subcommands and options for `file-exchange wallet` are available:
 
 ### Global Options
 
@@ -98,7 +112,7 @@ Withdraw deposit from a particular receiver.
 
 ### Examples
 
-- Replace placeholders like `"your mnemonic"`, `"http://localhost:8545"`, `"0x123..."`, `"QmHash"`, etc., with actual values.
+- Replace placeholders like `"mnemonic phrase"`, `"http://localhost:8545"`, `"0x123..."`, `"QmHash"`, etc., with actual values.
 - Ensure that the mnemonic and provider URL are kept secure and private.
 
 **Allocating**

@@ -1,15 +1,10 @@
-# File Sharing Server
-
-You hold the key to unlocking the network's true potential. By sharing your meticulously indexed data, you become the architect of information accessibility. Imagine, your contribution fueling a vibrant ecosystem of knowledge, where fellow indexers can build upon your work, unleashing a torrent of information to the world. In return, your generosity is rewarded with precious tokens, a testament to the invaluable role you play in this decentralized revolution. Become the data hero we need, and together, let us build a brighter future fueled by open access and boundless knowledge!
-
-This document provides an overview of the file sharing server, intended for those familiar with blockchain nodes and large datasets.
-
-Jump to [Quick Start](###getting-started)
-
-## File Transfer Protocol
+# Files Server
 
 The server utilizes HTTP2 with TLS for secure and efficient file transfer. This ensures data integrity and confidentiality while leveraging the performance benefits of HTTP2.
 
+This document provides an overview of the files server, intended for those familiar with blockchain nodes and large datasets.
+
+Jump to [Quick Start](###getting-started)
 
 ## Access Control
 
@@ -17,7 +12,7 @@ The server utilizes HTTP2 with TLS for secure and efficient file transfer. This 
 
 The server offers
 
-- Free queries: Server will always respond to queries about their operator info, software versioning, server health, and file availability.
+- Meta queries: Server will always respond to queries about their operator info, software versioning, server health, files in service, and prices.
 - Free Query Auth Token: Users can obtain a free query auth token for limited access to files. This token allows them to download small files.
 - Receipts: Users need to provide TAP receipts in the HTTP header. These receipts serve as proof of payment and grant access to the requested resources.
 
@@ -34,40 +29,57 @@ The server includes an admin endpoint for on-the-fly management. This endpoint a
 
 - Adding and removing files
 - Monitoring server status
-- (TODO) maintenance operations such as modifying auth token and pricing model.
+- (TODO) maintenance operations such as modifying auth token and pricing.
 
 ## Technical Stack
 The server utilizes a combination of open-source technologies for optimal performance and security. The core components include:
 
-- Backend: Rust for robust and efficient server-side processing.
-- Database: (Current: In-memory for server management, file paths for local access). 
-- Database: (TODO: PostgreSQL for persisted server management, generic storage paths to allow cloud/object storage). 
+
+- Storage system: Server takes a remote object storage paths or a local directory path to read and serve objects/files. 
 - Smart Contract: Solidity for secure and transparent server registration and discovery.
 - User Interface: CLI to start up the server, HTTP requests for managing files and accessing receipts (TODO: Terminal UI).
 
-## System Requirements
-- Operating System: Linux/MacOS
-- RAM: __
-- Disk Space: ___
-- CPU: ___
-- Rust: 1.73.0
-- Docker (optional, TODO)
+## Requirements
+- Database: Underlying indexer service framework requires a PostgreSQL database for receipt management.
+        - Server management starts with the configuration file, admin for file paths for local access changes the server setting in cache but not stored
+        - Later we will utilize PostgreSQL for persisted server management
+- `file-exchange` CLI for publishing files or bundles to share with potentital costumers (refer to [Publisher Guide](./publisher_guide.md))
+
 
 ## Installation and Configuration
 
+### Database setup/migrations
+
+Indexer service does _NOT_ run database migrations automatically as it might introduce conflicts with the migrations run by indexer agent. Indexer agent is solely responsible for syncing and migrating the database. If your subgraph indexer-service or indexer-agent have been upgraded to use Scalar-TAP for payments, I recommend using the same database directly (no migrations needed). Otherwise, use a separate database and run the migrations provided as described below.
+
+#### Prerequisite: Install sqlx-cli
+
+Run `cargo install sqlx-cli --no-default-features --features native-tls,postgres` 
+
+Simple option: run general installation that supports all databases supported by SQLx
+`cargo install sqlx-cli`
+
+#### Run the migration
+
+Run `sqlx migrate run --source file-service/migrations`
+
 ### Getting Started
 
-1. Download the source code from the repository.
-2. Build and run the server.
+1. Download either the binary, docker image, or source code from the repository.
+2. Referencing `/file-server/template.toml` file, fill in your own configurations.
+3. For the initialization bundles, it may be left empty, or you could try publishing a set of files first using the `file-exchange` CLI.
+4. Build and run the server.
 
 CLI with configuration file
 ```
 cargo run -p file-service -- --config ./file-server/template.toml
 ```
 
-Check out the template toml configuration file for an example.
+(You might need to set an additional envrionmental variable for logs, `RUST_LOG=file-service=debug`)
 
 3. Access services via the additional endpoints:
+
+
 
 **Cost and Status API**
 

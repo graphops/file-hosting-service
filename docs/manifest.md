@@ -1,4 +1,4 @@
-## Manfiest specifications
+## Manfiest
 
 Structure of Bundle and File Manifests
 
@@ -103,7 +103,7 @@ Depending on the package sizes and client requirements, different validation met
 
 ![Diagram](./verification-tradeoffs.png)
 
-### Current manifest
+### Manifest examples
 
 #### Bundle manifest
 

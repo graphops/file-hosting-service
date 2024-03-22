@@ -10,7 +10,7 @@
   - [x] construct and write a file_manifest.yaml (root, nodes)
   - [x] Unit tests: same file same hash, different file different hash, big temp file same/modified
   - [x] last chunk lengths, 
-- [ ] Analyze merkle tree vs hash list for memory usage and verification runtime
+- [x] Analyze merkle tree vs hash list for memory usage and verification runtime
 - [x] Manifest builder / publisher - CLI
   - [x] Take a file, use File hasher to get the file_manifest, publish file_manifest to IPFS
     - [x] later, take a list of files, use File hasher to hash all files and get root hashes 
@@ -26,7 +26,7 @@
   - [x] Deserialize and serialize yaml files
 - [ ] Manifest server 
   - [x] require operator mnemonic
-  - [ ] Use a generic path
+  - [x] Use a generic path
   - [x] Initialize service; for one Bundle, take (ipfs_hash, local_path)
     - [x] Take a Bundle IPFS hash and get the file using IPFS client
     - [x] Parse yaml file for all the file_manifest hashes using Yaml parser, construct the Bundle object 
@@ -43,7 +43,7 @@
   - [x] Route `/version` for Bundle server version
   - [x] Configure and check free query auth token
   - [ ] (?) Server Certificate
-  - [ ] Upon receiving a service request (ipfs_hash, range, receipt)
+  - [x] Upon receiving a service request (ipfs_hash, range, receipt)
     - [x] start off with request as (ipfs_hash, range)
     - [x] Check if ipfs_hash is available
     - [x] Check if range is valid against the Bundle and the specific file_manifest
@@ -54,23 +54,25 @@
       - [ ] determine if streaming is necessary
   - [x] Start with free service and requiring a free query auth token
     - [x] default pricing, allow updates for pricing per byte
-  - [ ] Runs TAP agent for receipt management
+  - [x] Runs TAP agent for receipt management
+    - [x] Integration testing
 - [ ] File Download Client 
-  - [ ] Take private key/mneomic for wallet connections
+  - [x] Take private key/mneomic for wallet connections
   - [x] Request using ipfs_hash
-    - [ ] take budget for the overall bundle/file
-      - [ ] construct receipts using budget and chunk sizes
-      - [ ] add receipt to request
+    - [x] take budget for the overall bundle/file
+      - [x] construct receipts using budget and chunk sizes
+      - [x] add receipt to request
     - [x] add free_token to request
     - [ ] File discovery and matching (Gateway?)
       - [x] Read bundle manifest
       - [x] Ping indexer endpoints data availability
-      - [ ] Pricing and performances, run indexer selection
+      - [x] Select indexers based on pricing 
+      - [ ] Select indexers based on performances
       - [x] Parallel requests
       - [x] Use random endpoints
     - [x] Construct and send requests to indexer endpoints 
       - [x] Parallelize requests
-      - [ ] Multiple connections (HTTPS over HTTP2)
+      - [x] Multiple connections (HTTPS over HTTP2)
   - [x] Wait for the responses (For now, assume that the response chunks correspond with the verifiable chunks)
     - [x] Keeps track of the downloaded and missing pieces, 
     - [x] continually requesting missing pieces until the complete file is obtained

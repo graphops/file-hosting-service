@@ -1,3 +1,13 @@
+[server]
+initial_bundles = ["QmeaPp764FjQjPB66M9ijmQKmLhwBpHQhA7dEbH2FA1j3v:"]
+admin_auth_token = "lemme"
+admin_host_and_port = "0.0.0.0:5664"
+default_price_per_byte = 1
+ipfs_gateway = "https://ipfs.network.thegraph.com"
+log_format = "Pretty"
+[server.storage_method.LocalFiles]
+main_dir = "./../example-file"
+
 [common]
 [common.indexer]
 indexer_address = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
@@ -37,10 +47,3 @@ free_query_auth_token = "free-lunch-best-lunch"
 [common.scalar]
 chain_id = 421614
 receipts_verifier_address = "0xfC24cE7a4428A6B89B52645243662A02BA734ECF"
-
-[server]
-initial_bundles = ["QmHash00:./example-file/","QmHash01:BUNDLE_PATH"]
-admin_auth_token = "kueen"
-default_price_per_byte = 1
-ipfs_gateway = "https://ipfs.network.thegraph.com"
-log_format = "Pretty"
