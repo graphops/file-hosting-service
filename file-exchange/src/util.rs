@@ -3,7 +3,13 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer
 use ethers_core::k256::ecdsa::SigningKey;
 use ethers_core::types::H160;
 use hdwallet::{ChainPath, DefaultKeyChain, KeyChain};
-use std::{fmt, iter, str};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    fs::File,
+    io::{Read, Write},
+    iter, str,
+};
 
 use crate::errors::Error;
 
@@ -222,6 +228,40 @@ impl std::iter::Sum for UDecimal18 {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         Self(iter.map(|u| u.0).sum())
     }
+}
+
+// Takes a HashMap<String, Vec<u64>> and writes it to a specified file in JSON format.
+pub fn store_map_as_json(
+    map: &HashMap<String, HashSet<u64>>,
+    file_path: &str,
+) -> Result<(), Error> {
+    let serialized = serde_json::to_string(map).map_err(Error::JsonError)?;
+
+    let mut file = File::create(file_path).map_err(Error::FileIOError)?;
+
+    file.write_all(serialized.as_bytes())
+        .map_err(Error::FileIOError)?;
+
+    Ok(())
+}
+
+// Reads a JSON file and converts it into a HashMap<String, HashSet<u64>>.
+pub fn read_json_to_map(file_path: &str) -> Result<HashMap<String, HashSet<u64>>, Error> {
+    let mut file = File::open(file_path).map_err(Error::FileIOError)?;
+
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(Error::FileIOError)?;
+
+    let temp_map: HashMap<String, Vec<u64>> =
+        serde_json::from_str(&contents).map_err(Error::JsonError)?;
+
+    let map: HashMap<String, HashSet<u64>> = temp_map
+        .into_iter()
+        .map(|(key, vec)| (key, vec.into_iter().collect::<HashSet<u64>>()))
+        .collect();
+
+    Ok(map)
 }
 
 #[cfg(test)]

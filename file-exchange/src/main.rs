@@ -7,6 +7,7 @@ use file_exchange::{
     manifest::ipfs::IpfsClient,
     publisher::ManifestPublisher,
     transaction_manager::TransactionManager,
+    util::store_map_as_json,
 };
 
 #[tokio::main]
@@ -25,8 +26,25 @@ async fn main() {
                 config = tracing::field::debug(&config),
                 "Downloader request"
             );
+            let progress_cache = config.progress_cache.clone();
             // Create client
             let downloader = Downloader::new(client, config).await;
+
+            if let Some(cache) = progress_cache {
+                let chunks = downloader.target_chunks.clone();
+                ctrlc::set_handler(move || {
+                    tracing::info!("CTRL+C pressed. Store progress cache to json");
+
+                    let map = chunks.lock().unwrap();
+                    match store_map_as_json(&map, &cache) {
+                        Ok(_) => println!("Data successfully saved"),
+                        Err(e) => eprintln!("Failed to save progress: {}", e),
+                    }
+
+                    std::process::exit(0); // Exit the process
+                })
+                .expect("Error setting Ctrl-C handler");
+            }
 
             // Send range request
             match downloader.download_bundle().await {

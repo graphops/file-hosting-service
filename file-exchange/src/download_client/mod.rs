@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::ops::Sub;
 use std::path::Path;
 use std::str::FromStr;
@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use tokio::sync::Mutex;
 
+use crate::util::{read_json_to_map, store_map_as_json};
 use crate::{
     config::{DownloaderArgs, OnChainArgs, StorageMethod},
     discover::{Finder, ServiceEndpoint},
@@ -39,17 +40,12 @@ pub mod signer;
 pub struct Downloader {
     config: DownloaderArgs,
     http_client: reqwest::Client,
-    ipfs_hash: String,
     bundle: Bundle,
     _gateway_url: Option<String>,
-    static_endpoints: Vec<String>,
     indexer_urls: Arc<StdMutex<Vec<ServiceEndpoint>>>,
     indexer_blocklist: Arc<StdMutex<HashSet<String>>>,
     // key is the file manifest identifier (IPFS hash) and value is a HashSet of downloaded chunk indices
-    target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
-    chunk_max_retry: u64,
-    provider_concurrency: u64,
-    max_auto_deposit: f64,
+    pub target_chunks: Arc<StdMutex<HashMap<String, HashSet<u64>>>>,
     bundle_finder: Finder,
     payment: PaymentMethod,
     store: Store,
@@ -132,16 +128,11 @@ impl Downloader {
         Downloader {
             config: args.clone(),
             http_client: reqwest::Client::new(),
-            ipfs_hash: args.ipfs_hash,
             bundle,
             _gateway_url: args.gateway_url,
-            static_endpoints: args.indexer_endpoints,
             indexer_urls: Arc::new(StdMutex::new(Vec::new())),
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
             target_chunks,
-            chunk_max_retry: args.max_retry,
-            provider_concurrency: args.provider_concurrency,
-            max_auto_deposit: args.max_auto_deposit,
             bundle_finder: Finder::new(ipfs_client),
             payment,
             store,
@@ -201,7 +192,9 @@ impl Downloader {
                 incomplete_files.push(e);
                 incomplete_progresses.insert(
                     file_manifest.meta_info.hash.clone(),
-                    self.remaining_chunks(&file_manifest.meta_info.hash),
+                    self.remaining_chunks(&file_manifest.meta_info.hash)
+                        .into_iter()
+                        .collect(),
                 );
             }
         }
@@ -403,7 +396,8 @@ impl Downloader {
             return Err(Error::DataUnavailable(err_msg.to_string()));
         };
         //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
-        let query_endpoint = service.service_endpoint.clone() + "/files/id/" + &self.ipfs_hash;
+        let query_endpoint =
+            service.service_endpoint.clone() + "/files/id/" + &self.config.ipfs_hash;
         let file_hash = meta.meta_info.hash.clone();
         let start = i * meta.file_manifest.chunk_size;
         let end = u64::min(
@@ -420,7 +414,7 @@ impl Downloader {
             end,
             chunk_hash,
             file,
-            max_retry: self.chunk_max_retry,
+            max_retry: self.config.max_retry,
         })
     }
 
@@ -428,14 +422,15 @@ impl Downloader {
     async fn availbility_check(&self) -> Result<(), Error> {
         let blocklist = self.indexer_blocklist.lock().unwrap().clone();
         let endpoints = &self
-            .static_endpoints
+            .config
+            .indexer_endpoints
             .iter()
             .filter(|url| !blocklist.contains(*url))
             .cloned()
             .collect::<Vec<_>>();
         let all_available = &self
             .bundle_finder
-            .bundle_availabilities(&self.ipfs_hash, endpoints)
+            .bundle_availabilities(&self.config.ipfs_hash, endpoints)
             .await;
         let mut sorted_endpoints = all_available.to_vec();
         // Sort by price_per_byte in ascending order and select the top 'provider_concurrency' endpoints
@@ -448,20 +443,20 @@ impl Downloader {
         self.update_indexer_urls(
             &sorted_endpoints
                 .into_iter()
-                .take(self.provider_concurrency as usize)
+                .take(self.config.provider_concurrency as usize)
                 .collect::<Vec<ServiceEndpoint>>(),
         );
         let indexer_endpoints = self.indexer_urls.lock().unwrap().clone();
         if indexer_endpoints.is_empty() {
             tracing::warn!(
-                bundle_hash = &self.ipfs_hash,
+                bundle_hash = &self.config.ipfs_hash,
                 "No endpoint satisfy the bundle requested, sieve through available bundles for individual files"
             );
 
             // check files availability from gateway/indexer_endpoints
             match self
                 .bundle_finder
-                .file_discovery(&self.ipfs_hash, endpoints)
+                .file_discovery(&self.config.ipfs_hash, endpoints)
                 .await
             {
                 Ok(map) => {
@@ -505,7 +500,8 @@ impl Downloader {
 
             let endpoints = self.indexer_urls.lock().unwrap().clone();
             let multiplier = (total_bytes as f64)
-                / ((self.provider_concurrency).min(endpoints.len().try_into().unwrap()) as f64)
+                / ((self.config.provider_concurrency).min(endpoints.len().try_into().unwrap())
+                    as f64)
                 * fail_tolerance;
             let mut insufficient_balances = vec![];
             for endpoint in endpoints {
@@ -553,7 +549,7 @@ impl Downloader {
             let total_deficit = insufficient_balances.iter().map(|(_, v)| v).sum::<f64>();
             if (total_buying_power_in_bytes as u64) >= total_bytes {
                 tracing::info!("Balance is enough to purchase the file, go ahead to download");
-            } else if total_deficit <= self.max_auto_deposit {
+            } else if total_deficit <= self.config.max_auto_deposit {
                 tracing::info!("Downloader is allowed to automatically deposit sufficient balance for complete download, now depositing");
                 let escrow_allowance = f64::from_str(
                     &on_chain
@@ -633,35 +629,4 @@ async fn read_file_contents(file: &str) -> Result<Vec<u8>, Error> {
     file.read_to_end(&mut contents)
         .map_err(Error::FileIOError)?;
     Ok(contents)
-}
-
-// Takes a HashMap<String, Vec<u64>> and writes it to a specified file in JSON format.
-fn store_map_as_json(map: &HashMap<String, Vec<u64>>, file_path: &str) -> Result<(), Error> {
-    let serialized = serde_json::to_string(map).map_err(Error::JsonError)?;
-
-    let mut file = File::create(file_path).map_err(Error::FileIOError)?;
-
-    file.write_all(serialized.as_bytes())
-        .map_err(Error::FileIOError)?;
-
-    Ok(())
-}
-
-// Reads a JSON file and converts it into a HashMap<String, HashSet<u64>>.
-fn read_json_to_map(file_path: &str) -> Result<HashMap<String, HashSet<u64>>, Error> {
-    let mut file = File::open(file_path).map_err(Error::FileIOError)?;
-
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .map_err(Error::FileIOError)?;
-
-    let temp_map: HashMap<String, Vec<u64>> =
-        serde_json::from_str(&contents).map_err(Error::JsonError)?;
-
-    let map: HashMap<String, HashSet<u64>> = temp_map
-        .into_iter()
-        .map(|(key, vec)| (key, vec.into_iter().collect::<HashSet<u64>>()))
-        .collect();
-
-    Ok(map)
 }
