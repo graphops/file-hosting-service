@@ -29,6 +29,7 @@ bytes = "1.0"
 chrono = "0.4.31"
 clap = { version = "4.4", features = ["cargo", "unstable-doc"] }
 confy = "0.6"
+ctrlc = "3.4.4"
 derive-getters = "0.3.0"
 dotenv = "0.15"
 ethers = "2.0.11"
