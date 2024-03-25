@@ -118,8 +118,8 @@ impl Downloader {
 
         let store = Store::new(&args.storage_method).expect("Create store");
 
-        let target_chunks = if let Some(cache) = &args.progress_cache {
-            let map = read_json_to_map(cache).expect("Progress cache ill-formatted");
+        let target_chunks = if let Some(file_path) = &args.progress_file {
+            let map = read_json_to_map(&file_path).expect("Progress cache ill-formatted");
             Arc::new(StdMutex::new(map))
         } else {
             Arc::new(StdMutex::new(HashMap::new()))
@@ -154,9 +154,9 @@ impl Downloader {
 
     /// Read manifest to prepare chunks download
     pub fn init_target_chunks(&self, bundle: &Bundle) {
-        if let Some(cache) = &self.config.progress_cache {
+        if let Some(file_path) = &self.config.progress_file {
             let mut target_chunks = self.target_chunks.lock().unwrap();
-            *target_chunks = read_json_to_map(cache).expect("Progress cache ill-formatted");
+            *target_chunks = read_json_to_map(&file_path).expect("Progress cache ill-formatted");
         }
         for file_manifest_meta in &bundle.file_manifests {
             let mut target_chunks = self.target_chunks.lock().unwrap();
@@ -206,8 +206,8 @@ impl Downloader {
             );
             tracing::warn!(msg);
             // store progress into a json file: {hash: missing_chunk_indices}
-            if let Some(cache_loc) = &self.config.progress_cache {
-                store_map_as_json(&incomplete_progresses, cache_loc)?;
+            if let Some(file_path) = &self.config.progress_file {
+                store_map_as_json(&incomplete_progresses, &file_path)?;
             };
             return Err(Error::DataUnavailable(msg));
         } else {

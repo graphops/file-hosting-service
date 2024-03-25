@@ -26,11 +26,11 @@ async fn main() {
                 config = tracing::field::debug(&config),
                 "Downloader request"
             );
-            let progress_cache = config.progress_cache.clone();
+            let progress_file = config.progress_file.clone();
             // Create client
             let downloader = Downloader::new(client, config).await;
 
-            if let Some(cache) = progress_cache {
+            if let Some(cache) = progress_file {
                 let chunks = downloader.target_chunks.clone();
                 ctrlc::set_handler(move || {
                     tracing::info!("CTRL+C pressed. Store progress cache to json");

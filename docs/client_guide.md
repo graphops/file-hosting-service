@@ -53,7 +53,8 @@ $ file-exchange downloader \
    --network-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia \
    --escrow-subgraph https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia \
    --provider-concurrency 2 \
-   local-files --main-dir "../example-download"
+   --progress-file "../example-download" \
+   local-files --main-dir "../example-file"
 ```
 
 Download into remote object storage bucket with paid query flow
@@ -79,7 +80,7 @@ $ file-exchange downloader \
 ### Getting Started
 
 1. You can use the provided binaries, docker image, or download and install the source code.
-2. Gather configurations as described in the above Requirements section.
+2. Gather configurations as described in the above Requirements section. For detailed CLI instructions, run `file-exchange donwloader --help`.
 3. Use the CLI commands to download files.
 
 Before downloading, the client will check the status and price of the providers. If the download can be achived by availablility and price at the time of initiation, then download will proceed. 
