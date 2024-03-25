@@ -28,18 +28,6 @@ More details can be found in [Feature Checklist](docs/feature_checklist.md)
 
 The project will follow conventional semantic versioning specified [here](https://semver.org/). Server will expose an endpoint for package versioning to ensure correct versions are used during exchanges. 
 
-## Background Resources
-
-You may learn background information on various components of the exchange
-
-1. **Cryptography**: [SHA2-256 Generic guide](https://blog.boot.dev/cryptography/how-sha-2-works-step-by-step-sha-256/), [Hashed Data Structure slides](https://zoo.cs.yale.edu/classes/cs467/2020f/lectures/ln16.pdf)
-
-2. **Networking**: [HTTPS](https://crypto.stanford.edu/cs142/lectures/http.html) with [SSL/TLS](https://cs249i.stanford.edu/lectures/Secure%20Internet%20Protocols.pdf).
-
-3. **Specifications**: [IPFS](https://docs-ipfs-tech.ipns.dweb.link/) file storage, retrieval, and content addressing.
-
-4. **Blockchain**: [World of data services](https://forum.thegraph.com/t/gip-0042-a-world-of-data-services/3761), [flatfiles for Ethereum](https://github.com/streamingfast/firehose-ethereum), [use case](https://eips.ethereum.org/EIPS/eip-4444).
-
 ## Documentation
 
 #### [Architecture](docs/architecture.md)
@@ -57,6 +45,19 @@ You may learn background information on various components of the exchange
 #### [Publisher Guide](docs/publisher_guide.md)
 
 #### [On-Chain Guide](docs/onchain_guide.md)
+
+
+## Background Resources
+
+You may learn background information on various components of the exchange
+
+1. **Cryptography**: [SHA2-256 Generic guide](https://blog.boot.dev/cryptography/how-sha-2-works-step-by-step-sha-256/), [Hashed Data Structure slides](https://zoo.cs.yale.edu/classes/cs467/2020f/lectures/ln16.pdf)
+
+2. **Networking**: [HTTPS](https://crypto.stanford.edu/cs142/lectures/http.html) with [SSL/TLS](https://cs249i.stanford.edu/lectures/Secure%20Internet%20Protocols.pdf).
+
+3. **Specifications**: [IPFS](https://docs-ipfs-tech.ipns.dweb.link/) file storage, retrieval, and content addressing.
+
+4. **Blockchain**: [World of data services](https://forum.thegraph.com/t/gip-0042-a-world-of-data-services/3761), [flatfiles for Ethereum](https://github.com/streamingfast/firehose-ethereum), [use case](https://eips.ethereum.org/EIPS/eip-4444).
 
 ## Contributing
 
