@@ -287,6 +287,13 @@ pub struct DownloaderArgs {
         help = "Maximum GRT configured for automatic deposit (Used for GraphToken approval to Escrow contract and across Escrow accounts"
     )]
     pub max_auto_deposit: f64,
+    #[clap(
+        long,
+        value_name = "PROGRESS_CACHE",
+        env = "PROGRESS_CACHE",
+        help = "Json file to store progress if download fails; read the file to resume download if the file is nonempty"
+    )]
+    pub progress_cache: Option<String>,
 }
 
 /// Publisher takes the files, generate bundle manifest, and publish to IPFS

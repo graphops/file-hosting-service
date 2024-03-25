@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::ops::Sub;
 use std::path::Path;
 use std::str::FromStr;
@@ -37,6 +37,7 @@ pub mod range_request;
 pub mod signer;
 
 pub struct Downloader {
+    config: DownloaderArgs,
     http_client: reqwest::Client,
     ipfs_hash: String,
     bundle: Bundle,
@@ -79,7 +80,11 @@ impl Downloader {
             let signing_key = wallet.signer().to_bytes();
             let secp256k1_private_key =
                 SecretKey::from_slice(&signing_key).expect("Private key from wallet");
-            let provider_link = args.provider.expect("Provider required to connect");
+            let provider_link = args
+                .provider
+                .as_ref()
+                .expect("Provider required to connect")
+                .clone();
             let provider =
                 Provider::<Http>::try_from(&provider_link).expect("Connect to the provider");
             //TODO: migrate ethers type to alloy
@@ -95,15 +100,15 @@ impl Downloader {
                 mnemonic: mnemonic.to_string(),
                 provider: provider_link.clone(),
                 verifier: args.verifier.clone(),
-                network_subgraph: args.network_subgraph,
-                escrow_subgraph: args.escrow_subgraph,
+                network_subgraph: args.network_subgraph.clone(),
+                escrow_subgraph: args.escrow_subgraph.clone(),
             })
             .await
             .expect("Initialize transaction manager for paid queries");
             let receipt_signer = ReceiptSigner::new(
                 secp256k1_private_key,
                 chain_id,
-                Address::from_str(&args.verifier.expect("Provide verifier"))
+                Address::from_str(args.verifier.as_ref().expect("Provide verifier"))
                     .expect("Parse verifier"),
             )
             .await;
@@ -117,7 +122,15 @@ impl Downloader {
 
         let store = Store::new(&args.storage_method).expect("Create store");
 
+        let target_chunks = if let Some(cache) = &args.progress_cache {
+            let map = read_json_to_map(cache).expect("Progress cache ill-formatted");
+            Arc::new(StdMutex::new(map))
+        } else {
+            Arc::new(StdMutex::new(HashMap::new()))
+        };
+
         Downloader {
+            config: args.clone(),
             http_client: reqwest::Client::new(),
             ipfs_hash: args.ipfs_hash,
             bundle,
@@ -125,7 +138,7 @@ impl Downloader {
             static_endpoints: args.indexer_endpoints,
             indexer_urls: Arc::new(StdMutex::new(Vec::new())),
             indexer_blocklist: Arc::new(StdMutex::new(HashSet::new())),
-            target_chunks: Arc::new(StdMutex::new(HashMap::new())),
+            target_chunks,
             chunk_max_retry: args.max_retry,
             provider_concurrency: args.provider_concurrency,
             max_auto_deposit: args.max_auto_deposit,
@@ -149,7 +162,11 @@ impl Downloader {
     }
 
     /// Read manifest to prepare chunks download
-    pub fn target_chunks(&self, bundle: &Bundle) {
+    pub fn init_target_chunks(&self, bundle: &Bundle) {
+        if let Some(cache) = &self.config.progress_cache {
+            let mut target_chunks = self.target_chunks.lock().unwrap();
+            *target_chunks = read_json_to_map(cache).expect("Progress cache ill-formatted");
+        }
         for file_manifest_meta in &bundle.file_manifests {
             let mut target_chunks = self.target_chunks.lock().unwrap();
             let chunks_set = target_chunks
@@ -165,7 +182,7 @@ impl Downloader {
     /// Read bundle manifiest and download the individual file manifests
     //TODO: update once there is payment
     pub async fn download_bundle(&self) -> Result<(), Error> {
-        self.target_chunks(&self.bundle);
+        self.init_target_chunks(&self.bundle);
         tracing::trace!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
             "File manifests download starting"
@@ -178,19 +195,27 @@ impl Downloader {
 
         // Loop through file manifests for downloading
         let mut incomplete_files = vec![];
+        let mut incomplete_progresses = HashMap::new();
         for file_manifest in &self.bundle.file_manifests {
             if let Err(e) = self.download_file_manifest(file_manifest.clone()).await {
                 incomplete_files.push(e);
+                incomplete_progresses.insert(
+                    file_manifest.meta_info.hash.clone(),
+                    self.remaining_chunks(&file_manifest.meta_info.hash),
+                );
             }
         }
 
-        //TODO: retry for failed bundles
         if !incomplete_files.is_empty() {
             let msg = format!(
-                "File manifests download incomplete: {:#?}",
+                "File manifests download incomplete: {:#?}; Store progress for next attempt",
                 tracing::field::debug(&incomplete_files),
             );
             tracing::warn!(msg);
+            // store progress into a json file: {hash: missing_chunk_indices}
+            if let Some(cache_loc) = &self.config.progress_cache {
+                store_map_as_json(&incomplete_progresses, cache_loc)?;
+            };
             return Err(Error::DataUnavailable(msg));
         } else {
             tracing::info!("File manifests download completed");
@@ -305,8 +330,6 @@ impl Downloader {
                     .map_err(|e| Error::DataUnavailable(e.to_string()))?;
             }
         }
-
-        // write to object storage if configured
 
         tracing::info!(
             chunks = tracing::field::debug(self.target_chunks.clone()),
@@ -610,4 +633,35 @@ async fn read_file_contents(file: &str) -> Result<Vec<u8>, Error> {
     file.read_to_end(&mut contents)
         .map_err(Error::FileIOError)?;
     Ok(contents)
+}
+
+// Takes a HashMap<String, Vec<u64>> and writes it to a specified file in JSON format.
+fn store_map_as_json(map: &HashMap<String, Vec<u64>>, file_path: &str) -> Result<(), Error> {
+    let serialized = serde_json::to_string(map).map_err(Error::JsonError)?;
+
+    let mut file = File::create(file_path).map_err(Error::FileIOError)?;
+
+    file.write_all(serialized.as_bytes())
+        .map_err(Error::FileIOError)?;
+
+    Ok(())
+}
+
+// Reads a JSON file and converts it into a HashMap<String, HashSet<u64>>.
+fn read_json_to_map(file_path: &str) -> Result<HashMap<String, HashSet<u64>>, Error> {
+    let mut file = File::open(file_path).map_err(Error::FileIOError)?;
+
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(Error::FileIOError)?;
+
+    let temp_map: HashMap<String, Vec<u64>> =
+        serde_json::from_str(&contents).map_err(Error::JsonError)?;
+
+    let map: HashMap<String, HashSet<u64>> = temp_map
+        .into_iter()
+        .map(|(key, vec)| (key, vec.into_iter().collect::<HashSet<u64>>()))
+        .collect();
+
+    Ok(map)
 }
