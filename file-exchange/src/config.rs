@@ -293,7 +293,7 @@ pub struct DownloaderArgs {
         env = "PROGRESS_CACHE",
         help = "Json file to store progress if download fails; read the file to resume download if the file is nonempty"
     )]
-    pub progress_cache: Option<String>,
+    pub progress_file: Option<String>,
 }
 
 /// Publisher takes the files, generate bundle manifest, and publish to IPFS
