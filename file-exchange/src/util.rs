@@ -247,21 +247,27 @@ pub fn store_map_as_json(
 
 // Reads a JSON file and converts it into a HashMap<String, HashSet<u64>>.
 pub fn read_json_to_map(file_path: &str) -> Result<HashMap<String, HashSet<u64>>, Error> {
-    let mut file = File::open(file_path).map_err(Error::FileIOError)?;
+    match File::open(file_path) {
+        Ok(mut file) => {
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)
+                .map_err(Error::FileIOError)?;
 
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .map_err(Error::FileIOError)?;
+            let temp_map: HashMap<String, Vec<u64>> =
+                serde_json::from_str(&contents).map_err(Error::JsonError)?;
 
-    let temp_map: HashMap<String, Vec<u64>> =
-        serde_json::from_str(&contents).map_err(Error::JsonError)?;
+            let map: HashMap<String, HashSet<u64>> = temp_map
+                .into_iter()
+                .map(|(key, vec)| (key, vec.into_iter().collect::<HashSet<u64>>()))
+                .collect();
 
-    let map: HashMap<String, HashSet<u64>> = temp_map
-        .into_iter()
-        .map(|(key, vec)| (key, vec.into_iter().collect::<HashSet<u64>>()))
-        .collect();
-
-    Ok(map)
+            Ok(map)
+        }
+        Err(e) => {
+            tracing::info!("Failed to open file at '{}'. Error: {}.", file_path, e);
+            Ok(HashMap::new())
+        }
+    }
 }
 
 #[cfg(test)]
