@@ -51,6 +51,7 @@ mod tests {
             mnemonic: None,
             free_query_auth_token: Some("Bearer free-token".to_string()),
             provider: None,
+            provider_concurrency: 2,
             ..Default::default()
         };
 
