@@ -185,11 +185,14 @@ impl Downloader {
         self.escrow_check().await?;
 
         // Loop through file manifests for downloading
-        let mut incomplete_files = vec![];
         let mut incomplete_progresses = HashMap::new();
         for file_manifest in &self.bundle.file_manifests {
             if let Err(e) = self.download_file_manifest(file_manifest.clone()).await {
-                incomplete_files.push(e);
+                tracing::warn!(
+                    hash = &file_manifest.meta_info.hash,
+                    error = e.to_string(),
+                    "Failed to download file"
+                );
                 incomplete_progresses.insert(
                     file_manifest.meta_info.hash.clone(),
                     self.remaining_chunks(&file_manifest.meta_info.hash)
@@ -199,10 +202,10 @@ impl Downloader {
             }
         }
 
-        if !incomplete_files.is_empty() {
+        if !incomplete_progresses.is_empty() {
             let msg = format!(
                 "File manifests download incomplete: {:#?}; Store progress for next attempt",
-                tracing::field::debug(&incomplete_files),
+                tracing::field::debug(&incomplete_progresses),
             );
             tracing::warn!(msg);
             // store progress into a json file: {hash: missing_chunk_indices}
