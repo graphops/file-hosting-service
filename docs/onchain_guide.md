@@ -169,3 +169,21 @@ You can expect logs as follows
   INFO file_exchange: Transaction result, result: Ok((0xe37b9ee6d657ab5700e8a964a8fcc8b39cdefd73, Some(TransactionReceipt { transaction_hash: 0xd5c7c4d3dbd4aa8f845f87f8225aef91e927fe7cd5a1cd02085b0d30a59f4743, transaction_index: 1, block_hash: Some(0xcb46a88b2a37648a38165ca3740248b9a2a41e01f3b56f65f59b33f5cbf00fd0), block_number: Some(5738566), from: 0xe9a1cabd57700b17945fd81feefba82340d9568f, to: Some(0x865365c425f3a593ffe698d9c4e6707d14d51e08), cumulative_gas_used: 345329, gas_used: Some(345329), contract_address: None, logs: [...], status: Some(1), root: None, logs_bloom: ..., transaction_type: Some(2), effective_gas_price: Some(100000000), other: OtherFields { inner: {"gasUsedForL1": String("0x28a70"), "l1BlockNumber": String("0x4d09a3")} } })))
     at file-exchange/src/main.rs:88
 ```
+
+### Payments
+
+A generic digram with direct payments between provider and consumer 
+
+```mermaid
+
+graph LR
+    C[Client] -->|1. approve GRT spending| G[TheGraph Token contract] 
+    C -->|2. deposit Escrow accounts| E[Escrow Contract]
+    C -->|3. send receitps| I[Indexer/receiver]
+    I -.->|4. verify receipts| E
+    I -.->|5. aggregate voucher| E
+    I -->|6. redeem payment| E
+
+```
+
+Later, we can add a gateway for payment abstraction.
