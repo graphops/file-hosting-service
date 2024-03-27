@@ -13,10 +13,10 @@ pub struct GraphQlCostModel {
 }
 
 #[derive(Default)]
-pub struct Query;
+pub struct PriceQuery;
 
 #[Object]
-impl Query {
+impl PriceQuery {
     /// Provide an array of cost model to the queried deployment whether it is served or not
     async fn cost_models(
         &self,
@@ -70,10 +70,10 @@ impl Query {
     }
 }
 
-pub type CostSchema = Schema<Query, EmptyMutation, EmptySubscription>;
+pub type CostSchema = Schema<PriceQuery, EmptyMutation, EmptySubscription>;
 
 pub async fn build_schema() -> CostSchema {
-    Schema::build(Query, EmptyMutation, EmptySubscription).finish()
+    Schema::build(PriceQuery, EmptyMutation, EmptySubscription).finish()
 }
 
 pub async fn cost(State(context): State<ServerContext>, req: GraphQLRequest) -> GraphQLResponse {
