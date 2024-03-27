@@ -1,15 +1,18 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_graphql::{Context, EmptySubscription, Object, Schema};
+use async_graphql::{Context, EmptySubscription, MergedObject, Object, Schema};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{extract::State, routing::get, Router, Server};
 use http::HeaderMap;
 use tokio::sync::Mutex;
 
-use crate::file_server::status::{GraphQlBundle, StatusQuery};
-use crate::file_server::util::graphql_playground;
-use crate::file_server::{FileServiceError, ServerContext};
+use crate::file_server::{
+    cost::{GraphQlCostModel, PriceQuery},
+    status::{GraphQlBundle, StatusQuery},
+    util::graphql_playground,
+    FileServiceError, ServerContext,
+};
 use file_exchange::{
     errors::{Error, ServerError},
     manifest::{
@@ -21,6 +24,7 @@ use file_exchange::{
 pub struct AdminState {
     pub client: IpfsClient,
     pub bundles: Arc<Mutex<HashMap<String, LocalBundle>>>,
+    pub prices: Arc<Mutex<HashMap<String, f64>>>,
     pub admin_auth_token: Option<String>,
     pub admin_schema: AdminSchema,
 }
@@ -36,10 +40,21 @@ impl AdminContext {
     }
 }
 
-pub type AdminSchema = Schema<StatusQuery, StatusMutation, EmptySubscription>;
+#[derive(MergedObject, Default)]
+pub struct MergedQuery(StatusQuery, PriceQuery);
+
+#[derive(MergedObject, Default)]
+pub struct MergedMutation(StatusMutation, PriceMutation);
+
+pub type AdminSchema = Schema<MergedQuery, MergedMutation, EmptySubscription>;
 
 pub async fn build_schema() -> AdminSchema {
-    Schema::build(StatusQuery, StatusMutation, EmptySubscription).finish()
+    Schema::build(
+        MergedQuery(StatusQuery, PriceQuery),
+        MergedMutation(StatusMutation, PriceMutation),
+        EmptySubscription,
+    )
+    .finish()
 }
 
 fn get_token_from_headers(headers: &HeaderMap) -> Option<String> {
@@ -68,6 +83,7 @@ pub fn serve_admin(context: ServerContext) {
             AdminState {
                 client: context.state.client.clone(),
                 bundles: context.state.bundles.clone(),
+                prices: context.state.prices.clone(),
                 admin_auth_token: context.state.admin_auth_token.clone(),
                 admin_schema: build_schema().await,
             }
@@ -265,5 +281,164 @@ impl StatusMutation {
             futures::future::try_join_all(bundles).await;
 
         removed_bundles
+    }
+}
+
+#[derive(Default)]
+pub struct PriceMutation;
+
+#[Object]
+impl PriceMutation {
+    // Set price for a deployment
+    async fn set_price(
+        &self,
+        ctx: &Context<'_>,
+        deployment: String,
+        price_per_byte: f64,
+    ) -> Result<GraphQlCostModel, anyhow::Error> {
+        if ctx.data_opt::<String>()
+            != ctx
+                .data_unchecked::<AdminContext>()
+                .state
+                .admin_auth_token
+                .as_ref()
+        {
+            return Err(anyhow::anyhow!(format!(
+                "Failed to authenticate: {:#?} (admin: {:#?}",
+                ctx.data_opt::<String>(),
+                ctx.data_unchecked::<AdminContext>()
+                    .state
+                    .admin_auth_token
+                    .as_ref()
+            )));
+        }
+
+        ctx.data_unchecked::<AdminContext>()
+            .state
+            .prices
+            .lock()
+            .await
+            .insert(deployment.clone(), price_per_byte);
+
+        Ok(GraphQlCostModel {
+            deployment,
+            price_per_byte,
+        })
+    }
+
+    // Add multiple bundles
+    async fn set_prices(
+        &self,
+        ctx: &Context<'_>,
+        deployments: Vec<String>,
+        prices: Vec<f64>,
+    ) -> Result<Vec<GraphQlCostModel>, anyhow::Error> {
+        if ctx.data_opt::<String>()
+            != ctx
+                .data_unchecked::<AdminContext>()
+                .state
+                .admin_auth_token
+                .as_ref()
+        {
+            return Err(anyhow::anyhow!("Failed to authenticate"));
+        }
+        let price_ref = ctx.data_unchecked::<AdminContext>().state.prices.clone();
+        let prices = deployments
+            .iter()
+            .zip(prices)
+            .map(|(deployment, price)| {
+                let price_ref = price_ref.clone();
+
+                async move {
+                    price_ref
+                        .clone()
+                        .lock()
+                        .await
+                        .insert(deployment.clone(), price);
+
+                    Ok::<_, anyhow::Error>(GraphQlCostModel {
+                        deployment: deployment.to_string(),
+                        price_per_byte: price,
+                    })
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // Since collect() gathers futures, we need to resolve them. You can use `try_join_all` for this.
+        let resolved_prices: Result<Vec<GraphQlCostModel>, _> =
+            futures::future::try_join_all(prices).await;
+
+        Ok(resolved_prices.unwrap_or_default())
+    }
+
+    async fn remove_price(
+        &self,
+        ctx: &Context<'_>,
+        deployment: String,
+    ) -> Result<Option<GraphQlCostModel>, anyhow::Error> {
+        if ctx.data_opt::<String>()
+            != ctx
+                .data_unchecked::<AdminContext>()
+                .state
+                .admin_auth_token
+                .as_ref()
+        {
+            return Err(anyhow::anyhow!("Failed to authenticate"));
+        }
+
+        let bundle = ctx
+            .data_unchecked::<AdminContext>()
+            .state
+            .prices
+            .lock()
+            .await
+            .remove(&deployment)
+            .map(|price| GraphQlCostModel {
+                deployment,
+                price_per_byte: price,
+            });
+
+        Ok(bundle)
+    }
+
+    async fn remove_prices(
+        &self,
+        ctx: &Context<'_>,
+        deployments: Vec<String>,
+    ) -> Result<Vec<GraphQlCostModel>, anyhow::Error> {
+        if ctx.data_opt::<String>()
+            != ctx
+                .data_unchecked::<AdminContext>()
+                .state
+                .admin_auth_token
+                .as_ref()
+        {
+            return Err(anyhow::anyhow!("Failed to authenticate"));
+        }
+
+        let prices = deployments
+            .iter()
+            .map(|deployment| async move {
+                ctx.data_unchecked::<AdminContext>()
+                    .state
+                    .prices
+                    .lock()
+                    .await
+                    .remove(deployment)
+                    .map(|price| GraphQlCostModel {
+                        deployment: deployment.to_string(),
+                        price_per_byte: price,
+                    })
+                    .ok_or(anyhow::anyhow!(format!(
+                        "Deployment not found: {}",
+                        deployment
+                    )))
+            })
+            .collect::<Vec<_>>();
+
+        let removed_prices: Result<Vec<GraphQlCostModel>, _> =
+            futures::future::try_join_all(prices).await;
+
+        removed_prices
     }
 }

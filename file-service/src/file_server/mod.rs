@@ -36,7 +36,8 @@ pub struct ServerState {
     pub client: IpfsClient,
     pub operator_public_key: String,
     pub bundles: Arc<Mutex<HashMap<String, LocalBundle>>>, // Keyed by IPFS hash, valued by Bundle and Local path
-    pub admin_auth_token: Option<String>,                  // Add bearer prefix
+    pub prices: Arc<Mutex<HashMap<String, f64>>>, // Keyed by IPFS hash, valued by price per byte
+    pub admin_auth_token: Option<String>,         // Add bearer prefix
     pub config: Config,
     pub database: PgPool,
     pub cost_schema: crate::file_server::cost::CostSchema,
@@ -116,6 +117,7 @@ pub async fn initialize_server_context(config: Config) -> Result<ServerContext, 
         config: config.clone(),
         client: client.clone(),
         bundles: Arc::new(Mutex::new(HashMap::new())),
+        prices: Arc::new(Mutex::new(HashMap::new())),
         admin_auth_token,
         operator_public_key: public_key(&config.common.indexer.operator_mnemonic)
             .expect("Failed to initiate with operator wallet"),
