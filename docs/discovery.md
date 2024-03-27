@@ -38,26 +38,29 @@ In the diagram below, keep in mind that it is possible for IPFS files (schema fi
 
 ```mermaid
 graph LR
-    I[Indexer] -->|post schema| IPFS[IPFS Gateway]
-    I -->|post schema <br> manage availability| I 
-    C[Client] -.->|schema| IPFS
-    C -->|determine Bundle hash| C 
-    C -.->|schema| I
-    C -.->|availability| I
-    C -->|paid query| I
+    I[Indexer] -->|1. register| H[File service contract/subgraph] 
+    I -->|2. publish schema| IPFS[IPFS Gateway]
+    C[Client] -.->|3. get URLs| H
+    C -.->|4. query file status| I
+    C -.->|5. query schema| IPFS
+    C -.->|7. paid request| I
+    I -->|8. verify payment, respond| C
+    C -->|9. verify content| C
 ```
-With an explorer, we can imagine a future discovery user interface along the lines of 
+With an explorer/gateway, we can imagine a future discovery user interface along the lines of 
 
 ```mermaid
 graph LR
-    I[Indexer] -->|manage availability| I
-    I[Indexer] -->|post schema| IPFS[IPFS Gateway]
-    E[Explorer] -.->|availability| I
-    E -.->|query scehma| IPFS
-    C[Client] -.->|select Bundle| E
-    C -->|authorize| E
-    E -->|paid query| I
-    E -->|respond| C
+    I[Indexer] -->|1. register| H[File service contract/subgraph] 
+    I -->|2. publish schema| IPFS[IPFS Gateway]
+    E[Explorer] -.->|3. get URLs| H
+    E[Explorer] -.->|4. query file status| I
+    E -.->|5. query schema| IPFS
+    E -.->|6. human-readable view| E
+    C[Client] -.->|7. request service| E
+    E -->|8. paid request| I
+    I -->|9. verify payment, respond| E
+    E -->|10. verify content, respond| C
 ```  
 
 ## On-chain approach (alternative)
