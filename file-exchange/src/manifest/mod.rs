@@ -70,7 +70,6 @@ pub struct FileManifestMeta {
 }
 
 /* Bundle - packaging of file manifests mapped into local files */
-//TODO: Add GraphQL derivation
 #[derive(Clone, Debug, Serialize, Deserialize, SimpleObject)]
 pub struct Bundle {
     pub ipfs_hash: String,

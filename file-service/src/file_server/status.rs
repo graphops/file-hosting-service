@@ -38,7 +38,6 @@ impl From<BundleManifest> for GraphQlBundleManifest {
 #[derive(Clone, Debug, SimpleObject)]
 pub struct GraphQlBundle {
     pub ipfs_hash: String,
-    //TODO: make local path available for admin only
     pub manifest: GraphQlBundleManifest,
     pub file_manifests: Vec<GraphQlFileManifestMeta>,
 }

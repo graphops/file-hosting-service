@@ -171,7 +171,6 @@ impl Downloader {
     }
 
     /// Read bundle manifiest and download the individual file manifests
-    //TODO: update once there is payment
     pub async fn download_bundle(&self) -> Result<(), Error> {
         self.init_target_chunks(&self.bundle);
         tracing::trace!(
@@ -235,7 +234,6 @@ impl Downloader {
     }
 
     /// Download a file by reading its chunk manifest
-    //TODO: update once there is payment
     pub async fn download_file_manifest(&self, meta: FileManifestMeta) -> Result<(), Error> {
         tracing::debug!(
             file_spec = tracing::field::debug(&meta),
@@ -403,7 +401,7 @@ impl Downloader {
             tracing::warn!(err_msg);
             return Err(Error::DataUnavailable(err_msg.to_string()));
         };
-        //TODO: do no add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
+        //TODO: do not add ipfs_hash here, construct query_endpoint after updating route 'files/id/:id'
         let query_endpoint =
             service.service_endpoint.clone() + "/files/id/" + &self.config.ipfs_hash;
         let file_hash = meta.meta_info.hash.clone();

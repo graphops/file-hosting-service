@@ -17,9 +17,7 @@ use crate::manifest::{
 };
 use crate::util::{UDecimal18, GRT};
 
-// Pair indexer operator address and indexer service endpoint (operator, indexer_url)
 // persumeably this should not be handled by clients themselves
-//TODO: smarter type for tracking available endpoints
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServiceEndpoint {
     pub operator: String,
@@ -242,7 +240,6 @@ pub async fn unavailable_files(file_map: &FileAvailbilityMap) -> Vec<String> {
     missing_file
 }
 
-//TODO: directly access the field instead
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Operator {
     #[serde(alias = "publicKey")]

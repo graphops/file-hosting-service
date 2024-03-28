@@ -50,7 +50,6 @@ impl TransactionManager {
         tokens: U256,
         epoch: u64,
     ) -> Result<(H160, Option<TransactionReceipt>), Error> {
-        //TODO: Start with hardcoding, later add field indexer address to TX manager, tokens to fn params
         let existing_ids: Vec<H160> = vec![];
         let metadata: [u8; 32] = [0; 32];
 

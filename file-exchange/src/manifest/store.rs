@@ -245,7 +245,6 @@ impl Store {
         );
 
         // Read all files in bundle to verify locally. This may cause a long initialization time
-        //TODO: allow for concurrent validation of files
         for file_meta in &local.bundle.file_manifests {
             self.read_and_validate_file(file_meta, &local.local_path)
                 .await?;
@@ -274,37 +273,28 @@ impl Store {
         );
 
         // loop through file manifest byte range
-        //multipart read/ vectorized read
-        for i in 0..(file_manifest.total_bytes / file_manifest.chunk_size + 1) {
-            // read range
-            let start = i * file_manifest.chunk_size;
-            let end: usize =
-                (u64::min(start + file_manifest.chunk_size, file_manifest.total_bytes) - 1)
-                    .try_into()
-                    .unwrap();
-            tracing::trace!(
-                i,
-                start_byte = tracing::field::debug(&start),
-                end_byte = tracing::field::debug(&end),
-                "Verify chunk index"
-            );
-            let chunk_hash = file_manifest.chunk_hashes[i as usize].clone();
+        let chunk_ops: Vec<_> = (0..(file_manifest.total_bytes / file_manifest.chunk_size + 1))
+            .map(|i| {
+                let start = i * file_manifest.chunk_size;
+                let end = (u64::min(start + file_manifest.chunk_size, file_manifest.total_bytes)
+                    - 1) as usize;
+                let chunk_hash = file_manifest.chunk_hashes[i as usize].clone();
 
-            // read chunk
-            // let chunk_data = read_chunk(&file_path, (start, end))?;
-            let start: usize = start.try_into().unwrap();
-            // let length: usize = end - start + 1;
-            let range = std::ops::Range {
-                start,
-                end: end + 1,
-            };
-            let file_name = meta_info.name.clone();
+                let range = std::ops::Range {
+                    start: start as usize,
+                    end: end + 1,
+                };
+                (range, chunk_hash)
+            })
+            .collect();
+
+        let file_name = meta_info.name.clone();
+        for (range, chunk_hash) in chunk_ops {
             let chunk_data = self.range_read(&file_name, &range).await?;
             // verify chunk
             if !verify_chunk(&chunk_data, &chunk_hash) {
                 tracing::error!(
                     file = tracing::field::debug(&file_name),
-                    chunk_index = tracing::field::debug(&i),
                     chunk_hash = tracing::field::debug(&chunk_hash),
                     "Cannot locally verify the serving file"
                 );

@@ -5,7 +5,6 @@ use std::path::Path;
 
 use crate::errors::Error;
 
-// TODO: REFACTOR; read chunk can be further refactors, check for valid path, and use in serve_file_range
 // Read a chunk from the file at the file_path from specified start and end bytes
 pub fn read_chunk(file_path: &Path, (start, end): (u64, u64)) -> Result<Bytes, Error> {
     let mut file = File::open(file_path).map_err(Error::FileIOError)?;
