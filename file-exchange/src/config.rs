@@ -297,7 +297,6 @@ pub struct DownloaderArgs {
 }
 
 /// Publisher takes the files, generate bundle manifest, and publish to IPFS
-//TODO: a single command to publish a range of files
 #[derive(Clone, Debug, Args, Serialize, Deserialize, Default)]
 #[group(required = false, multiple = true)]
 pub struct PublisherArgs {
@@ -335,8 +334,6 @@ pub struct PublisherArgs {
         value_name = "FILE_TYPE",
         value_enum,
         env = "FILE_TYPE",
-        //TODO: use enum
-        // value_parser = clap::value_parser!(FileType::from_str),
         help = "Type of the file (e.g., sql_snapshot, flatfiles)"
     )]
     pub file_type: String,
@@ -345,8 +342,6 @@ pub struct PublisherArgs {
         long,
         value_name = "FILE_VERSION",
         env = "FILE_VERSION",
-        //TODO: use enum
-        // value_parser = clap::value_parser!(FileType::from_str),
         help = "Bundle versioning"
     )]
     pub bundle_version: String,
@@ -527,18 +522,6 @@ pub enum FileType {
     SqlSnapshot,
     Flatfiles,
 }
-
-// impl FromStr for FileType {
-//     type Err = &'static str;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s {
-//             "sql_snapshot" => Ok(FileType::SqlSnapshot),
-//             "flatfiles" => Ok(FileType::Flatfiles),
-//             _ => Err("Invalid file type"),
-//         }
-//     }
-// }
 
 /// Sets up tracing, allows log level to be set from the environment variables
 pub fn init_tracing(format: &str) -> Result<(), SetGlobalDefaultError> {

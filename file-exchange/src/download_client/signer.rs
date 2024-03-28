@@ -32,7 +32,6 @@ impl Access for TapReceipt {
     }
 }
 
-//TODO: would be different with TAPv1/2: add record_receipt, update_allocations, get_receipts
 impl ReceiptSigner {
     pub async fn new(signer: SecretKey, chain_id: U256, verifier: Address) -> Self {
         Self {

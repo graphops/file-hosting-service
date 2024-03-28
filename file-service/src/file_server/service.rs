@@ -54,7 +54,6 @@ pub async fn file_service(
             match req.get("content-range") {
                 Some(r) => {
                     let range = parse_range_header(r)?;
-                    //TODO: validate receipt
                     serve_file_range(
                         context.state.store.clone(),
                         &file_manifest.meta_info.name,

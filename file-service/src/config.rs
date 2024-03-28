@@ -80,7 +80,6 @@ pub struct ServerArgs {
         default_value = "pretty"
     )]
     pub log_format: LogFormat,
-    //TODO: More complex price management
     #[arg(
         long,
         value_name = "default-price-per-byte",

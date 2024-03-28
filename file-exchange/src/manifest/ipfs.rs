@@ -119,8 +119,6 @@ pub fn create_ipfs_client(uri: &str) -> IpfsClient {
 
     tracing::info!(ipfs_address, "Connect to IPFS node");
 
-    //TODO: Test IPFS client
-
     match IpfsClient::new(&ipfs_address) {
         Ok(ipfs_client) => ipfs_client,
         Err(e) => {
@@ -139,14 +137,9 @@ mod tests {
     use tokio_retry::strategy::{jitter, ExponentialBackoff};
     use tokio_retry::Retry;
 
-    // fn test_client() -> IpfsClient {
-    //     IpfsClient::new("https://ipfs.network.thegraph.com")
-    // }
-
     #[tokio::test]
     async fn fetch_random_subgraph_yaml() {
         let ipfs_hash = "Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX";
-        // https://ipfs.network.thegraph.com/api/v0/cat?arg=Qmc1mmagMJqopw2zb1iUTPRMhahMvEAKpQGS3KvuL9cpaX
         let client = create_ipfs_client("https://ipfs.network.thegraph.com");
 
         let retry_strategy = ExponentialBackoff::from_millis(10)
